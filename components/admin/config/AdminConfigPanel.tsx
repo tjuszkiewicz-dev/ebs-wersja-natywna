@@ -49,7 +49,8 @@ export const AdminConfigPanel: React.FC<AdminConfigPanelProps> = ({
   const [pdfScaling, setPdfScaling] = useState(systemConfig?.pdfAutoScaling ?? true);
   
   // -- AI CONFIG --
-  const [aiKey, setAiKey] = useState(localStorage.getItem('ebs_ai_key_v1') || '');
+  // Klucz Gemini jest teraz server-side w zmiennej środowiskowej GEMINI_API_KEY
+  const [aiKey, setAiKey] = useState('••••••••••••••••••••••••••••••••••••••••');
 
   // Manual Emission
   const [emissionAmount, setEmissionAmount] = useState(100);
@@ -75,9 +76,7 @@ export const AdminConfigPanel: React.FC<AdminConfigPanelProps> = ({
         pdfAutoScaling: pdfScaling
     });
     
-    // Save AI Key to LocalStorage
-    localStorage.setItem('ebs_ai_key_v1', aiKey);
-    actions.addToast("System Zaktualizowany", "Ustawienia globalne i klucze AI zostały zapisane.", "SUCCESS");
+    actions.addToast("System Zaktualizowany", "Ustawienia globalne zostały zapisane.", "SUCCESS");
   };
 
   const handleManualEmissionSubmit = (e: React.FormEvent) => {

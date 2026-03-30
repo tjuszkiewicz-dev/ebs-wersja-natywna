@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Brain, ArrowRight, ChevronLeft, Send, Coins, Mic, MicOff, Volume2, VolumeX, Lock, Crown } from 'lucide-react';
-import { GoogleGenerativeAI as GoogleGenAI } from "@google/generative-ai";
 
 interface AICoachViewProps {
     currentUser: any;
@@ -132,29 +131,21 @@ export const AICoachView = ({ currentUser, balance, sendMessage, setViewMode, th
         setIsTyping(true);
 
         try {
-            const apiKey = localStorage.getItem('ebs_ai_key_v1') || '';
-            if (!apiKey) {
-                setMessages(prev => [...prev, { role: 'model', text: 'Błąd: Brak klucza API Google Gemini. Skonfiguruj go w ustawieniach (LocalStorage: ebs_ai_key_v1).' }]);
-                return;
-            }
+            const systemInstruction = (checkInDone
+                ? `KONTEKST UŻYTKOWNIKA: Nastrój: ${mood}/5, Stres: ${stress}/5, Energia: ${energy}/5. Główny problem: "${dailyBurden}". `
+                : 'KONTEKST: Użytkownik nie zrobił jeszcze check-inu. ')
+                + 'Jesteś empatycznym terapeutą CBT. Odpowiadaj krótko, ciepło i po ludzku. Unikaj list punktowanych, używaj języka naturalnego, idealnego do syntezy mowy.';
 
-            const ai = new GoogleGenAI(apiKey);
-            const model = ai.getGenerativeModel({ 
-                model: "gemini-1.5-flash",
-                systemInstruction: (checkInDone 
-                    ? `KONTEKST UŻYTKOWNIKA: Nastrój: ${mood}/5, Stres: ${stress}/5, Energia: ${energy}/5. Główny problem: "${dailyBurden}". `
-                    : `KONTEKST: Użytkownik nie zrobił jeszcze check-inu. `) + " Jesteś empatycznym terapeutą CBT. Odpowiadaj krótko, ciepło i po ludzku. Unikaj list punktowanych, używaj języka naturalnego, idealnego do syntezy mowy."
+            const history = [...messages, { role: 'user' as const, text: textToSend }];
+
+            const res = await fetch('/api/ai-chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: history, systemInstruction }),
             });
-
-            const chat = model.startChat({
-                history: messages.map(m => ({ 
-                    role: m.role === 'user' ? 'user' : 'model', 
-                    parts: [{ text: m.text }] 
-                }))
-            });
-
-            const result = await chat.sendMessage(textToSend);
-            const response = result.response.text();
+            if (!res.ok) throw new Error('AI error');
+            const data = await res.json();
+            const response: string = data.text;
 
             setMessages(prev => [...prev, { role: 'model', text: response }]);
             

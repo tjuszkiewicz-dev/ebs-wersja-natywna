@@ -1,20 +1,26 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import html2pdf from 'html2pdf.js';
-import { 
-    LegalCase, 
-    ChatMessage, 
-    DocumentTemplate, 
+import {
+    LegalCase,
+    ChatMessage,
+    DocumentTemplate,
     ViewMode,
     DUMMY_CASES
 } from './types';
 
-// Inicjalizacja Gemini - helper do pobierania klucza
-const getGeminiModel = () => {
-    const key = localStorage.getItem('ebs_ai_key_v1') || (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
-    if (!key) return null;
-    const genAI = new GoogleGenerativeAI(key);
-    return genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const callAiChat = async (
+    messages: { role: 'user' | 'model'; text: string }[],
+    systemInstruction?: string,
+    fileData?: { base64: string; mimeType: string }
+): Promise<string> => {
+    const res = await fetch('/api/ai-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages, systemInstruction, fileData }),
+    });
+    if (!res.ok) throw new Error('AI service error');
+    const data = await res.json();
+    return data.text as string;
 };
 
 export const useLegalAssistant = (currentUser: any, onSpend: (amount: number, description: string) => Promise<boolean>) => {
@@ -88,27 +94,16 @@ export const useLegalAssistant = (currentUser: any, onSpend: (amount: number, de
         setIsThinking(true);
 
         try {
-            const model = getGeminiModel();
-            if (!model) {
-                const errorMsg: ChatMessage = {
-                    id: (Date.now() + 1).toString(),
-                    role: 'assistant',
-                    content: "Błąd: Brak klucza API Google Gemini. Skonfiguruj go w ustawieniach (LocalStorage: ebs_ai_key_v1).",
-                    timestamp: new Date().toISOString()
-                };
-                setSelectedCase(c => c ? { ...c, messages: [...(c.messages || []), errorMsg] } : null);
-                return;
-            }
+            const history = (updatedCase.messages || []).map(m => ({
+                role: m.role === 'user' ? 'user' as const : 'model' as const,
+                text: m.content,
+            }));
+            history.push({ role: 'user', text: aiInput });
 
-            const chat = model.startChat({
-                history: (updatedCase.messages || []).map(m => ({
-                    role: m.role === 'user' ? 'user' : 'model',
-                    parts: [{ text: m.content }]
-                })),
-            });
-
-            const result = await chat.sendMessage(aiInput);
-            const responseText = result.response.text();
+            const responseText = await callAiChat(
+                history,
+                'Jesteś profesjonalnym ekspertem prawnym. Odpowiadaj rzeczowo, po polsku, w Markdown.'
+            );
 
             const assistantMsg: ChatMessage = {
                 id: (Date.now() + 1).toString(),
@@ -165,25 +160,13 @@ export const useLegalAssistant = (currentUser: any, onSpend: (amount: number, de
             const dataUrl = await fileDataPromise;
             const base64Data = dataUrl.split(',')[1];
 
-            const model = getGeminiModel();
-            if (!model) {
-                setAnalysisResult("Błąd: Brak klucza API Google Gemini. Skonfiguruj go w ustawieniach (LocalStorage: ebs_ai_key_v1).");
-                return;
-            }
+            const text = await callAiChat(
+                [{ role: 'user', text: 'Dokonaj szczegółowej analizy tego dokumentu. Wyodrębnij kluczowe terminy, daty, strony umowy oraz potencjalne ryzyka. Zidentyfikuj najważniejsze punkty dla właściciela. Odpowiedz po polsku w Markdown.' }],
+                'Jesteś profesjonalnym ekspertem prawnym.',
+                { base64: base64Data, mimeType: uploadedFile.type }
+            );
 
-            const result = await model.generateContent([
-                "Działaj jako profesjonalny ekspert prawny. Dokonaj szczegółowej analizy tego dokumentu. " +
-                "Wyodrębnij kluczowe terminy, daty, strony umowy oraz potencjalne ryzyka. " +
-                "Zidentyfikuj najważniejsze punkty dla właściciela. Odpowiedz po polsku w Markdown.",
-                {
-                    inlineData: {
-                        data: base64Data,
-                        mimeType: uploadedFile.type
-                    }
-                }
-            ]);
-
-            setAnalysisResult(result.response.text());
+            setAnalysisResult(text);
         } catch (error) {
             console.error('Błąd analizy:', error);
         } finally {
@@ -227,14 +210,11 @@ export const useLegalAssistant = (currentUser: any, onSpend: (amount: number, de
             const prompt = `Zostań wykwalifikowanym prawnikiem. Wygeneruj profesjonalne pismo prawne ("${selectedTemplate.name}") na podstawie tych danych: ${JSON.stringify(formValues)}. 
             Pismo ma być gotowe do użycia, w języku urzędowym/prawniczym, zawierać miejsca na datę i podpisy. Zwróć tylko czysty tekst dokumentu (Markdown).`;
 
-            const model = getGeminiModel();
-            if (!model) {
-                setGeneratedDoc("Błąd: Brak klucza API Google Gemini. Skonfiguruj go w ustawieniach (LocalStorage: ebs_ai_key_v1).");
-                return;
-            }
-
-            const result = await model.generateContent(prompt);
-            setGeneratedDoc(result.response.text());
+            const docText = await callAiChat(
+                [{ role: 'user', text: prompt }],
+                'Jesteś wykwalifikowanym prawnikiem. Generujesz profesjonalne pisma prawne gotowe do użycia.'
+            );
+            setGeneratedDoc(docText);
         } catch (error) {
             console.error(error);
         } finally {
