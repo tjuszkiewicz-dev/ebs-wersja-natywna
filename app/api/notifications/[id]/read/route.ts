@@ -13,7 +13,7 @@ export async function PATCH(
     const supabase = supabaseServer();
     const { error } = await supabase
         .from('notifications')
-        .update({ is_read: true })
+        .update({ read: true })
         .eq('id', params.id)
         .eq('user_id', user.id); // RLS: tylko swoje
 

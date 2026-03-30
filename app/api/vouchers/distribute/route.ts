@@ -9,7 +9,6 @@ import { supabaseServer } from '@/lib/supabase';
 const DistributeSchema = z.object({
   employeeId: z.string().uuid(),
   amount:     z.number().int().positive().max(50_000),
-  companyId:  z.string().uuid().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -25,8 +24,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { employeeId, amount, companyId } = parsed.data;
+  const { employeeId, amount } = parsed.data;
   const supabase = supabaseServer();
+
+  // Pobierz company_id z profilu HR server-side (migracja 004)
+  const { data: hrProfileData } = await supabase
+    .from('user_profiles')
+    .select('full_name, company_id')
+    .eq('id', auth.id)
+    .single();
+  const companyId = hrProfileData?.company_id ?? null;
 
   // Sprawdź saldo HR
   const { data: account } = await supabase
@@ -54,11 +61,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: transferError.message }, { status: 500 });
   }
 
-  // Pobierz dane pracownika i HR do protokołu
-  const [{ data: employeeProfile }, hrProfile] = await Promise.all([
-    supabase.from('user_profiles').select('full_name').eq('id', employeeId).single(),
-    supabase.from('user_profiles').select('full_name').eq('id', auth.id).single(),
-  ]);
+  // Pobierz dane pracownika do protokołu (dane HR mamy już z hrProfileData)
+  const { data: employeeProfile } = await supabase
+    .from('user_profiles').select('full_name').eq('id', employeeId).single();
 
   // Utwórz protokół dystrybucji
   const batchId = `PROTOCOL-S-${new Date().toISOString().slice(0, 10)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -66,7 +71,7 @@ export async function POST(req: NextRequest) {
     id:           batchId,
     company_id:   companyId ?? null,
     hr_user_id:   auth.id,
-    hr_name:      hrProfile.data?.full_name ?? auth.email,
+    hr_name:      hrProfileData?.full_name ?? auth.email,
     total_amount: amount,
     status:       'completed',
   });

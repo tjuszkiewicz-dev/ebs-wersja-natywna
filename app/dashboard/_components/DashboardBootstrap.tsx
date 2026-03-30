@@ -33,10 +33,10 @@ function SupabaseSync({ children }: Props) {
         return;
       }
 
-      // Pobierz profil z user_profiles
+      // Pobierz profil z user_profiles (company_id dodane w migracji 004)
       const { data: profile } = await supabaseBrowser
         .from('user_profiles')
-        .select('id, role, full_name, department, position, hire_date, contract_type, phone_number, iban')
+        .select('id, role, full_name, company_id, department, position, hire_date, contract_type, phone_number, iban')
         .eq('id', authUser.id)
         .single();
 
@@ -45,22 +45,10 @@ function SupabaseSync({ children }: Props) {
         return;
       }
 
-      // Znajdź companyId — dla pracodawcy szukamy w voucher_orders
-      let companyId: string | undefined;
-      if (profile.role === 'pracodawca') {
-        const { data: orders } = await supabaseBrowser
-          .from('voucher_orders')
-          .select('company_id')
-          .eq('hr_user_id', authUser.id)
-          .limit(1)
-          .single();
-        companyId = orders?.company_id;
-      }
-
       const appUser = supabaseProfileToUser(
         profile,
         authUser.email ?? '',
-        companyId
+        profile.company_id ?? undefined
       );
 
       // Wstrzyknij użytkownika do StrattonContext (upsert)

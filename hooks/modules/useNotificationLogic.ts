@@ -1,12 +1,11 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Notification, NotificationAction, NotificationConfig } from '../../types';
-import { INITIAL_NOTIFICATION_CONFIGS } from '../../services/mockData';
 import { ToastMessage, ToastType } from '../../components/Toast';
 
 export const useNotificationLogic = (currentUserRole: string, currentUserId: string) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notificationConfigs, setNotificationConfigs] = useState<NotificationConfig[]>(INITIAL_NOTIFICATION_CONFIGS);
+  const [notificationConfigs, setNotificationConfigs] = useState<NotificationConfig[]>([]);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // --- Pobierz powiadomienia z API przy starcie ---
@@ -31,6 +30,25 @@ export const useNotificationLogic = (currentUserRole: string, currentUserId: str
       })
       .catch(() => {});
   }, [currentUserId]);
+
+  // --- Pobierz konfiguracje powiadomień z API (superadmin/pracodawca) ---
+  useEffect(() => {
+    if (!currentUserId) return;
+    if (!['SUPERADMIN', 'HR'].includes(currentUserRole)) return;
+    fetch('/api/notification-configs')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        const mapped: NotificationConfig[] = data.map(c => ({
+          id:              c.id,
+          target:          c.target,
+          trigger:         c.trigger,
+          messageTemplate: '',   // brak kolumny w DB — UI może nadpisać lokalnie
+          isEnabled:       c.enabled ?? true,
+        }));
+        setNotificationConfigs(mapped);
+      })
+      .catch(() => {});
+  }, [currentUserId, currentUserRole]);
 
   // --- Toasts (zawsze lokalne — UI feedback) ---
   const addToast = useCallback((title: string, message: string, type: ToastType) => {

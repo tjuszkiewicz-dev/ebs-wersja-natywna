@@ -33,6 +33,7 @@ export interface Database {
           role:               DbRole;
           full_name:          string | null;
           company_name:       string | null;
+          company_id:         string | null;
           pesel:              string | null;
           phone_number:       string | null;
           iban:               string | null;
@@ -55,6 +56,7 @@ export interface Database {
           role:                DbRole;
           full_name?:          string | null;
           company_name?:       string | null;
+          company_id?:         string | null;
           pesel?:              string | null;
           phone_number?:       string | null;
           iban?:               string | null;
@@ -77,6 +79,7 @@ export interface Database {
           role?:               DbRole;
           full_name?:          string | null;
           company_name?:       string | null;
+          company_id?:         string | null;
           pesel?:              string | null;
           phone_number?:       string | null;
           iban?:               string | null;
@@ -485,18 +488,18 @@ export interface Database {
       };
 
       notifications: {
+        // Schemat z 002_notifications.sql — user_id TEXT (nie UUID), kolumna `read` (nie is_read)
         Row: {
           id:                 string;
-          user_id:            string;
+          user_id:            string;   // TEXT: auth.uid()::text LUB 'ALL_ADMINS'
           message:            string;
           type:               'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR';
+          read:               boolean;
           priority:           'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW' | null;
-          is_read:            boolean;
-          action_type:        string | null;
-          action_target_id:   string | null;
-          action_label:       string | null;
+          action:             Record<string, unknown> | null;  // JSONB
           target_entity_id:   string | null;
           target_entity_type: string | null;
+          date:               string;
           created_at:         string;
         };
         Insert: {
@@ -504,13 +507,12 @@ export interface Database {
           user_id:             string;
           message:             string;
           type:                'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR';
+          read?:               boolean;
           priority?:           'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW' | null;
-          is_read?:            boolean;
-          action_type?:        string | null;
-          action_target_id?:   string | null;
-          action_label?:       string | null;
+          action?:             Record<string, unknown> | null;
           target_entity_id?:   string | null;
           target_entity_type?: string | null;
+          date?:               string;
           created_at?:         string;
         };
         Update: {
@@ -518,13 +520,12 @@ export interface Database {
           user_id?:            string;
           message?:            string;
           type?:               'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR';
+          read?:               boolean;
           priority?:           'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW' | null;
-          is_read?:            boolean;
-          action_type?:        string | null;
-          action_target_id?:   string | null;
-          action_label?:       string | null;
+          action?:             Record<string, unknown> | null;
           target_entity_id?:   string | null;
           target_entity_type?: string | null;
+          date?:               string;
           created_at?:         string;
         };
         Relationships: [];

@@ -11,7 +11,6 @@ const BulkDistributeSchema = z.object({
     employeeId: z.string().uuid(),
     amount:     z.number().int().positive().max(50_000),
   })).min(1).max(500),
-  companyId: z.string().uuid().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -27,9 +26,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { items, companyId } = parsed.data;
+  const { items } = parsed.data;
   const totalNeeded = items.reduce((acc, i) => acc + i.amount, 0);
   const supabase = supabaseServer();
+
+  // Pobierz company_id i dane HR z profilu server-side (migracja 004)
+  const { data: hrProfileData } = await supabase
+    .from('user_profiles')
+    .select('full_name, company_id')
+    .eq('id', auth.id)
+    .single();
+  const companyId = hrProfileData?.company_id ?? null;
 
   // Sprawdź saldo
   const { data: account } = await supabase
@@ -43,12 +50,6 @@ export async function POST(req: NextRequest) {
       error: `Niewystarczające saldo. Masz ${account?.balance ?? 0} pkt, potrzebujesz ${totalNeeded}.`,
     }, { status: 400 });
   }
-
-  const hrProfile = await supabase
-    .from('user_profiles')
-    .select('full_name')
-    .eq('id', auth.id)
-    .single();
   const batchId = `PROTOCOL-${new Date().toISOString().slice(0, 10)}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
   const batchItems: { batch_id: string; user_id: string; user_name: string; amount: number }[] = [];
   const errors: string[] = [];
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
       id:           batchId,
       company_id:   companyId,
       hr_user_id:   auth.id,
-      hr_name:      hrProfile.data?.full_name ?? auth.email ?? 'HR',
+      hr_name:      hrProfileData?.full_name ?? auth.email ?? 'HR',
       total_amount: distributedTotal,
       status:       'completed',
     });
