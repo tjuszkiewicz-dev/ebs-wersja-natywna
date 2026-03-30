@@ -275,10 +275,16 @@ CREATE TABLE IF NOT EXISTS buyback_agreements (
   created_at        TIMESTAMPTZ   DEFAULT now()
 );
 
--- Teraz możemy dodać FK z vouchers do buyback_agreements
-ALTER TABLE vouchers
-  ADD CONSTRAINT fk_vouchers_buyback
-  FOREIGN KEY (buyback_agreement_id) REFERENCES buyback_agreements(id) ON DELETE SET NULL;
+-- Teraz możemy dodać FK z vouchers do buyback_agreements (idempotentne)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_vouchers_buyback'
+  ) THEN
+    ALTER TABLE vouchers
+      ADD CONSTRAINT fk_vouchers_buyback
+      FOREIGN KEY (buyback_agreement_id) REFERENCES buyback_agreements(id) ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- ---------------------------------------------------------------------------
 -- 1.11 support_tickets — helpdesk

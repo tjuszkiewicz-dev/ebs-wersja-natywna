@@ -16,6 +16,7 @@ COMMENT ON COLUMN user_profiles.company_id IS
 -- Stara: pracodawca widzi zamówienia przez dopasowanie company_name (kruche)
 -- Nowa:  pracodawca widzi zamówienia swojej firmy przez company_id (FK)
 DROP POLICY IF EXISTS "Zamówienia firmy — HR" ON voucher_orders;
+DROP POLICY IF EXISTS "Zamówienia firmy — pracodawca" ON voucher_orders;
 CREATE POLICY "Zamówienia firmy — pracodawca"
   ON voucher_orders FOR SELECT
   USING (
