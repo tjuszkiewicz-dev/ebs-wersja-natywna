@@ -1,9 +1,7 @@
 
-import { useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { User, Role, ContractType, ImportRow, ImportHistoryEntry, UserFinance, Company } from '../../types';
-import { INITIAL_USERS } from '../../services/mockData';
-import { generateSecurePassword } from '../../services/payrollService';
-import { usePersistedState } from '../usePersistedState';
+import { supabaseProfileToUser } from '../../lib/supabaseToUser';
 import { LogEventFn, NotifyUserFn, AddToastFn } from '../../types/callbacks';
 
 export const useUserLogic = (
@@ -13,290 +11,221 @@ export const useUserLogic = (
     addToast: AddToastFn,
     currentUser: User
 ) => {
-  // Persistent State
-  const [users, setUsers] = usePersistedState<User[]>('ebs_users_v1', INITIAL_USERS);
-  const [importHistory, setImportHistory] = usePersistedState<ImportHistoryEntry[]>('ebs_import_history_v1', []);
+  const [users, setUsers] = useState<User[]>([]);
+  const [importHistory, setImportHistory] = useState<ImportHistoryEntry[]>([]);
 
-  const handleUpdateEmployee = useCallback((userId: string, data: Partial<User>) => {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
-      logEvent('USER_UPDATE', `Zaktualizowano dane pracownika ${userId}.`, userId, 'USER');
-      addToast("Zapisano", "Dane pracownika zostały zaktualizowane.", "SUCCESS");
-  }, [logEvent, addToast, setUsers]);
-
-  const handleDeactivateEmployee = useCallback((employeeId: string) => {
-    setUsers(prev => {
-        const userToDeactivate = prev.find(u => u.id === employeeId);
-        if (!userToDeactivate) return prev;
-        
-        return prev.map(u => u.id === employeeId ? { ...u, status: 'INACTIVE' } : u);
-    });
-    
-    // We log vaguely or need to find user from current `users` dependency
-    const user = users.find(u => u.id === employeeId);
-    if(user) {
-        logEvent('USER_DEACTIVATED', `Dezaktywowano pracownika ${user.name} (${user.id}). Blokada dystrybucji.`, employeeId, 'USER');
-        addToast(
-            "Pracownik Dezaktywowany",
-            `Konto ${user.name} zostało oznaczone jako nieaktywne. Dystrybucja środków zablokowana. Historia zachowana.`,
-            "INFO"
+  // --- Pobierz użytkowników z API przy starcie ---
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    fetch('/api/users')
+      .then(r => r.ok ? r.json() : [])
+      .then((profiles: any[]) => {
+        const mapped: User[] = profiles.map(p =>
+          supabaseProfileToUser(p, p.email ?? '', p.company_id ?? '')
         );
+        setUsers(mapped);
+      })
+      .catch(() => {});
+  }, [currentUser?.id]);
+
+  // --- Operacje na użytkownikach ---
+
+  const handleUpdateEmployee = useCallback(async (userId: string, data: Partial<User>) => {
+    // Optimistic
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } : u));
+
+    const res = await fetch(`/api/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name:     data.name,
+        department:    data.department,
+        position:      data.position,
+        phone_number:  data.identity?.phoneNumber,
+        contract_type: data.contract?.type,
+      }),
+    });
+
+    if (!res.ok) {
+      addToast('Błąd', 'Nie udało się zaktualizować danych.', 'ERROR');
+      return;
     }
-  }, [users, logEvent, addToast, setUsers]);
 
-  const handleAnonymizeUser = useCallback((userId: string) => {
-      setUsers(prev => prev.map(u => {
-          if (u.id !== userId) return u;
-          
-          return {
-              ...u,
-              status: 'ANONYMIZED',
-              name: 'Użytkownik Zanonimizowany',
-              email: `deleted_${u.id.slice(-6)}@anon.ebs`,
-              pesel: '***********',
-              department: '---',
-              position: '---',
-              identity: { firstName: 'Anonim', lastName: 'Anonim', pesel: '***********', email: `deleted_${u.id.slice(-6)}@anon.ebs` },
-              finance: undefined, // Clear banking data
-              anonymizedAt: new Date().toISOString()
-          };
-      }));
+    logEvent('USER_UPDATE', `Zaktualizowano dane pracownika ${userId}.`, userId, 'USER');
+    addToast('Zapisano', 'Dane pracownika zostały zaktualizowane.', 'SUCCESS');
+  }, [logEvent, addToast]);
 
-      logEvent('USER_ANONYMIZED', `Trwale usunięto dane osobowe użytkownika ${userId} (RODO: Prawo do zapomnienia).`, userId, 'USER');
-      addToast("Użytkownik Zanonimizowany", "Dane osobowe zostały nadpisane. Historia transakcji pozostała (retencja księgowa).", "WARNING");
-  }, [logEvent, addToast, setUsers]);
+  const handleDeactivateEmployee = useCallback(async (employeeId: string) => {
+    const user = users.find(u => u.id === employeeId);
+    // Optimistic
+    setUsers(prev => prev.map(u => u.id === employeeId ? { ...u, status: 'INACTIVE' } : u));
+
+    const res = await fetch(`/api/users/${employeeId}/deactivate`, { method: 'PATCH' });
+
+    if (!res.ok) {
+      setUsers(prev => prev.map(u => u.id === employeeId ? { ...u, status: 'ACTIVE' } : u));
+      addToast('Błąd', 'Nie udało się dezaktywować konta.', 'ERROR');
+      return;
+    }
+
+    if (user) {
+      logEvent('USER_DEACTIVATED', `Dezaktywowano pracownika ${user.name} (${user.id}).`, employeeId, 'USER');
+      addToast('Pracownik Dezaktywowany', `Konto ${user.name} oznaczone jako nieaktywne.`, 'INFO');
+    }
+  }, [users, logEvent, addToast]);
+
+  const handleAnonymizeUser = useCallback(async (userId: string) => {
+    const res = await fetch(`/api/users/${userId}/anonymize`, { method: 'POST' });
+
+    if (!res.ok) {
+      addToast('Błąd', 'Nie udało się zanonimizować użytkownika.', 'ERROR');
+      return;
+    }
+
+    setUsers(prev => prev.map(u => u.id !== userId ? u : {
+      ...u,
+      status: 'ANONYMIZED',
+      name: 'Użytkownik Zanonimizowany',
+      email: `deleted_${u.id.slice(-6)}@anon.ebs`,
+      pesel: '***',
+      department: undefined,
+      position: undefined,
+      finance: undefined,
+    }));
+
+    logEvent('USER_ANONYMIZED', `Zanonimizowano dane użytkownika ${userId} (RODO).`, userId, 'USER');
+    addToast('Użytkownik Zanonimizowany', 'Dane osobowe nadpisane. Historia transakcji zachowana.', 'WARNING');
+  }, [logEvent, addToast]);
 
   const handleBulkImport = useCallback(async (validRows: ImportRow[]) => {
-     // FIX: Retrieve the FULL user object from state to ensure companyId is present
-     // The 'currentUser' argument passed to this hook might only contain the ID during initialization.
-     const actualUser = users.find(u => u.id === currentUser.id);
+    const companyId = currentUser?.companyId;
+    if (!companyId) {
+      addToast('Błąd Importu', 'Brak kontekstu firmy. Zaloguj się ponownie jako HR.', 'ERROR');
+      return null;
+    }
 
-     if (!actualUser || !actualUser.companyId) {
-         console.error("Context Error: User not found or missing companyId", actualUser);
-         addToast("Błąd Importu", "Brak kontekstu firmy. Zaloguj się ponownie jako HR.", "ERROR");
-         return null;
-     }
-     
-     const companyId = actualUser.companyId;
-     const hrName = actualUser.name;
-     const dateNow = new Date().toISOString();
-     
-     const newUsers: User[] = [];
-     const reportUsers: any[] = []; 
+    const res = await fetch('/api/users/bulk-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ validRows, companyId }),
+    });
 
-     validRows.forEach((row, idx) => {
-         const tempPassword = generateSecurePassword();
-         const userId = `EMP-B-${Date.now()}-${idx}`;
+    if (!res.ok) {
+      addToast('Błąd importu', 'Nie udało się zaimportować pracowników.', 'ERROR');
+      return null;
+    }
 
-         // Extract Extended Data
-         const phoneNumber = row.phoneNumber || '';
-         const iban = row.iban ? row.iban.replace(/\s+/g, '').toUpperCase() : '';
-         
-         // Normalize Contract Type
-         let cType = ContractType.UOP;
-         if (row.contractType) {
-             const rawType = String(row.contractType).toUpperCase();
-             if (rawType.includes('UZ') || rawType.includes('ZLECENIE')) {
-                 cType = ContractType.UZ;
-             }
-         }
+    const result = await res.json();
+    const { imported, errors, reportId } = result;
 
-         newUsers.push({
-             id: userId,
-             role: Role.EMPLOYEE,
-             companyId: companyId,
-             name: `${row.name} ${row.surname}`,
-             email: row.email,
-             pesel: row.pesel,
-             department: row.department,
-             position: row.position,
-             voucherBalance: 0,
-             status: 'ACTIVE',
-             termsAccepted: true, // Auto-accept for manual entry
-             termsAcceptedAt: dateNow,
-             termsAcceptedMethod: 'BULK_IMPORT',
-             
-             // Populate EPS Layers
-             identity: {
-                firstName: row.name,
-                lastName: row.surname,
-                email: row.email,
-                pesel: row.pesel,
-                phoneNumber: phoneNumber
-             },
-             organization: {
-                department: row.department,
-                position: row.position,
-                hireDate: dateNow
-             },
-             contract: {
-                type: cType,
-                hasSicknessInsurance: cType === ContractType.UOP // Default assumption
-             },
-             finance: {
-                 payoutAccount: {
-                     iban: iban,
-                     country: 'PL',
-                     isVerified: !!iban, // Auto-verify if entered by HR
-                     verificationMethod: 'MANUAL',
-                     lastVerifiedAt: iban ? dateNow : undefined
-                 }
-             }
-         });
+    // Odśwież listę użytkowników
+    fetch('/api/users')
+      .then(r => r.ok ? r.json() : [])
+      .then((profiles: any[]) => {
+        const mapped: User[] = profiles.map(p =>
+          supabaseProfileToUser(p, p.email ?? '', p.company_id ?? '')
+        );
+        setUsers(mapped);
+      })
+      .catch(() => {});
 
-         reportUsers.push({
-             id: userId,
-             name: `${row.name} ${row.surname}`,
-             email: row.email,
-             tempPassword: tempPassword,
-             department: row.department
-         });
-     });
+    const historyEntry: ImportHistoryEntry = {
+      id: reportId,
+      companyId,
+      date: new Date().toISOString(),
+      hrName: currentUser.name,
+      totalProcessed: imported,
+      status: errors.length === 0 ? 'SUCCESS' : 'PARTIAL',
+      reportData: { reportId, importedCount: imported, errors },
+    };
+    setImportHistory(prev => [historyEntry, ...prev]);
 
-     // UPDATE STATE
-     setUsers(prev => [...prev, ...newUsers]);
+    logEvent('BULK_IMPORT', `Zaimportowano ${imported} pracowników.`, reportId, 'IMPORT');
+    addToast('Sukces', `Dodano ${imported} pracowników.`, 'SUCCESS');
 
-     const reportId = `REP-${Date.now()}`;
-     const reportData = {
-        reportId: reportId,
-        date: dateNow,
-        hrName: hrName,
-        importedCount: newUsers.length,
-        users: reportUsers
-     };
+    return { reportData: historyEntry.reportData, company: companies.find(c => c.id === companyId), user: currentUser };
+  }, [companies, currentUser, logEvent, addToast]);
 
-     const historyEntry: ImportHistoryEntry = {
-         id: reportId,
-         companyId: companyId,
-         date: dateNow,
-         hrName: hrName,
-         totalProcessed: newUsers.length,
-         status: 'SUCCESS',
-         reportData: reportData
-     };
+  const handleUpdateUserFinance = useCallback(async (userId: string, financeData: UserFinance) => {
+    const iban = (financeData as any)?.payoutAccount?.iban;
+    const res = await fetch(`/api/users/${userId}/finance`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ iban, iban_verified: true }),
+    });
 
-     setImportHistory(prev => [historyEntry, ...prev]);
+    if (!res.ok) { addToast('Błąd', 'Nie udało się zaktualizować danych finansowych.', 'ERROR'); return; }
 
-     const logMsg = `Zaimportowano ${newUsers.length} pracowników. Dane (Telefon, IBAN) zaktualizowane.`;
-     logEvent('BULK_IMPORT', logMsg, reportId, 'IMPORT');
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, finance: { ...u.finance, ...financeData } } : u));
+    addToast('Dane Finansowe', 'Konto bankowe zostało zaktualizowane.', 'SUCCESS');
+  }, [addToast]);
 
-     addToast(
-         "Sukces", 
-         `Dodano ${newUsers.length} pracowników do listy. Możesz ich teraz zobaczyć w tabeli.`, 
-         "SUCCESS"
-     );
+  const handleRequestIbanChange = useCallback(async (userId: string, newIban: string, reason: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
 
-     return {
-         reportData,
-         company: companies.find(c => c.id === companyId),
-         user: actualUser
-     };
-  }, [companies, currentUser, users, logEvent, addToast, setUsers, setImportHistory]); // Added 'users' dependency
+    const res = await fetch(`/api/users/${userId}/iban-change-request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newIban, reason }),
+    });
 
-  const handleUpdateUserFinance = useCallback((userId: string, financeData: UserFinance) => {
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, finance: { ...u.finance, ...financeData } } : u));
-      addToast("Dane Finansowe", "Konto bankowe zostało zaktualizowane (Tryb Admina).", "SUCCESS");
-  }, [addToast, setUsers]);
+    if (!res.ok) {
+      const err = await res.json();
+      addToast('Błąd', err.error ?? 'Nie udało się złożyć wniosku.', 'ERROR');
+      return;
+    }
 
-  const handleRequestIbanChange = useCallback((userId: string, newIban: string, reason: string) => {
-      const user = users.find(u => u.id === userId);
-      if(!user) return;
+    logEvent('IBAN_CHANGE_REQUEST', `Użytkownik ${user.name} wnioskuje o zmianę IBAN.`, userId, 'USER');
+    notifyUser('ALL_ADMINS', `Wniosek o zmianę konta bankowego: ${user.name}. Powód: "${reason}"`, 'WARNING', {
+      type: 'REVIEW_IBAN', targetId: userId, label: 'Weryfikuj Wniosek', variant: 'primary'
+    }, userId, 'USER');
+    addToast('Wniosek Wysłany', 'Zmiana konta wymaga weryfikacji Administratora.', 'INFO');
+  }, [users, logEvent, notifyUser, addToast]);
 
-      const requestEntry = {
-          newIban,
-          reason,
-          requestedAt: new Date().toISOString(),
-          status: 'PENDING'
-      };
+  const handleResolveIbanChange = useCallback(async (userId: string, approved: boolean, rejectionReason?: string) => {
+    const res = await fetch(`/api/users/${userId}/iban-change-request/resolve`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ approved, rejectionReason }),
+    });
 
-      setUsers(prev => prev.map(u => 
-          u.id === userId 
-          ? { 
-              ...u, 
-              finance: { 
-                  ...u.finance, 
-                  payoutAccount: u.finance?.payoutAccount || { iban: '', country: 'PL', isVerified: false },
-                  pendingChange: requestEntry as any 
-                } 
-            } 
-          : u
-      ));
+    if (!res.ok) { addToast('Błąd', 'Nie udało się przetworzyć wniosku.', 'ERROR'); return; }
 
-      logEvent('IBAN_CHANGE_REQUEST', `Użytkownik ${user.name} wnioskuje o zmianę IBAN. Powód: ${reason}`, userId, 'USER');
-      
-      notifyUser('ALL_ADMINS', `Wniosek o zmianę konta bankowego: ${user.name}. Powód: "${reason}"`, 'WARNING', {
-          type: 'REVIEW_IBAN',
-          targetId: userId,
-          label: 'Weryfikuj Wniosek',
-          variant: 'primary'
-      }, userId, 'USER');
+    const result = await res.json();
+    const user = users.find(u => u.id === userId);
 
-      addToast("Wniosek Wysłany", "Zmiana numeru konta wymaga weryfikacji Administratora. Otrzymasz powiadomienie po zatwierdzeniu.", "INFO");
-  }, [users, logEvent, notifyUser, addToast, setUsers]);
-
-  const handleResolveIbanChange = useCallback((userId: string, approved: boolean, rejectionReason?: string) => {
-      setUsers(prev => prev.map(u => {
-          if (u.id !== userId || !u.finance?.pendingChange) return u;
-
-          const changeRequest = u.finance.pendingChange;
-          
-          if (approved) {
-              return {
-                  ...u,
-                  finance: {
-                      ...u.finance,
-                      payoutAccount: {
-                          ...u.finance.payoutAccount,
-                          iban: changeRequest.newIban,
-                          isVerified: true,
-                          lastVerifiedAt: new Date().toISOString(),
-                          verificationMethod: 'MANUAL'
-                      },
-                      pendingChange: undefined 
-                  }
-              };
-          } else {
-              return {
-                  ...u,
-                  finance: {
-                      ...u.finance,
-                      pendingChange: {
-                          ...changeRequest,
-                          status: 'REJECTED',
-                          rejectionReason: rejectionReason || 'Odrzucono przez Administratora'
-                      }
-                  }
-              };
-          }
+    if (approved && result.newIban) {
+      setUsers(prev => prev.map(u => u.id !== userId ? u : {
+        ...u,
+        finance: { ...u.finance, payoutAccount: { iban: result.newIban, country: 'PL', isVerified: true } }
       }));
+    }
 
-      const user = users.find(u => u.id === userId);
-      const action = approved ? 'IBAN_CHANGE_APPROVED' : 'IBAN_CHANGE_REJECTED';
-      logEvent(action, `Decyzja admina dla ${user?.name}. ${approved ? 'Zatwierdzono nowy IBAN' : 'Odrzucono zmianę'}.`, userId, 'USER');
+    logEvent(approved ? 'IBAN_CHANGE_APPROVED' : 'IBAN_CHANGE_REJECTED',
+      `Decyzja dla ${user?.name}. ${approved ? 'Zatwierdzono' : 'Odrzucono'}.`, userId, 'USER');
 
-      const message = approved 
-        ? "Twój nowy numer konta został zatwierdzony przez Administratora."
-        : `Odrzucono zmianę konta. Powód: ${rejectionReason || 'Brak uzasadnienia'}.`;
-      
-      notifyUser(userId, message, approved ? 'SUCCESS' : 'ERROR');
-      
-      addToast(
-          approved ? "Zatwierdzono" : "Odrzucono",
-          approved ? "Dane pracownika zostały zaktualizowane." : "Wniosek został odrzucony.",
-          approved ? "SUCCESS" : "ERROR"
-      );
-  }, [users, logEvent, notifyUser, addToast, setUsers]);
+    notifyUser(userId,
+      approved ? 'Twój nowy numer konta został zatwierdzony.' : `Odrzucono zmianę. Powód: ${rejectionReason ?? 'Brak'}`,
+      approved ? 'SUCCESS' : 'ERROR'
+    );
+
+    addToast(approved ? 'Zatwierdzono' : 'Odrzucono',
+      approved ? 'Dane pracownika zaktualizowane.' : 'Wniosek odrzucony.',
+      approved ? 'SUCCESS' : 'ERROR');
+  }, [users, logEvent, notifyUser, addToast]);
 
   return {
-      users,
-      setUsers,
-      importHistory,
-      setImportHistory,
-      handleUpdateEmployee,
-      handleDeactivateEmployee,
-      handleBulkImport,
-      handleUpdateUserFinance,
-      handleRequestIbanChange,
-      handleResolveIbanChange,
-      handleAnonymizeUser // EXPORT NEW FUNCTION
+    users,
+    setUsers,
+    importHistory,
+    setImportHistory,
+    handleUpdateEmployee,
+    handleDeactivateEmployee,
+    handleBulkImport,
+    handleUpdateUserFinance,
+    handleRequestIbanChange,
+    handleResolveIbanChange,
+    handleAnonymizeUser,
   };
 };
