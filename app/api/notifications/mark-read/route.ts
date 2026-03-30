@@ -12,8 +12,8 @@ export async function PATCH() {
 
     let query = supabase
         .from('notifications')
-        .update({ read: true })
-        .eq('read', false);
+        .update({ is_read: true })
+        .eq('is_read', false);
 
     if (isAdmin) {
         query = query.or(`user_id.eq.${user.id},user_id.eq.ALL_ADMINS`);

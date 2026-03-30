@@ -1,422 +1,282 @@
 
-import React, { useCallback } from 'react';
-import { Order, OrderStatus, Company, User, Voucher, VoucherStatus, Role, Commission, CommissionType, PayrollEntry, PayrollSnapshot, DistributionBatch, SystemConfig } from '../../types';
-import { INITIAL_ORDERS, INITIAL_COMPANIES, INITIAL_COMMISSIONS } from '../../services/mockData';
-import { createSnapshot, generateUUID } from '../../services/payrollService';
-import { calculateOrderTotals, FINANCIAL_CONSTANTS } from '../../utils/financialMath';
-import { usePersistedState } from '../usePersistedState';
+import { useState, useCallback, useEffect } from 'react';
+import { Order, OrderStatus, Company, User, Commission, CommissionType, Role, PayrollEntry, PayrollSnapshot, DistributionBatch, SystemConfig } from '../../types';
 import { LogEventFn, NotifyUserFn, AddToastFn } from '../../types/callbacks';
-import { COMMISSION_RATES } from '../../utils/config';
 
-const getQuarter = (date: Date): string => {
-  const month = date.getMonth() + 1;
-  const year = date.getFullYear();
-  const quarter = Math.ceil(month / 3);
-  return `${year}-Q${quarter}`;
-};
+// Mapowanie statusu DB → OrderStatus enum
+function dbStatusToOrderStatus(s: string): OrderStatus {
+  const map: Record<string, OrderStatus> = {
+    pending:   OrderStatus.PENDING,
+    approved:  OrderStatus.APPROVED,
+    paid:      OrderStatus.PAID,
+    rejected:  OrderStatus.REJECTED,
+    cancelled: OrderStatus.REJECTED,
+  };
+  return map[s] ?? OrderStatus.PENDING;
+}
 
-// --- MOCK CRM DATA SOURCE ---
-const MOCK_CRM_PAYLOAD = [
-    { 
-        crm_id: 'CRM-1001', 
-        name: 'Omega Logistics Sp. z o.o.', 
-        nip: '7770001122', 
-        status: 'SIGNED', 
-        address_street: 'Magazynowa 4', 
-        address_city: 'Poznań', 
-        address_zip: '60-001',
-        manager_email: 'adam.d@eliton-benefits.com' 
-    },
-    { 
-        crm_id: 'CRM-1002', 
-        name: 'Pixel Art Studio', 
-        nip: '8880003344', 
-        status: 'NEGOTIATION', 
-        address_street: 'Designerska 8', 
-        address_city: 'Wrocław', 
-        address_zip: '50-001'
-    },
-    { 
-        crm_id: 'CRM-1003', 
-        name: 'Green Energy S.A.', 
-        nip: '9990005566', 
-        status: 'SIGNED', 
-        address_street: 'Słoneczna 15', 
-        address_city: 'Gdańsk', 
-        address_zip: '80-001',
-        manager_email: 'marek.m@eliton-benefits.com' 
-    }
-];
+// Mapowanie rekordu z DB → frontend Order
+function dbOrderToOrder(o: any): Order {
+  return {
+    id:              o.id,
+    companyId:       o.company_id,
+    amount:          o.amount_vouchers,
+    voucherValue:    Number(o.amount_pln),
+    feeValue:        Number(o.fee_pln),
+    totalValue:      Number(o.total_pln),
+    docVoucherId:    o.doc_voucher_id ?? '',
+    docFeeId:        o.doc_fee_id ?? '',
+    date:            o.created_at,
+    status:          dbStatusToOrderStatus(o.status),
+    isFirstInvoice:  o.is_first_invoice ?? false,
+    distributionPlan: o.distribution_plan ?? undefined,
+    snapshots:        o.payroll_snapshots ?? undefined,
+  };
+}
+
+// Mapowanie rekordu z DB → frontend Company
+function dbCompanyToCompany(c: any): Company {
+  return {
+    id:                       c.id,
+    name:                     c.name,
+    nip:                      c.nip,
+    balanceActive:            c.balance_active ?? 0,
+    balancePending:           c.balance_pending ?? 0,
+    advisorId:                c.advisor_id   ?? undefined,
+    managerId:                c.manager_id   ?? undefined,
+    directorId:               c.director_id  ?? undefined,
+    address: (c.address_street || c.address_city) ? {
+      street:  c.address_street ?? undefined,
+      city:    c.address_city   ?? undefined,
+      zipCode: c.address_zip    ?? undefined,
+    } : undefined,
+    customPaymentTermsDays:   c.custom_payment_terms_days   ?? undefined,
+    customVoucherValidityDays: c.custom_voucher_validity_days ?? undefined,
+    origin:          c.origin           ?? 'NATIVE',
+    externalCrmId:   c.external_crm_id  ?? undefined,
+    isSyncManaged:   c.is_sync_managed  ?? false,
+  };
+}
 
 export const useOrderLogic = (
     users: User[],
     setUsers: React.Dispatch<React.SetStateAction<User[]>>,
-    vouchers: Voucher[],
-    setVouchers: React.Dispatch<React.SetStateAction<Voucher[]>>,
-    setDistributionBatches: React.Dispatch<React.SetStateAction<DistributionBatch[]>>,
-    systemConfig: SystemConfig,
+    _vouchers: any,
+    _setVouchers: any,
+    _setDistributionBatches: React.Dispatch<React.SetStateAction<DistributionBatch[]>>,
+    _systemConfig: SystemConfig,
     logEvent: LogEventFn,
     notifyUser: NotifyUserFn,
     addToast: AddToastFn,
     currentUser: User
 ) => {
-  // Persistent State
-  const [orders, setOrders] = usePersistedState<Order[]>('ebs_orders_v1', INITIAL_ORDERS);
-  const [companies, setCompanies] = usePersistedState<Company[]>('ebs_companies_v1', INITIAL_COMPANIES);
+  const [orders,     setOrders]     = useState<Order[]>([]);
+  const [companies,  setCompanies]  = useState<Company[]>([]);
+  const [commissions, setCommissions] = useState<Commission[]>([]);
 
-  // Clear old commission keys to force fresh state with new rates
-  if (typeof window !== 'undefined') {
-    ['ebs_commissions_v1', 'ebs_commissions_v2'].forEach(k => window.localStorage.removeItem(k));
-  }
-  const [commissions, setCommissions] = usePersistedState<Commission[]>('ebs_commissions_v3', INITIAL_COMMISSIONS);
+  // ── Pobierz dane przy starcie ────────────────────────────────────────────────
 
-  // --- CRM SYNC LOGIC ---
-  const handleCrmSync = useCallback(async () => {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+  useEffect(() => {
+    fetch('/api/companies')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => setCompanies(rows.map(dbCompanyToCompany)))
+      .catch(() => {});
+  }, []);
 
-      let importedCount = 0;
-      let skippedCount = 0;
-      const newCompanies: Company[] = [];
+  useEffect(() => {
+    if (!currentUser?.companyId) return;
+    fetch(`/api/orders?companyId=${currentUser.companyId}`)
+      .then(r => r.ok ? r.json() : { data: [] })
+      .then(({ data }: { data: any[] }) => setOrders((data ?? []).map(dbOrderToOrder)))
+      .catch(() => {});
+  }, [currentUser?.companyId]);
 
-      MOCK_CRM_PAYLOAD.forEach(crmCompany => {
-          if (crmCompany.status !== 'SIGNED') {
-              skippedCount++;
-              return;
-          }
-          if (companies.some(c => c.nip === crmCompany.nip)) {
-              return;
-          }
+  // Superadmin: pobierz wszystkie zamówienia ze wszystkich firm
+  useEffect(() => {
+    if (currentUser?.role !== Role.SUPERADMIN) return;
+    // Pobieramy zamówienia dla każdej firmy
+    // (w przyszłości zastąpić endpointem /api/orders?all=true)
+  }, [currentUser?.role]);
 
-          const matchedAgent = users.find(u => u.email === crmCompany.manager_email);
-          let advisorId = undefined;
-          let managerId = undefined;
+  // ── Zarządzanie firmami ──────────────────────────────────────────────────────
 
-          if (matchedAgent) {
-              if (matchedAgent.role === Role.ADVISOR) advisorId = matchedAgent.id;
-              if (matchedAgent.role === Role.MANAGER) managerId = matchedAgent.id;
-          }
+  const handleAddCompany = useCallback(async (newCompanyData: Partial<Company>) => {
+    const res = await fetch('/api/companies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name:                     newCompanyData.name,
+        nip:                      newCompanyData.nip,
+        advisorId:                newCompanyData.advisorId,
+        managerId:                newCompanyData.managerId,
+        directorId:               newCompanyData.directorId,
+        customPaymentTermsDays:   newCompanyData.customPaymentTermsDays,
+        customVoucherValidityDays: newCompanyData.customVoucherValidityDays,
+        address_street:           newCompanyData.address?.street,
+        address_city:             newCompanyData.address?.city,
+        address_zip:              newCompanyData.address?.zipCode,
+      }),
+    });
 
-          const newCompany: Company = {
-              id: `FIRMA-${generateUUID().slice(0,8).toUpperCase()}`,
-              externalCrmId: crmCompany.crm_id,
-              origin: 'CRM_SYNC',
-              isSyncManaged: true,
-              name: crmCompany.name,
-              nip: crmCompany.nip,
-              balanceActive: 0,
-              balancePending: 0,
-              advisorId,
-              managerId,
-              address: {
-                  street: crmCompany.address_street,
-                  city: crmCompany.address_city,
-                  zipCode: crmCompany.address_zip
-              }
-          };
-
-          newCompanies.push(newCompany);
-          importedCount++;
-      });
-
-      if (importedCount > 0) {
-          setCompanies(prev => [...prev, ...newCompanies]);
-          logEvent('CRM_SYNC_SUCCESS', `Pobrano ${importedCount} nowych firm ze statusu SIGNED. Pominięto: ${skippedCount}.`, 'CRM', 'SYSTEM');
-          addToast("Synchronizacja CRM", `Pomyślnie zaimportowano ${importedCount} firm. Dane handlowe zaktualizowane.`, "SUCCESS");
-      } else {
-          addToast("Synchronizacja CRM", "Brak nowych firm o statusie SIGNED w systemie źródłowym.", "INFO");
-      }
-
-  }, [companies, users, setCompanies, logEvent, addToast]);
-
-  const handleAddCompany = useCallback((newCompanyData: Partial<Company>) => {
-      const newId = `FIRMA-${generateUUID().slice(0,8).toUpperCase()}`;
-      const newCompany: Company = {
-          id: newId,
-          name: newCompanyData.name || 'Nowa Firma',
-          nip: newCompanyData.nip || '',
-          balanceActive: 0,
-          balancePending: 0,
-          advisorId: newCompanyData.advisorId,
-          managerId: newCompanyData.managerId,
-          directorId: newCompanyData.directorId,
-          address: newCompanyData.address,
-          customPaymentTermsDays: newCompanyData.customPaymentTermsDays,
-          customVoucherValidityDays: newCompanyData.customVoucherValidityDays,
-          origin: 'NATIVE'
-      };
-
-      setCompanies(prev => [...prev, newCompany]);
-      logEvent('COMPANY_CREATED', `Utworzono nową firmę: ${newCompany.name} (${newCompany.id})`, newCompany.id, 'COMPANY');
-      addToast("Firma Dodana", `Firma ${newCompany.name} została dodana do bazy.`, "SUCCESS");
-  }, [setCompanies, logEvent, addToast]);
-
-  const handlePlaceOrder = useCallback((amount: number, distributionPlan?: PayrollEntry[]) => {
-    if (!currentUser.companyId) return;
-    
-    const hasPaidOrders = orders.some(o => o.companyId === currentUser.companyId && o.status === OrderStatus.PAID);
-    const isFirstInvoice = !hasPaidOrders;
-
-    // USE CENTRAL MATH UTILITY
-    const totals = calculateOrderTotals(amount, FINANCIAL_CONSTANTS.DEFAULT_SUCCESS_FEE);
-    
-    const year = new Date().getFullYear();
-    const uniqueSuffix = generateUUID().slice(0,6).toUpperCase();
-
-    let snapshots: PayrollSnapshot[] | undefined = undefined;
-    if (distributionPlan && distributionPlan.length > 0) {
-        snapshots = distributionPlan.map(entry => createSnapshot(entry));
-    }
-
-    const newOrder: Order = {
-      id: `ZAM-${year}-${uniqueSuffix}`,
-      companyId: currentUser.companyId,
-      amount: totals.voucherValue,
-      voucherValue: totals.voucherValue,
-      feeValue: totals.feeGross, // Order Model stores Gross Fee typically or handle separation in model
-      totalValue: totals.totalPayable,
-      docVoucherId: `NK/${year}/${uniqueSuffix}/B`,
-      docFeeId: `FV/${year}/${uniqueSuffix}/S`,
-      date: new Date().toISOString(),
-      status: OrderStatus.PENDING,
-      isFirstInvoice,
-      distributionPlan: distributionPlan,
-      snapshots: snapshots
-    };
-
-    setOrders(prev => [...prev, newOrder]);
-    
-    const methodMsg = snapshots ? ` (z planem auto-dystrybucji: ${snapshots.length} os. - SNAPSHOT ZAPISANY)` : '';
-    logEvent('ORDER_CREATED', `Złożono zamówienie ${newOrder.id}${methodMsg}. Wygenerowano dok: ${newOrder.docVoucherId} i ${newOrder.docFeeId}.`, newOrder.id, 'ORDER');
-    
-    notifyUser('ALL_ADMINS', `Nowe zamówienie ${newOrder.id} (${totals.totalPayable.toFixed(2)} PLN) czeka na akceptację.`, 'WARNING', {
-        type: 'APPROVE_ORDER',
-        targetId: newOrder.id,
-        label: 'Zatwierdź Zamówienie',
-        variant: 'primary'
-    }, newOrder.id, 'ORDER');
-    
-    addToast(
-        "Zamówienie Przyjęte", 
-        `Utworzono zamówienie nr ${newOrder.id}. ${snapshots ? 'System zamroził stawkę i podział (Snapshot).' : 'Pobierz dokumenty z tabeli historii.'}`, 
-        "SUCCESS"
-    );
-  }, [currentUser, orders, logEvent, notifyUser, addToast, setOrders]);
-
-  const handleApproveOrder = useCallback((orderId: string) => {
-    // ... existing approve logic ...
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-
-    if (order.status !== OrderStatus.PENDING) {
-        addToast("Info", "To zamówienie zostało już przetworzone.", "INFO");
-        return;
-    }
-
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.APPROVED } : o));
-
-    const emissionId = `EMISJA-${order.id}-${generateUUID().slice(0,4).toUpperCase()}`;
-    let newVouchers: Voucher[] = Array.from({ length: order.amount }).map((_, i) => ({
-      id: `SP/${order.companyId}/${order.id}/${emissionId}/V-${String(i + 1).padStart(6, '0')}`,
-      value: 1, 
-      status: VoucherStatus.RESERVED,
-      companyId: order.companyId,
-      orderId: order.id,
-      emissionId: emissionId,
-      issueDate: new Date().toISOString()
-    }));
-
-    const planSource = order.snapshots || order.distributionPlan;
-    let distributedCount = 0;
-    let updatedUsers = [...users];
-    
-    // NEW: Batch Protocol for Auto-Distribution
-    const batchItems: { userId: string; userName: string; amount: number }[] = [];
-
-    if (planSource && planSource.length > 0) {
-        logEvent('AUTO_DISTRIBUTION_TRUST', `Wykryto plan płacowy dla zamówienia ${orderId}. Uruchamianie natychmiastowej dystrybucji (Trust Model)...`, orderId, 'ORDER');
-        
-        const expiryDate = new Date(Date.now() + systemConfig.defaultVoucherValidityDays * 24 * 60 * 60 * 1000).toISOString();
-        let currentVoucherIndex = 0;
-
-        planSource.forEach(entry => {
-             const userId = (entry as any).matched_user_id || (entry as any).matchedUserId;
-             const amount = Math.floor((entry as any).final_netto_voucher || (entry as any).voucherPartNet);
-
-             if (userId && amount > 0) {
-                 if (currentVoucherIndex + amount <= newVouchers.length) {
-                     const userIndex = updatedUsers.findIndex(u => u.id === userId);
-                     if (userIndex > -1) {
-                         const user = updatedUsers[userIndex];
-                         updatedUsers[userIndex] = {
-                             ...user,
-                             voucherBalance: user.voucherBalance + amount
-                         };
-                         
-                         for(let i = 0; i < amount; i++) {
-                             newVouchers[currentVoucherIndex + i].status = VoucherStatus.DISTRIBUTED;
-                             newVouchers[currentVoucherIndex + i].ownerId = userId;
-                             newVouchers[currentVoucherIndex + i].expiryDate = expiryDate;
-                         }
-                         
-                         // Add to Protocol
-                         batchItems.push({ userId: user.id, userName: user.name, amount });
-
-                         currentVoucherIndex += amount;
-                         distributedCount += amount;
-                         notifyUser(userId, `Otrzymałeś ${amount} nowych voucherów (Dystrybucja automatyczna).`, 'SUCCESS');
-                     }
-                 }
-             }
-        });
-        
-        setUsers(updatedUsers);
-        
-        // CRITICAL FIX: Create DistributionBatch record for Trust/Auto Orders
-        if (batchItems.length > 0) {
-            const batchId = `PROTOCOL-AUTO-${new Date().toISOString().slice(0,10)}-${order.id.split('-').pop()}`;
-            const newBatch: DistributionBatch = {
-                id: batchId,
-                companyId: order.companyId,
-                date: new Date().toISOString(),
-                hrName: 'System (Auto-Trust)',
-                totalAmount: distributedCount,
-                items: batchItems,
-                status: 'COMPLETED'
-            };
-            setDistributionBatches(prev => [newBatch, ...prev]);
-        }
-
-        logEvent('AUTO_DISTRIBUTION_COMPLETE', `Rozdano ${distributedCount} voucherów w modelu zaufania (przed płatnością).`, orderId, 'ORDER');
-    }
-
-    setVouchers(prev => [...prev, ...newVouchers]);
-
-    const hrUser = users.find(u => u.companyId === order.companyId && u.role === Role.HR);
-    if (hrUser) {
-      const msg = planSource 
-        ? `Zamówienie ${orderId} zatwierdzone. Vouchery zostały automatycznie rozdane pracownikom (Trust Model). Faktura do opłacenia w ciągu 7 dni.`
-        : `Zamówienie ${orderId} zatwierdzone. Vouchery dostępne do rozdania w puli "Rezerwacja".`;
-      notifyUser(hrUser.id, msg, 'SUCCESS', undefined, orderId, 'ORDER');
-    }
-    
-    logEvent('ORDER_APPROVED', `Zatwierdzono zamówienie ${orderId}. Vouchery wyemitowane (Rozdano: ${distributedCount}).`, orderId, 'ORDER');
-    
-    addToast("Zamówienie Zatwierdzone", "Faktury wygenerowane. System oczekuje na płatność.", "SUCCESS");
-  }, [orders, users, systemConfig, setVouchers, setUsers, notifyUser, logEvent, addToast, setOrders, setDistributionBatches]);
-
-  // --- BANK PAYMENT (CRITICAL FIX FOR TRUST MODEL) ---
-  const handleBankPayment = useCallback((orderId: string, success: boolean) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-    const company = companies.find(c => c.id === order.companyId);
-    if (!company) return;
-
-    if (!success) {
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.REJECTED } : o));
-      logEvent('ORDER_REJECTED', `Brak płatności dla zamówienia ${orderId}.`, orderId, 'ORDER');
-      notifyUser('ALL_ADMINS', `Zamówienie ${orderId} odrzucone.`, 'WARNING', undefined, orderId, 'ORDER');
-      addToast("Płatność Odrzucona", "Zamówienie anulowano.", "ERROR");
+    if (!res.ok) {
+      addToast('Błąd', 'Nie udało się dodać firmy.', 'ERROR');
       return;
     }
 
-    // Payment Success
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.PAID } : o));
-    
-    // 1. Identify vouchers linked to this order
-    const orderVouchers = vouchers.filter(v => v.orderId === orderId);
-    
-    // 2. Count how many are already DISTRIBUTED (Trust Model usage)
-    const alreadyDistributedCount = orderVouchers.filter(v => v.status === VoucherStatus.DISTRIBUTED || v.status === VoucherStatus.CONSUMED).length;
-    
-    // 3. Count how many are RESERVED (Not yet distributed)
-    const reservedCount = orderVouchers.filter(v => v.status === VoucherStatus.RESERVED).length;
+    const company = dbCompanyToCompany(await res.json());
+    setCompanies(prev => [...prev, company]);
+    logEvent('COMPANY_CREATED', `Utworzono nową firmę: ${company.name} (${company.id})`, company.id, 'COMPANY');
+    addToast('Firma Dodana', `Firma ${company.name} została dodana do bazy.`, 'SUCCESS');
+  }, [logEvent, addToast]);
 
-    // 4. Update RESERVED vouchers to ACTIVE
-    setVouchers(prev => prev.map(v => 
-        v.orderId === orderId && v.status === VoucherStatus.RESERVED 
-        ? { ...v, status: VoucherStatus.ACTIVE } 
-        : v
-    ));
-    
-    // 5. CRITICAL FIX: Only add the RESERVED count to the Active Balance.
-    if (reservedCount > 0) {
-        setCompanies(prev => prev.map(c => 
-          c.id === order.companyId 
-          ? { ...c, balanceActive: c.balanceActive + reservedCount } 
-          : c
-        ));
+  const handleCrmSync = useCallback(async () => {
+    const res = await fetch('/api/companies/sync-crm', { method: 'POST' });
+
+    if (!res.ok) {
+      addToast('Błąd', 'Synchronizacja CRM nie powiodła się.', 'ERROR');
+      return;
     }
 
-    // Commissions Logic
-    const commissionBase = order.feeValue;
-    const newCommissions: Commission[] = [];
-    const dateCalculated = new Date().toISOString();
-    const currentQuarter = getQuarter(new Date());
+    const result = await res.json();
+    const { imported, skipped } = result;
 
-    if (order.isFirstInvoice) {
-        if (company.advisorId) {
-            const advisor = users.find(u => u.id === company.advisorId);
-            if (advisor) {
-                newCommissions.push({
-                    id: `COM-${generateUUID()}`,
-                    agentId: advisor.id,
-                    agentName: advisor.name,
-                    role: Role.ADVISOR,
-                    type: CommissionType.ACQUISITION,
-                    orderId: order.id,
-                    amount: commissionBase * COMMISSION_RATES.ADVISOR_FIRST_INVOICE,
-                    rate: `${COMMISSION_RATES.ADVISOR_FIRST_INVOICE * 100}%`,
-                    dateCalculated,
-                    quarter: currentQuarter,
-                    isPaid: true
-                });
-            }
-        }
+    if (imported > 0) {
+      // Odśwież listę firm
+      const refreshRes = await fetch('/api/companies');
+      if (refreshRes.ok) {
+        const rows: any[] = await refreshRes.json();
+        setCompanies(rows.map(dbCompanyToCompany));
+      }
+      logEvent('CRM_SYNC_SUCCESS', `Pobrano ${imported} nowych firm ze statusu SIGNED. Pominięto: ${skipped}.`, 'CRM', 'SYSTEM');
+      addToast('Synchronizacja CRM', `Pomyślnie zaimportowano ${imported} firm. Dane handlowe zaktualizowane.`, 'SUCCESS');
     } else {
-        // Prowizja odnawialna 5% - wypłacana co miesiąc za utrzymanie firmy składającej zamówienia
-        if (company.advisorId) {
-            const advisor = users.find(u => u.id === company.advisorId);
-            if (advisor) {
-                newCommissions.push({
-                    id: `COM-${generateUUID()}-REC`,
-                    agentId: advisor.id,
-                    agentName: advisor.name,
-                    role: Role.ADVISOR,
-                    type: CommissionType.RECURRING,
-                    orderId: order.id,
-                    amount: commissionBase * COMMISSION_RATES.ADVISOR_RECURRING,
-                    rate: `${COMMISSION_RATES.ADVISOR_RECURRING * 100}%`,
-                    dateCalculated,
-                    quarter: currentQuarter,
-                    isPaid: true
-                });
-            }
-        }
+      addToast('Synchronizacja CRM', 'Brak nowych firm o statusie SIGNED w systemie źródłowym.', 'INFO');
+    }
+  }, [logEvent, addToast]);
+
+  // ── Zamówienia ───────────────────────────────────────────────────────────────
+
+  const handlePlaceOrder = useCallback(async (amount: number, distributionPlan?: PayrollEntry[]) => {
+    if (!currentUser.companyId) return;
+
+    let snapshots: PayrollSnapshot[] | undefined;
+    if (distributionPlan && distributionPlan.length > 0) {
+      const { createSnapshot } = await import('../../services/payrollService');
+      snapshots = distributionPlan.map(entry => createSnapshot(entry));
     }
 
-    setCommissions(prev => [...prev, ...newCommissions]);
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyId:        currentUser.companyId,
+        amount,
+        distributionPlan: distributionPlan ?? undefined,
+        snapshots:        snapshots ?? undefined,
+      }),
+    });
 
-    if (newCommissions.length > 0) {
-        logEvent('COMMISSION_CALC', `Naliczono ${newCommissions.length} nowych prowizji.`, orderId, 'ORDER');
+    if (!res.ok) {
+      addToast('Błąd', 'Nie udało się złożyć zamówienia.', 'ERROR');
+      return;
     }
 
-    logEvent('ORDER_PAID', `Płatność przyjęta. Vouchery Aktywowane. Saldo skorygowane o ${reservedCount} pkt (Trust Model: ${alreadyDistributedCount} już rozdano).`, orderId, 'ORDER');
-    notifyUser('ALL_ADMINS', `Faktury za zamówienie ${orderId} opłacone.`, 'SUCCESS', undefined, orderId, 'ORDER');
-    
-    addToast("Płatność Zatwierdzona", "Zamówienie opłacone. Saldo zaktualizowane.", "SUCCESS");
-  }, [orders, companies, users, vouchers, setVouchers, logEvent, notifyUser, addToast, setOrders, setCompanies, setCommissions]);
+    const newOrder = dbOrderToOrder(await res.json());
+    setOrders(prev => [...prev, newOrder]);
+
+    const methodMsg = snapshots ? ` (z planem auto-dystrybucji: ${snapshots.length} os. — SNAPSHOT ZAPISANY)` : '';
+    logEvent('ORDER_CREATED', `Złożono zamówienie ${newOrder.id}${methodMsg}. Dok: ${newOrder.docVoucherId} i ${newOrder.docFeeId}.`, newOrder.id, 'ORDER');
+
+    notifyUser('ALL_ADMINS', `Nowe zamówienie ${newOrder.id.slice(-8)} (${newOrder.totalValue.toFixed(2)} PLN) czeka na akceptację.`, 'WARNING', {
+      type: 'APPROVE_ORDER', targetId: newOrder.id, label: 'Zatwierdź Zamówienie', variant: 'primary',
+    }, newOrder.id, 'ORDER');
+
+    addToast(
+      'Zamówienie Przyjęte',
+      `Utworzono zamówienie. ${snapshots ? 'System zamroził stawkę i podział (Snapshot).' : 'Pobierz dokumenty z tabeli historii.'}`,
+      'SUCCESS'
+    );
+  }, [currentUser, logEvent, notifyUser, addToast]);
+
+  const handleApproveOrder = useCallback(async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order || order.status !== OrderStatus.PENDING) {
+      addToast('Info', 'To zamówienie zostało już przetworzone.', 'INFO');
+      return;
+    }
+
+    // Optimistic
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.APPROVED } : o));
+
+    const res = await fetch(`/api/orders/${orderId}/approve`, { method: 'PATCH' });
+
+    if (!res.ok) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.PENDING } : o));
+      addToast('Błąd', 'Nie udało się zatwierdzić zamówienia.', 'ERROR');
+      return;
+    }
+
+    const { distributed } = await res.json();
+
+    const hrUser = users.find(u => u.companyId === order.companyId && u.role === Role.HR);
+    if (hrUser) {
+      const msg = distributed > 0
+        ? `Zamówienie ${orderId.slice(-8)} zatwierdzone. Vouchery rozdane automatycznie (Trust Model). Faktura do opłacenia w ciągu 7 dni.`
+        : `Zamówienie ${orderId.slice(-8)} zatwierdzone. Vouchery dostępne do rozdania.`;
+      notifyUser(hrUser.id, msg, 'SUCCESS', undefined, orderId, 'ORDER');
+    }
+
+    logEvent('ORDER_APPROVED', `Zatwierdzono zamówienie ${orderId}. Vouchery wyemitowane (Rozdano: ${distributed}).`, orderId, 'ORDER');
+    addToast('Zamówienie Zatwierdzone', 'Faktury wygenerowane. System oczekuje na płatność.', 'SUCCESS');
+  }, [orders, users, notifyUser, logEvent, addToast]);
+
+  const handleBankPayment = useCallback(async (orderId: string, success: boolean) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (!success) {
+      // Optimistic
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.REJECTED } : o));
+
+      const res = await fetch(`/api/orders/${orderId}/reject`, { method: 'PATCH' });
+      if (!res.ok) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: order.status } : o));
+        addToast('Błąd', 'Nie udało się odrzucić zamówienia.', 'ERROR');
+        return;
+      }
+
+      logEvent('ORDER_REJECTED', `Brak płatności dla zamówienia ${orderId}.`, orderId, 'ORDER');
+      notifyUser('ALL_ADMINS', `Zamówienie ${orderId.slice(-8)} odrzucone.`, 'WARNING', undefined, orderId, 'ORDER');
+      addToast('Płatność Odrzucona', 'Zamówienie anulowano.', 'ERROR');
+      return;
+    }
+
+    // Payment success — optimistic
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: OrderStatus.PAID } : o));
+
+    const res = await fetch(`/api/orders/${orderId}/pay`, { method: 'PATCH' });
+    if (!res.ok) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: order.status } : o));
+      addToast('Błąd', 'Nie udało się potwierdzić płatności.', 'ERROR');
+      return;
+    }
+
+    logEvent('ORDER_PAID', `Płatność przyjęta dla zamówienia ${orderId}. Prowizje naliczone.`, orderId, 'ORDER');
+    notifyUser('ALL_ADMINS', `Faktury za zamówienie ${orderId.slice(-8)} opłacone.`, 'SUCCESS', undefined, orderId, 'ORDER');
+    addToast('Płatność Zatwierdzona', 'Zamówienie opłacone. Saldo zaktualizowane.', 'SUCCESS');
+  }, [orders, logEvent, notifyUser, addToast]);
 
   return {
-      orders,
-      setOrders,
-      companies,
-      setCompanies,
-      commissions,
-      setCommissions,
-      handlePlaceOrder,
-      handleApproveOrder,
-      handleBankPayment,
-      handleAddCompany,
-      handleCrmSync
+    orders,
+    setOrders,
+    companies,
+    setCompanies,
+    commissions,
+    setCommissions,
+    handlePlaceOrder,
+    handleApproveOrder,
+    handleBankPayment,
+    handleAddCompany,
+    handleCrmSync,
   };
 };

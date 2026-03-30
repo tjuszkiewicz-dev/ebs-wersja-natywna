@@ -109,10 +109,9 @@ export const useNotificationLogic = (currentUserRole: string, currentUserId: str
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        enabled: updatedConfig.enabled,
-        channels: updatedConfig.channels,
-        target: updatedConfig.target,
-        trigger: updatedConfig.trigger,
+        isEnabled: updatedConfig.isEnabled,
+        target:    updatedConfig.target,
+        trigger:   updatedConfig.trigger,
       }),
     }).catch(() => {});
     addToast('Powiadomienia', 'Ustawienia powiadomień zostały zaktualizowane.', 'INFO');

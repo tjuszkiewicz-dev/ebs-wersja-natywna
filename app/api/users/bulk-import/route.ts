@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
         company_id:      companyId,
         hr_name:         auth.email,
         total_processed: createdUsers.length,
-        status:          errors.length === 0 ? 'SUCCESS' : createdUsers.length > 0 ? 'PARTIAL' : 'FAILED',
+        status:          errors.length === 0 ? 'SUCCESS' : createdUsers.length > 0 ? 'PARTIAL' : 'ERROR',
         report_data: {
             reportId,
             date:          now,

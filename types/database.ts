@@ -604,6 +604,167 @@ export interface Database {
         };
         Relationships: [];
       };
+
+      import_history: {
+        Row: {
+          id:              string;
+          company_id:      string;
+          hr_user_id:      string | null;
+          hr_name:         string;
+          total_processed: number;
+          status:          'SUCCESS' | 'PARTIAL' | 'ERROR';
+          report_data:     unknown | null;
+          created_at:      string;
+        };
+        Insert: {
+          id?:              string;
+          company_id:       string;
+          hr_user_id?:      string | null;
+          hr_name:          string;
+          total_processed?: number;
+          status?:          'SUCCESS' | 'PARTIAL' | 'ERROR';
+          report_data?:     unknown | null;
+          created_at?:      string;
+        };
+        Update: {
+          id?:              string;
+          company_id?:      string;
+          hr_user_id?:      string | null;
+          hr_name?:         string;
+          total_processed?: number;
+          status?:          'SUCCESS' | 'PARTIAL' | 'ERROR';
+          report_data?:     unknown | null;
+          created_at?:      string;
+        };
+        Relationships: [];
+      };
+
+      distribution_batches: {
+        Row: {
+          id:           string;
+          company_id:   string;
+          hr_user_id:   string | null;
+          hr_name:      string;
+          total_amount: number;
+          status:       'completed';
+          order_id:     string | null;
+          created_at:   string;
+        };
+        Insert: {
+          id:            string;
+          company_id:    string;
+          hr_user_id?:   string | null;
+          hr_name:       string;
+          total_amount:  number;
+          status?:       'completed';
+          order_id?:     string | null;
+          created_at?:   string;
+        };
+        Update: {
+          id?:           string;
+          company_id?:   string;
+          hr_user_id?:   string | null;
+          hr_name?:      string;
+          total_amount?: number;
+          status?:       'completed';
+          order_id?:     string | null;
+          created_at?:   string;
+        };
+        Relationships: [];
+      };
+
+      distribution_batch_items: {
+        Row: {
+          id:         string;
+          batch_id:   string;
+          user_id:    string;
+          user_name:  string;
+          amount:     number;
+          created_at: string;
+        };
+        Insert: {
+          id?:         string;
+          batch_id:    string;
+          user_id:     string;
+          user_name:   string;
+          amount:      number;
+          created_at?: string;
+        };
+        Update: {
+          id?:         string;
+          batch_id?:   string;
+          user_id?:    string;
+          user_name?:  string;
+          amount?:     number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      iban_change_requests: {
+        Row: {
+          id:               string;
+          user_id:          string;
+          new_iban:         string;
+          reason:           string;
+          status:           'pending' | 'approved' | 'rejected';
+          rejection_reason: string | null;
+          resolved_at:      string | null;
+          created_at:       string;
+        };
+        Insert: {
+          id?:               string;
+          user_id:           string;
+          new_iban:          string;
+          reason:            string;
+          status?:           'pending' | 'approved' | 'rejected';
+          rejection_reason?: string | null;
+          resolved_at?:      string | null;
+          created_at?:       string;
+        };
+        Update: {
+          id?:               string;
+          user_id?:          string;
+          new_iban?:         string;
+          reason?:           string;
+          status?:           'pending' | 'approved' | 'rejected';
+          rejection_reason?: string | null;
+          resolved_at?:      string | null;
+          created_at?:       string;
+        };
+        Relationships: [];
+      };
+
+      notification_configs: {
+        Row: {
+          id:            string;
+          user_id:       string;
+          email_enabled: boolean;
+          push_enabled:  boolean;
+          types_enabled: string[];
+          created_at:    string;
+          updated_at:    string;
+        };
+        Insert: {
+          id?:            string;
+          user_id:        string;
+          email_enabled?: boolean;
+          push_enabled?:  boolean;
+          types_enabled?: string[];
+          created_at?:    string;
+          updated_at?:    string;
+        };
+        Update: {
+          id?:            string;
+          user_id?:       string;
+          email_enabled?: boolean;
+          push_enabled?:  boolean;
+          types_enabled?: string[];
+          created_at?:    string;
+          updated_at?:    string;
+        };
+        Relationships: [];
+      };
     };
 
     Views: {
