@@ -388,7 +388,7 @@ const AppContent = () => {
             >
                 <Search size={14} />
                 <span>Szukaj...</span>
-                <span className="bg-white border border-slate-200 px-1.5 rounded text-[10px] shadow-sm ml-2">⌘K</span>
+                <span className="bg-white border border-slate-200 px-1.5 rounded text-[10px] shadow-sm ml-2">Ctrl+K</span>
             </button>
 
             <NotificationCenter 

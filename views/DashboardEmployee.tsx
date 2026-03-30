@@ -330,7 +330,7 @@ export const DashboardEmployee: React.FC<Props> = ({
                             </div>
                             <div className="text-right">
                                 <span className="block text-xl font-bold" style={{ color: '#60a5fa' }}>100 pkt</span>
-                                <span className="text-xs uppercase font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>Msc</span>
+                                <span className="text-xs uppercase font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>Mies.</span>
                             </div>
                         </div>
                      </div>
@@ -398,7 +398,7 @@ export const DashboardEmployee: React.FC<Props> = ({
                               </div>
                               <div className="text-right">
                                   <span className="block text-xl font-bold" style={{ color: '#60a5fa' }}>150 pkt</span>
-                                  <span className="text-xs uppercase font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>Msc</span>
+                                  <span className="text-xs uppercase font-bold" style={{ color: 'rgba(255,255,255,0.4)' }}>Mies.</span>
                               </div>
                           </div>
                       </div>
