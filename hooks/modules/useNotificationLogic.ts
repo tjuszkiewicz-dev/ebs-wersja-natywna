@@ -1,19 +1,38 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Notification, NotificationAction, NotificationConfig } from '../../types';
-import { INITIAL_NOTIFICATIONS, INITIAL_NOTIFICATION_CONFIGS } from '../../services/mockData';
+import { INITIAL_NOTIFICATION_CONFIGS } from '../../services/mockData';
 import { ToastMessage, ToastType } from '../../components/Toast';
-import { usePersistedState } from '../usePersistedState';
 
 export const useNotificationLogic = (currentUserRole: string, currentUserId: string) => {
-  // Persistent State
-  const [notifications, setNotifications] = usePersistedState<Notification[]>('ebs_notifications_v1', INITIAL_NOTIFICATIONS);
-  const [notificationConfigs, setNotificationConfigs] = usePersistedState<NotificationConfig[]>('ebs_notif_configs_v1', INITIAL_NOTIFICATION_CONFIGS);
-  
-  // Toasts are transient, standard useState
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationConfigs, setNotificationConfigs] = useState<NotificationConfig[]>(INITIAL_NOTIFICATION_CONFIGS);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
-  // --- Toasts ---
+  // --- Pobierz powiadomienia z API przy starcie ---
+  useEffect(() => {
+    if (!currentUserId) return;
+    fetch('/api/notifications')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: any[]) => {
+        const mapped: Notification[] = data.map(n => ({
+          id: n.id,
+          userId: n.user_id,
+          message: n.message,
+          type: n.type,
+          read: n.read,
+          date: n.date,
+          priority: n.priority,
+          action: n.action,
+          targetEntityId: n.target_entity_id,
+          targetEntityType: n.target_entity_type,
+        }));
+        setNotifications(mapped);
+      })
+      .catch(() => {});
+  }, [currentUserId]);
+
+  // --- Toasts (zawsze lokalne — UI feedback) ---
   const addToast = useCallback((title: string, message: string, type: ToastType) => {
     const id = Math.random().toString(36).substring(7);
     setToasts(prev => [...prev, { id, title, message, type }]);
@@ -23,10 +42,20 @@ export const useNotificationLogic = (currentUserRole: string, currentUserId: str
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // --- Notifications ---
-  const notifyUser = useCallback((userId: string | 'ALL_ADMINS', message: string, type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR' = 'INFO', action?: NotificationAction, targetEntityId?: string, targetEntityType?: any) => {
+  // --- Powiadomienia ---
+
+  const notifyUser = useCallback((
+    userId: string | 'ALL_ADMINS',
+    message: string,
+    type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR' = 'INFO',
+    action?: NotificationAction,
+    targetEntityId?: string,
+    targetEntityType?: any
+  ) => {
+    // Optimistic update — dodaj lokalnie od razu
+    const tempId = `NOTIF-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newNotif: Notification = {
-      id: `NOTIF-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: tempId,
       userId,
       message,
       type,
@@ -34,30 +63,60 @@ export const useNotificationLogic = (currentUserRole: string, currentUserId: str
       date: new Date().toISOString(),
       action,
       targetEntityId,
-      targetEntityType
+      targetEntityType,
     };
     setNotifications(prev => [newNotif, ...prev]);
-  }, [setNotifications]);
+
+    // Wyślij na serwer (tylko superadmin może tworzyć powiadomienia dla innych)
+    fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, message, type, action, targetEntityId, targetEntityType }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(saved => {
+        if (saved) {
+          // Zastąp temp ID prawdziwym z bazy
+          setNotifications(prev => prev.map(n => n.id === tempId ? { ...n, id: saved.id } : n));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleMarkNotificationsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => 
-      (n.userId === currentUserId || (currentUserRole === 'SUPERADMIN' && n.userId === 'ALL_ADMINS')) 
-      ? { ...n, read: true } : n
+    // Optimistic
+    setNotifications(prev => prev.map(n =>
+      (n.userId === currentUserId || (currentUserRole === 'SUPERADMIN' && n.userId === 'ALL_ADMINS'))
+        ? { ...n, read: true }
+        : n
     ));
-  }, [currentUserId, currentUserRole, setNotifications]);
+    fetch('/api/notifications/mark-read', { method: 'PATCH' }).catch(() => {});
+  }, [currentUserId, currentUserRole]);
 
   const handleMarkSingleNotificationRead = useCallback((notificationId: string) => {
-      setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
-  }, [setNotifications]);
+    setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, read: true } : n));
+    fetch(`/api/notifications/${notificationId}/read`, { method: 'PATCH' }).catch(() => {});
+  }, []);
 
   const handleClearNotifications = useCallback(() => {
-      setNotifications(prev => prev.filter(n => n.userId !== currentUserId && n.userId !== 'ALL_ADMINS'));
-  }, [currentUserId, setNotifications]);
+    setNotifications(prev => prev.filter(n => n.userId !== currentUserId && n.userId !== 'ALL_ADMINS'));
+    fetch('/api/notifications', { method: 'DELETE' }).catch(() => {});
+  }, [currentUserId]);
 
   const handleUpdateNotificationConfig = useCallback((updatedConfig: NotificationConfig) => {
     setNotificationConfigs(prev => prev.map(c => c.id === updatedConfig.id ? updatedConfig : c));
-    addToast("Powiadomienia", "Ustawienia powiadomień zostały zaktualizowane.", "INFO");
-  }, [addToast, setNotificationConfigs]);
+    fetch(`/api/notification-configs/${updatedConfig.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: updatedConfig.enabled,
+        channels: updatedConfig.channels,
+        target: updatedConfig.target,
+        trigger: updatedConfig.trigger,
+      }),
+    }).catch(() => {});
+    addToast('Powiadomienia', 'Ustawienia powiadomień zostały zaktualizowane.', 'INFO');
+  }, [addToast]);
 
   return {
     notifications,
@@ -71,6 +130,6 @@ export const useNotificationLogic = (currentUserRole: string, currentUserId: str
     handleMarkNotificationsRead,
     handleMarkSingleNotificationRead,
     handleClearNotifications,
-    handleUpdateNotificationConfig
+    handleUpdateNotificationConfig,
   };
 };
