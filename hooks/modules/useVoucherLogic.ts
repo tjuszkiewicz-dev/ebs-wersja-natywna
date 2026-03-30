@@ -1,381 +1,408 @@
 
-import React, { useCallback } from 'react';
-import { Voucher, VoucherStatus, BuybackAgreement, Transaction, User, Company, ServiceItem, DistributionBatch, NotificationConfig, SystemConfig } from '../../types';
-import { INITIAL_VOUCHERS, INITIAL_TRANSACTIONS } from '../../services/mockData';
-import { usePersistedState } from '../usePersistedState';
-import { generateUUID } from '../../services/payrollService';
+import React, { useState, useCallback, useEffect } from 'react';
+import {
+  Voucher, VoucherStatus, BuybackAgreement, Transaction, User, Company,
+  ServiceItem, DistributionBatch, NotificationConfig, SystemConfig,
+} from '../../types';
 import { LogEventFn, NotifyUserFn, AddToastFn } from '../../types/callbacks';
+
+// ── Mapowanie DB → typy frontendowe ─────────────────────────────────────────
+
+function dbStatusToEnum(s: string): VoucherStatus {
+  const map: Record<string, VoucherStatus> = {
+    created:          VoucherStatus.CREATED,
+    reserved:         VoucherStatus.RESERVED,
+    active:           VoucherStatus.ACTIVE,
+    distributed:      VoucherStatus.DISTRIBUTED,
+    consumed:         VoucherStatus.CONSUMED,
+    expired:          VoucherStatus.EXPIRED,
+    buyback_pending:  VoucherStatus.BUYBACK_PENDING,
+    buyback_complete: VoucherStatus.BUYBACK_COMPLETE,
+  };
+  return map[s] ?? VoucherStatus.CREATED;
+}
+
+function dbVoucherToFrontend(v: any): Voucher {
+  return {
+    id:         v.id,
+    value:      1,
+    status:     dbStatusToEnum(v.status),
+    companyId:  v.company_id,
+    emissionId: v.emission_id ?? '',
+    ownerId:    v.current_owner_id ?? undefined,
+    expiryDate: v.expires_at      ?? undefined,
+    issueDate:  v.issued_at       ?? new Date().toISOString(),
+  };
+}
+
+function dbBuybackToFrontend(b: any): BuybackAgreement {
+  return {
+    id:            b.id,
+    userId:        b.user_id,
+    voucherCount:  b.voucher_count,
+    totalValue:    b.total_value,
+    dateGenerated: b.created_at,
+    status:        b.status?.toUpperCase() ?? 'PENDING_APPROVAL',
+    snapshot:      b.snapshot ?? { user: {}, vouchers: [], termsVersion: '1.0' },
+  };
+}
+
+function dbTransactionToFrontend(t: any): Transaction {
+  return {
+    id:          t.id,
+    userId:      t.to_user_id ?? t.from_user_id,
+    type:        t.transaction_type === 'redemption' ? 'DEBIT' : 'CREDIT',
+    serviceId:   t.service_id   ?? undefined,
+    serviceName: t.service_name ?? undefined,
+    amount:      t.amount,
+    date:        t.created_at,
+  };
+}
+
+function dbBatchToFrontend(b: any): DistributionBatch {
+  return {
+    id:          b.id,
+    companyId:   b.company_id,
+    date:        b.created_at,
+    hrName:      b.hr_name,
+    totalAmount: b.total_amount,
+    items:       (b.items ?? []).map((i: any) => ({
+      userId:   i.user_id,
+      userName: i.user_name,
+      amount:   i.amount,
+    })),
+    status: 'COMPLETED',
+  };
+}
 
 export const useVoucherLogic = (
     users: User[],
     setUsers: React.Dispatch<React.SetStateAction<User[]>>,
     companies: Company[],
     setCompanies: React.Dispatch<React.SetStateAction<Company[]>>,
-    notificationConfigs: NotificationConfig[],
-    systemConfig: SystemConfig,
+    _notificationConfigs: NotificationConfig[],
+    _systemConfig: SystemConfig,
     logEvent: LogEventFn,
     notifyUser: NotifyUserFn,
     addToast: AddToastFn,
     currentUser: User
 ) => {
-  // Persistent State
-  const [vouchers, setVouchers] = usePersistedState<Voucher[]>('ebs_vouchers_v1', INITIAL_VOUCHERS);
-  const [buybacks, setBuybacks] = usePersistedState<BuybackAgreement[]>('ebs_buybacks_v1', []);
-  const [transactions, setTransactions] = usePersistedState<Transaction[]>('ebs_transactions_v1', INITIAL_TRANSACTIONS);
-  
-  // NEW: Protocol History for Bulk AND Single Distribution
-  const [distributionBatches, setDistributionBatches] = usePersistedState<DistributionBatch[]>('ebs_dist_batches_v1', []);
+  const [vouchers,           setVouchers]           = useState<Voucher[]>([]);
+  const [buybacks,           setBuybacks]           = useState<BuybackAgreement[]>([]);
+  const [transactions,       setTransactions]       = useState<Transaction[]>([]);
+  const [distributionBatches, setDistributionBatches] = useState<DistributionBatch[]>([]);
 
-  // --- ACTIONS ---
+  // ── Wczytaj dane przy starcie ─────────────────────────────────────────────
 
-  const handleManualEmission = useCallback((amount: number, description: string) => {
-     if (amount <= 0) {
-        addToast("Błąd Emisji", "Kwota musi być większa od zera.", "ERROR");
-        return;
-     }
-     
-     const emissionId = `EMISJA-MANUAL-${generateUUID().slice(0,6).toUpperCase()}`;
-     const newVouchers: Voucher[] = Array.from({ length: amount }).map((_, i) => ({
-      id: `SP/PLATFORM/MANUAL/${emissionId}/V-${String(i + 1).padStart(6, '0')}`,
-      value: 1, 
-      status: VoucherStatus.CREATED,
-      companyId: 'PLATFORM', 
-      emissionId: emissionId,
-      issueDate: new Date().toISOString()
-    }));
+  useEffect(() => {
+    if (!currentUser?.id) return;
 
-    setVouchers(prev => [...prev, ...newVouchers]);
+    const companyId = currentUser.companyId;
+
+    // Vouchery: HR widzi wszystkie firmy, pracownik — swoje
+    if (companyId) {
+      fetch(`/api/vouchers?companyId=${companyId}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((rows: any[]) => setVouchers(rows.map(dbVoucherToFrontend)))
+        .catch(() => {});
+    } else if (!companyId && currentUser.role === 'SUPERADMIN') {
+      // Superadmin może pobierać vouchery per firma — na razie puste
+    }
+
+    // Buybacki
+    fetch('/api/vouchers/buybacks')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => setBuybacks(rows.map(dbBuybackToFrontend)))
+      .catch(() => {});
+
+    // Transakcje
+    fetch(`/api/vouchers/transactions?userId=${currentUser.id}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => setTransactions(rows.map(dbTransactionToFrontend)))
+      .catch(() => {});
+  }, [currentUser?.id, currentUser?.companyId, currentUser?.role]);
+
+  // ── Ręczna emisja (superadmin) ────────────────────────────────────────────
+
+  const handleManualEmission = useCallback(async (amount: number, description: string) => {
+    if (amount <= 0) {
+      addToast('Błąd Emisji', 'Kwota musi być większa od zera.', 'ERROR');
+      return;
+    }
+
+    const res = await fetch('/api/vouchers/emit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, description }),
+    });
+
+    if (!res.ok) {
+      addToast('Błąd', 'Nie udało się wyemitować voucherów.', 'ERROR');
+      return;
+    }
+
+    const { emissionId } = await res.json();
     logEvent('MANUAL_EMISSION', `Wyemitowano ręcznie ${amount} voucherów. Emisja: ${emissionId}. Powód: ${description}`);
     notifyUser('ALL_ADMINS', `Nowa emisja manualna: ${amount} pkt. ID: ${emissionId}`, 'INFO');
-    
-    addToast("Emisja Zakończona", `Wyemitowano ${amount} voucherów do puli platformy.`, "SUCCESS");
-  }, [logEvent, notifyUser, addToast, setVouchers]);
+    addToast('Emisja Zakończona', `Wyemitowano ${amount} voucherów do puli platformy.`, 'SUCCESS');
+  }, [logEvent, notifyUser, addToast]);
 
-  const handleDistribute = useCallback((employeeId: string, amount: number) => {
+  // ── Dystrybucja pojedyncza ────────────────────────────────────────────────
+
+  const handleDistribute = useCallback(async (employeeId: string, amount: number) => {
     const companyId = currentUser.companyId;
     if (!companyId) return;
 
     const targetUser = users.find(u => u.id === employeeId);
     if (!targetUser || targetUser.status === 'INACTIVE') {
-        addToast("Błąd Dystrybucji", "Pracownik nieaktywny lub nie znaleziony.", "ERROR");
-        return;
+      addToast('Błąd Dystrybucji', 'Pracownik nieaktywny lub nie znaleziony.', 'ERROR');
+      return;
     }
 
-    // 1. Get pools
-    const activeVouchers = vouchers.filter(v => v.companyId === companyId && v.status === VoucherStatus.ACTIVE);
-    const reservedVouchers = vouchers.filter(v => v.companyId === companyId && v.status === VoucherStatus.RESERVED);
-    
-    const totalAvailable = activeVouchers.length + reservedVouchers.length;
-
-    // 2. Check total availability
-    if (totalAvailable < amount) {
-        addToast("Brak Środków", `Niewystarczająca liczba voucherów. Masz ${totalAvailable} pkt (w tym rezerwacje), a próbujesz wysłać ${amount}.`, "ERROR");
-        return;
-    }
-
-    // 3. Select Vouchers (FIFO Strategy: Active first, then Reserved)
-    let selectedVouchers: Voucher[] = [];
-    let usedReservedCount = 0;
-
-    if (activeVouchers.length >= amount) {
-        // Scenario A: Enough Active vouchers
-        selectedVouchers = activeVouchers.slice(0, amount);
-    } else {
-        // Scenario B: Trust Model (Mix Active + Reserved)
-        const neededFromReserve = amount - activeVouchers.length;
-        usedReservedCount = neededFromReserve;
-        selectedVouchers = [...activeVouchers, ...reservedVouchers.slice(0, neededFromReserve)];
-    }
-
-    const idsToUpdate = selectedVouchers.map(v => v.id);
-    const expiryDate = new Date(Date.now() + systemConfig.defaultVoucherValidityDays * 24 * 60 * 60 * 1000).toISOString();
-
-    // 4. Update State
-    setVouchers(prev => prev.map(v => 
-      idsToUpdate.includes(v.id) 
-        ? { 
-            ...v, 
-            status: VoucherStatus.DISTRIBUTED, 
-            ownerId: employeeId,
-            expiryDate: expiryDate
-          } 
-        : v
-    ));
-
-    setUsers(prev => prev.map(u => 
+    // Optimistic: zaktualizuj salda w UI
+    setUsers(prev => prev.map(u =>
       u.id === employeeId ? { ...u, voucherBalance: u.voucherBalance + amount } : u
     ));
-    
-    // Update company balances visually
-    setCompanies(prev => prev.map(c => {
-        if (c.id !== companyId) return c;
-        // Decrement balanceActive only for the active portion used
-        const usedActive = amount - usedReservedCount;
-        return { ...c, balanceActive: Math.max(0, c.balanceActive - usedActive) };
-    }));
+    setCompanies(prev => prev.map(c =>
+      c.id === companyId ? { ...c, balanceActive: Math.max(0, c.balanceActive - amount) } : c
+    ));
 
-    // 5. CREATE PROTOCOL RECORD (DistributionBatch) - SINGLE DISTRIBUTION
-    const batchId = `PROTOCOL-S-${new Date().toISOString().slice(0,10)}-${generateUUID().slice(0,4).toUpperCase()}`;
+    const res = await fetch('/api/vouchers/distribute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId, amount }),
+    });
+
+    if (!res.ok) {
+      // Rollback
+      setUsers(prev => prev.map(u =>
+        u.id === employeeId ? { ...u, voucherBalance: u.voucherBalance - amount } : u
+      ));
+      setCompanies(prev => prev.map(c =>
+        c.id === companyId ? { ...c, balanceActive: c.balanceActive + amount } : c
+      ));
+      const err = await res.json().catch(() => ({}));
+      addToast('Błąd Dystrybucji', err.error ?? 'Nie udało się przekazać voucherów.', 'ERROR');
+      return;
+    }
+
+    const { batchId } = await res.json();
+
+    // Dodaj batch do historii (bez pełnych danych items — odświeżymy jeśli potrzeba)
     const newBatch: DistributionBatch = {
-        id: batchId,
-        companyId: companyId,
-        date: new Date().toISOString(),
-        hrName: currentUser.name,
-        totalAmount: amount,
-        items: [{
-            userId: targetUser.id,
-            userName: targetUser.name,
-            amount: amount
-        }],
-        status: 'COMPLETED'
+      id:          batchId,
+      companyId:   companyId,
+      date:        new Date().toISOString(),
+      hrName:      currentUser.name,
+      totalAmount: amount,
+      items:       [{ userId: targetUser.id, userName: targetUser.name, amount }],
+      status:      'COMPLETED',
     };
     setDistributionBatches(prev => [newBatch, ...prev]);
 
-    // 6. Logging & Feedback
-    const trustMsg = usedReservedCount > 0 ? ` (Użyto ${usedReservedCount} z puli Rezerwacji - Trust Model)` : '';
-    
-    logEvent('VOUCHER_DISTRIBUTED', `Przekazano ${amount} voucherów dla pracownika ${employeeId}.${trustMsg}. Wygenerowano protokół: ${batchId}`, employeeId, 'USER');
+    logEvent('VOUCHER_DISTRIBUTED', `Przekazano ${amount} voucherów dla pracownika ${employeeId}. Protokół: ${batchId}`, employeeId, 'USER');
     notifyUser(employeeId, `Otrzymałeś ${amount} nowych voucherów!`, 'SUCCESS');
-    
-    if (usedReservedCount > 0) {
-        addToast("Przekazano (Trust Model)", `Przekazano ${amount} pkt. Utworzono protokół w Teczce.`, "WARNING");
-    } else {
-        addToast("Vouchery Przekazane", `Przekazano ${amount} pkt. Protokół zapisany w Teczce.`, "SUCCESS");
-    }
+    addToast('Vouchery Przekazane', `Przekazano ${amount} pkt. Protokół zapisany w Teczce.`, 'SUCCESS');
+  }, [currentUser, users, logEvent, notifyUser, addToast]);
 
-  }, [currentUser, users, vouchers, systemConfig, setUsers, setCompanies, logEvent, notifyUser, addToast, setVouchers, setDistributionBatches]);
+  // ── Dystrybucja masowa ────────────────────────────────────────────────────
 
-  // Bulk Distribution Logic
-  const handleBulkDistribute = useCallback((items: { employeeId: string; amount: number }[]) => {
-      const companyId = currentUser.companyId;
-      if (!companyId) {
-          addToast("Błąd", "Nie zidentyfikowano firmy użytkownika.", "ERROR");
-          return;
-      }
-
-      const totalAmountNeeded = items.reduce((acc, item) => acc + item.amount, 0);
-      
-      const currentVouchers = [...vouchers];
-      const activeVouchers = currentVouchers.filter(v => v.companyId === companyId && v.status === VoucherStatus.ACTIVE);
-      const reservedVouchers = currentVouchers.filter(v => v.companyId === companyId && v.status === VoucherStatus.RESERVED);
-      const totalAvailable = activeVouchers.length + reservedVouchers.length;
-
-      if (totalAvailable < totalAmountNeeded) {
-          addToast("Błąd Masowy", `Brakuje ${totalAmountNeeded - totalAvailable} voucherów do realizacji listy. Zamów więcej środków.`, "ERROR");
-          return;
-      }
-
-      let currentActiveIdx = 0;
-      let currentReservedIdx = 0;
-      
-      let updatedVouchers = [...currentVouchers];
-      let updatedUsers = [...users];
-      let usedActiveTotal = 0;
-      
-      const expiryDate = new Date(Date.now() + systemConfig.defaultVoucherValidityDays * 24 * 60 * 60 * 1000).toISOString();
-      const batchItems: { userId: string; userName: string; amount: number }[] = [];
-
-      items.forEach(item => {
-          let needed = item.amount;
-          const assignedIds: string[] = [];
-
-          while (needed > 0 && currentActiveIdx < activeVouchers.length) {
-              assignedIds.push(activeVouchers[currentActiveIdx].id);
-              currentActiveIdx++;
-              needed--;
-              usedActiveTotal++;
-          }
-
-          while (needed > 0 && currentReservedIdx < reservedVouchers.length) {
-              assignedIds.push(reservedVouchers[currentReservedIdx].id);
-              currentReservedIdx++;
-              needed--;
-          }
-
-          if (assignedIds.length > 0) {
-              updatedVouchers = updatedVouchers.map(v => 
-                  assignedIds.includes(v.id) 
-                  ? { ...v, status: VoucherStatus.DISTRIBUTED, ownerId: item.employeeId, expiryDate } 
-                  : v
-              );
-              
-              const userIndex = updatedUsers.findIndex(u => u.id === item.employeeId);
-              if (userIndex > -1) {
-                  const targetUser = updatedUsers[userIndex];
-                  updatedUsers[userIndex] = {
-                      ...targetUser,
-                      voucherBalance: targetUser.voucherBalance + item.amount
-                  };
-
-                  batchItems.push({
-                      userId: targetUser.id,
-                      userName: targetUser.name,
-                      amount: item.amount
-                  });
-                  notifyUser(item.employeeId, `Otrzymałeś ${item.amount} nowych voucherów (Lista zbiorcza)!`, 'SUCCESS');
-              }
-          }
-      });
-
-      setVouchers(updatedVouchers);
-      setUsers(updatedUsers);
-
-      setCompanies(prev => prev.map(c => 
-          c.id === companyId 
-          ? { ...c, balanceActive: Math.max(0, c.balanceActive - usedActiveTotal) } 
-          : c
-      ));
-
-      // CREATE PROTOCOL RECORD (DistributionBatch) - BULK
-      const batchId = `PROTOCOL-${new Date().toISOString().slice(0,10)}-${generateUUID().slice(0,4).toUpperCase()}`;
-      const newBatch: DistributionBatch = {
-          id: batchId,
-          companyId: companyId,
-          date: new Date().toISOString(),
-          hrName: currentUser.name,
-          totalAmount: totalAmountNeeded,
-          items: batchItems,
-          status: 'COMPLETED'
-      };
-      
-      setDistributionBatches(prev => [newBatch, ...prev]);
-
-      logEvent('BULK_DISTRIBUTION', `Rozdano masowo ${totalAmountNeeded} pkt dla ${items.length} pracowników. Protokół: ${batchId}`, currentUser.id, 'BULK');
-      
-      addToast(
-          "Masowa Dystrybucja Zakończona", 
-          `Pomyślnie rozdano ${totalAmountNeeded} pkt. Protokół został wygenerowany i jest dostępny w Teczce Dokumentów.`, 
-          "SUCCESS"
-      );
-
-  }, [currentUser, users, vouchers, systemConfig, setUsers, setCompanies, logEvent, notifyUser, addToast, setVouchers, setDistributionBatches]);
-
-  const handleServicePurchase = useCallback((service: ServiceItem) => {
-    // ... existing purchase logic ...
-    if (currentUser.voucherBalance < service.price) {
-      addToast("Transakcja Odrzucona", "Niewystarczające środki.", "ERROR");
+  const handleBulkDistribute = useCallback(async (items: { employeeId: string; amount: number }[]) => {
+    const companyId = currentUser.companyId;
+    if (!companyId) {
+      addToast('Błąd', 'Nie zidentyfikowano firmy użytkownika.', 'ERROR');
       return;
     }
 
-    const userVouchers = vouchers.filter(v => v.ownerId === currentUser.id && v.status === VoucherStatus.DISTRIBUTED);
-    const vouchersToConsume = userVouchers.slice(0, service.price);
-    const idsToConsume = vouchersToConsume.map(v => v.id);
+    const totalNeeded = items.reduce((acc, i) => acc + i.amount, 0);
 
-    setVouchers(prev => prev.map(v => 
-      idsToConsume.includes(v.id) ? { ...v, status: VoucherStatus.CONSUMED } : v
+    // Optimistic
+    setUsers(prev => {
+      const copy = [...prev];
+      for (const item of items) {
+        const idx = copy.findIndex(u => u.id === item.employeeId);
+        if (idx > -1) copy[idx] = { ...copy[idx], voucherBalance: copy[idx].voucherBalance + item.amount };
+      }
+      return copy;
+    });
+    setCompanies(prev => prev.map(c =>
+      c.id === companyId ? { ...c, balanceActive: Math.max(0, c.balanceActive - totalNeeded) } : c
     ));
 
-    setUsers(prev => prev.map(u => 
+    const res = await fetch('/api/vouchers/bulk-distribute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: items.map(i => ({ employeeId: i.employeeId, amount: i.amount })) }),
+    });
+
+    if (!res.ok) {
+      // Rollback
+      setUsers(prev => {
+        const copy = [...prev];
+        for (const item of items) {
+          const idx = copy.findIndex(u => u.id === item.employeeId);
+          if (idx > -1) copy[idx] = { ...copy[idx], voucherBalance: copy[idx].voucherBalance - item.amount };
+        }
+        return copy;
+      });
+      setCompanies(prev => prev.map(c =>
+        c.id === companyId ? { ...c, balanceActive: c.balanceActive + totalNeeded } : c
+      ));
+      addToast('Błąd Masowy', 'Nie udało się przeprowadzić masowej dystrybucji.', 'ERROR');
+      return;
+    }
+
+    const { distributed, batchId } = await res.json();
+
+    if (batchId) {
+      const batchItems = items.map(item => {
+        const u = users.find(u => u.id === item.employeeId);
+        return { userId: item.employeeId, userName: u?.name ?? item.employeeId, amount: item.amount };
+      });
+
+      const newBatch: DistributionBatch = {
+        id:          batchId,
+        companyId:   companyId,
+        date:        new Date().toISOString(),
+        hrName:      currentUser.name,
+        totalAmount: distributed,
+        items:       batchItems,
+        status:      'COMPLETED',
+      };
+      setDistributionBatches(prev => [newBatch, ...prev]);
+    }
+
+    logEvent('BULK_DISTRIBUTION', `Rozdano masowo ${distributed} pkt dla ${items.length} pracowników. Protokół: ${batchId}`, currentUser.id, 'BULK');
+    addToast(
+      'Masowa Dystrybucja Zakończona',
+      `Pomyślnie rozdano ${distributed} pkt. Protokół wygenerowany w Teczce Dokumentów.`,
+      'SUCCESS'
+    );
+  }, [currentUser, users, logEvent, notifyUser, addToast]);
+
+  // ── Zakup usługi (pracownik) ──────────────────────────────────────────────
+
+  const handleServicePurchase = useCallback(async (service: ServiceItem) => {
+    if ((currentUser.voucherBalance ?? 0) < service.price) {
+      addToast('Transakcja Odrzucona', 'Niewystarczające środki.', 'ERROR');
+      return;
+    }
+
+    // Optimistic
+    setUsers(prev => prev.map(u =>
       u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance - service.price } : u
     ));
 
-    const newTransaction: Transaction = {
-      id: `TRX-${generateUUID()}`,
-      userId: currentUser.id,
-      type: 'DEBIT',
-      serviceId: service.id,
-      serviceName: service.name,
-      amount: service.price,
-      date: new Date().toISOString()
-    };
-    setTransactions(prev => [newTransaction, ...prev]);
+    const res = await fetch('/api/vouchers/purchase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ serviceId: service.id, serviceName: service.name, amount: service.price }),
+    });
 
-    logEvent('SERVICE_CONSUMPTION', `Zakup usługi: ${service.name}.`, currentUser.id, 'USER');
-    notifyUser(currentUser.id, `Zakupiono: ${service.name}.`, 'SUCCESS');
-    addToast("Usługa Aktywowana", `Pobrano ${service.price} pkt.`, "SUCCESS");
-  }, [currentUser, vouchers, setUsers, logEvent, notifyUser, addToast, setVouchers, setTransactions]);
-
-  const simulateExpiration = useCallback(() => {
-    // ... existing simulation logic ...
-    const activeUserIds = new Set(users.filter(u => u.status === 'ACTIVE').map(u => u.id));
-    const eligibleVouchers = vouchers.filter(v => 
-        v.status === VoucherStatus.DISTRIBUTED && v.ownerId && activeUserIds.has(v.ownerId)
-    );
-
-    if (eligibleVouchers.length === 0) {
-      addToast("Symulacja Zatrzymana", "Brak rozdanych voucherów u AKTYWNYCH pracowników.", "INFO");
+    if (!res.ok) {
+      setUsers(prev => prev.map(u =>
+        u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance + service.price } : u
+      ));
+      addToast('Transakcja Odrzucona', 'Nie udało się zrealizować zakupu.', 'ERROR');
       return;
     }
 
-    const uniqueOwners = (Array.from(new Set(eligibleVouchers.map(v => v.ownerId as string))) as string[]).slice(0, 5);
-    const vouchersToExpire = eligibleVouchers.filter(v => uniqueOwners.includes(v.ownerId as string));
-    const idsToExpire = vouchersToExpire.map(v => v.id);
+    const newTx: Transaction = {
+      id:          `TRX-${Date.now()}`,
+      userId:      currentUser.id,
+      type:        'DEBIT',
+      serviceId:   service.id,
+      serviceName: service.name,
+      amount:      service.price,
+      date:        new Date().toISOString(),
+    };
+    setTransactions(prev => [newTx, ...prev]);
 
-    setVouchers(prev => prev.map(v => 
-      idsToExpire.includes(v.id) ? { ...v, status: VoucherStatus.BUYBACK_PENDING } : v
-    ));
+    logEvent('SERVICE_CONSUMPTION', `Zakup usługi: ${service.name}.`, currentUser.id, 'USER');
+    notifyUser(currentUser.id, `Zakupiono: ${service.name}.`, 'SUCCESS');
+    addToast('Usługa Aktywowana', `Pobrano ${service.price} pkt.`, 'SUCCESS');
+  }, [currentUser, logEvent, notifyUser, addToast]);
 
-    const newAgreements: BuybackAgreement[] = [];
-    uniqueOwners.forEach(uid => {
-      const user = users.find(u => u.id === uid);
-      const userVouchers = vouchersToExpire.filter(v => v.ownerId === uid);
-      const count = userVouchers.length;
-      
-      const userSnapshot = user ? {
-          name: user.name,
-          email: user.email,
-          pesel: user.pesel || '',
-          address: user.address ? `${user.address.street}, ${user.address.zipCode} ${user.address.city}` : '',
-          iban: user.finance?.payoutAccount?.iban || ''
-      } : { name: 'Unknown', email: '', pesel: '', iban: '' };
+  // ── Symulacja wygaśnięcia (superadmin) ────────────────────────────────────
 
-      const agreementId = `UMOWA-ODKUP-${generateUUID().slice(0,8).toUpperCase()}`;
+  const simulateExpiration = useCallback(async () => {
+    const res = await fetch('/api/vouchers/simulate-expiration', { method: 'POST' });
 
-      newAgreements.push({
-        id: agreementId,
-        userId: uid,
-        voucherCount: count,
-        totalValue: count * 1,
-        dateGenerated: new Date().toISOString(),
-        status: 'PENDING_APPROVAL',
-        snapshot: {
-            user: userSnapshot,
-            vouchers: userVouchers.map(v => v.id),
-            termsVersion: '1.0'
-        }
-      });
+    if (!res.ok) {
+      addToast('Błąd', 'Symulacja nie powiodła się.', 'ERROR');
+      return;
+    }
 
-      setUsers(prev => prev.map(u => 
-        u.id === uid ? { ...u, voucherBalance: u.voucherBalance - count } : u
-      ));
-      
-      notifyUser(uid, `Twoje vouchery (${count} szt.) wygasły. Wygenerowano umowę odkupu.`, 'WARNING', undefined, agreementId, 'BUYBACK');
-    });
+    const { agreements, message } = await res.json();
 
-    setBuybacks(prev => [...prev, ...newAgreements]);
-    addToast("Symulacja Zakończona", `Wygaszono vouchery dla ${uniqueOwners.length} osób.`, "SUCCESS");
-  }, [vouchers, users, notificationConfigs, setUsers, logEvent, notifyUser, addToast, setVouchers, setBuybacks]);
+    if (message) {
+      addToast('Symulacja Zatrzymana', message, 'INFO');
+      return;
+    }
 
-  const handleApproveBuyback = useCallback((buybackId: string) => {
+    // Wczytaj nowe buybacki
+    fetch('/api/vouchers/buybacks')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => setBuybacks(rows.map(dbBuybackToFrontend)))
+      .catch(() => {});
+
+    // Powiadom zainteresowanych użytkowników
+    for (const a of (agreements ?? [])) {
+      notifyUser(a.userId, `Twoje vouchery (${a.count} szt.) wygasły. Wygenerowano umowę odkupu.`, 'WARNING', undefined, a.agreementId, 'BUYBACK');
+    }
+
+    addToast('Symulacja Zakończona', `Wygaszono vouchery dla ${agreements?.length ?? 0} osób.`, 'SUCCESS');
+  }, [notifyUser, addToast]);
+
+  // ── Zatwierdzenie odkupu ──────────────────────────────────────────────────
+
+  const handleApproveBuyback = useCallback(async (buybackId: string) => {
     setBuybacks(prev => prev.map(b => b.id === buybackId ? { ...b, status: 'APPROVED' } : b));
-    setVouchers(prev => prev.map(v => {
-        return v.status === VoucherStatus.BUYBACK_PENDING ? { ...v, status: VoucherStatus.BUYBACK_COMPLETE } : v; 
-    }));
-    logEvent('BUYBACK_APPROVED', `Zatwierdzono odkup ${buybackId}.`, buybackId, 'BUYBACK');
-    addToast("Odkup Zatwierdzony", "Umowa zatwierdzona.", "SUCCESS");
-  }, [logEvent, addToast, setBuybacks, setVouchers]);
 
-  const handleProcessBuybackPayment = useCallback((buybackId: string, details?: { date: string, reference?: string }) => {
-      setBuybacks(prev => prev.map(b => b.id === buybackId ? { ...b, status: 'PAID' } : b));
-      logEvent('BUYBACK_PAID', `Zaksięgowano płatność za odkup ${buybackId}.`, buybackId, 'BUYBACK');
-      addToast("Wypłata Zaksięgowana", "Środki wysłane.", "SUCCESS");
-  }, [logEvent, addToast, setBuybacks]);
+    const res = await fetch(`/api/vouchers/buybacks/${buybackId}/approve`, { method: 'PATCH' });
+
+    if (!res.ok) {
+      setBuybacks(prev => prev.map(b => b.id === buybackId ? { ...b, status: 'PENDING_APPROVAL' } : b));
+      addToast('Błąd', 'Nie udało się zatwierdzić odkupu.', 'ERROR');
+      return;
+    }
+
+    logEvent('BUYBACK_APPROVED', `Zatwierdzono odkup ${buybackId}.`, buybackId, 'BUYBACK');
+    addToast('Odkup Zatwierdzony', 'Umowa zatwierdzona.', 'SUCCESS');
+  }, [logEvent, addToast]);
+
+  // ── Wypłata odkupu ────────────────────────────────────────────────────────
+
+  const handleProcessBuybackPayment = useCallback(async (buybackId: string, _details?: { date: string; reference?: string }) => {
+    setBuybacks(prev => prev.map(b => b.id === buybackId ? { ...b, status: 'PAID' } : b));
+
+    const res = await fetch(`/api/vouchers/buybacks/${buybackId}/pay`, { method: 'PATCH' });
+
+    if (!res.ok) {
+      setBuybacks(prev => prev.map(b => b.id === buybackId ? { ...b, status: 'APPROVED' } : b));
+      addToast('Błąd', 'Nie udało się zaksięgować wypłaty.', 'ERROR');
+      return;
+    }
+
+    logEvent('BUYBACK_PAID', `Zaksięgowano płatność za odkup ${buybackId}.`, buybackId, 'BUYBACK');
+    addToast('Wypłata Zaksięgowana', 'Środki wysłane.', 'SUCCESS');
+  }, [logEvent, addToast]);
 
   return {
-      vouchers,
-      setVouchers,
-      buybacks,
-      setBuybacks,
-      transactions,
-      setTransactions,
-      distributionBatches,
-      setDistributionBatches, // NEW: Exported so OrderLogic can use it
-      handleManualEmission,
-      handleDistribute,
-      handleBulkDistribute,
-      handleServicePurchase,
-      simulateExpiration,
-      handleApproveBuyback,
-      handleProcessBuybackPayment
+    vouchers,
+    setVouchers,
+    buybacks,
+    setBuybacks,
+    transactions,
+    setTransactions,
+    distributionBatches,
+    setDistributionBatches,
+    handleManualEmission,
+    handleDistribute,
+    handleBulkDistribute,
+    handleServicePurchase,
+    simulateExpiration,
+    handleApproveBuyback,
+    handleProcessBuybackPayment,
   };
 };
