@@ -16,6 +16,10 @@ interface SupabaseProfile {
   contract_type: 'UOP' | 'UZ' | null;
   phone_number: string | null;
   iban:         string | null;
+  pesel:        string | null;
+  status?:      'active' | 'inactive' | 'anonymized' | null;
+  voucherBalance?: number;
+  temp_password?: string | null;
 }
 
 /** Buduje minimalny obiekt User z profilu Supabase */
@@ -30,13 +34,17 @@ export function supabaseProfileToUser(
     id:             profile.id,
     role,
     companyId:      companyId ?? '',
-    voucherBalance: 0,           // pobierane osobno przez getVoucherBalance()
-    status:         'ACTIVE',
+    voucherBalance: profile.voucherBalance ?? 0,
+    status: profile.status === 'inactive' ? 'INACTIVE'
+          : profile.status === 'anonymized' ? 'ANONYMIZED'
+          : 'ACTIVE',
     name:           profile.full_name ?? email.split('@')[0],
     email,
+    pesel:          profile.pesel ?? undefined,
     department:     profile.department   ?? undefined,
     position:       profile.position     ?? undefined,
     isTwoFactorEnabled: false,
+    tempPassword: profile.temp_password ?? null,
     identity: {
       firstName: (profile.full_name ?? '').split(' ')[0] ?? '',
       lastName:  (profile.full_name ?? '').split(' ').slice(1).join(' ') ?? '',

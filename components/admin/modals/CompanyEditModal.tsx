@@ -39,6 +39,7 @@ export const CompanyEditModal: React.FC<CompanyEditModalProps> = ({
   // Settings
   const [customValidity, setCustomValidity] = useState<number | ''>('');
   const [customPayment, setCustomPayment] = useState<number | ''>('');
+  const [feePercent, setFeePercent] = useState<number | ''>(20);
 
   useEffect(() => {
     if (isOpen) {
@@ -55,6 +56,7 @@ export const CompanyEditModal: React.FC<CompanyEditModalProps> = ({
             
             setCustomValidity(company.customVoucherValidityDays ?? '');
             setCustomPayment(company.customPaymentTermsDays ?? '');
+            setFeePercent(company.feePercent ?? 20);
         } else {
             // Reset for new
             setName('');
@@ -62,6 +64,7 @@ export const CompanyEditModal: React.FC<CompanyEditModalProps> = ({
             setStreet(''); setCity(''); setZipCode('');
             setDirectorId(''); setManagerId(''); setAdvisorId('');
             setCustomValidity(''); setCustomPayment('');
+            setFeePercent(20);
         }
         setActiveTab('GENERAL');
     }
@@ -80,7 +83,8 @@ export const CompanyEditModal: React.FC<CompanyEditModalProps> = ({
           managerId,
           advisorId,
           customVoucherValidityDays: customValidity === '' ? undefined : Number(customValidity),
-          customPaymentTermsDays: customPayment === '' ? undefined : Number(customPayment)
+          customPaymentTermsDays: customPayment === '' ? undefined : Number(customPayment),
+          feePercent: feePercent === '' ? 20 : Number(feePercent),
       };
 
       onSave(payload);
@@ -285,6 +289,21 @@ export const CompanyEditModal: React.FC<CompanyEditModalProps> = ({
                                         className="text-center font-bold"
                                         placeholder="Globalnie"
                                         rightElement={<span className="text-xs text-slate-500">Kredyt Kupiecki</span>}
+                                    />
+                                </div>
+
+                                <div>
+                                    <Input 
+                                        label="Opłata Serwisowa (%)"
+                                        type="number"
+                                        min={15}
+                                        max={31}
+                                        step={0.5}
+                                        value={feePercent}
+                                        onChange={e => setFeePercent(e.target.value === '' ? '' : Number(e.target.value))}
+                                        className="text-center font-bold"
+                                        placeholder="20"
+                                        rightElement={<span className="text-xs text-slate-500">Zakres: 15–31%</span>}
                                     />
                                 </div>
                             </div>

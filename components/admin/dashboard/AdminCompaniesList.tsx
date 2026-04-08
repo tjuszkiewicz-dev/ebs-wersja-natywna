@@ -3,18 +3,19 @@ import React, { useState } from 'react';
 import { Company, User, Order } from '../../../types';
 import { DataTable, Column } from '../../ui/DataTable';
 import { Badge } from '../../ui/Badge';
-import { Building2, Users, TrendingUp, Eye, RefreshCw, Database, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Building2, Users, TrendingUp, Eye, RefreshCw, Database, AlertTriangle, ArrowRight, LayoutDashboard } from 'lucide-react';
 
 interface AdminCompaniesListProps {
   companies: Company[];
   users: User[];
   orders: Order[];
   onInspectCompany: (company: Company) => void;
-  onSyncCrm?: () => Promise<void>; 
+  onSyncCrm?: () => Promise<void>;
+  onViewHrPanel?: (companyId: string) => void;
 }
 
 export const AdminCompaniesList: React.FC<AdminCompaniesListProps> = ({ 
-  companies, users, orders, onInspectCompany, onSyncCrm
+  companies, users, orders, onInspectCompany, onSyncCrm, onViewHrPanel
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -112,13 +113,24 @@ export const AdminCompaniesList: React.FC<AdminCompaniesListProps> = ({
           header: '',
           className: 'text-right',
           cell: (c) => (
-              <button 
-                onClick={() => onInspectCompany(c)}
-                className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition"
-                title="Profil Firmy"
-              >
-                  <ArrowRight size={18}/>
-              </button>
+              <div className="flex items-center justify-end gap-1">
+                  {onViewHrPanel && (
+                      <button
+                        onClick={() => onViewHrPanel(c.id)}
+                        className="p-2 hover:bg-blue-50 rounded-lg text-slate-400 hover:text-blue-600 transition"
+                        title="Panel HR"
+                      >
+                          <LayoutDashboard size={16}/>
+                      </button>
+                  )}
+                  <button 
+                    onClick={() => onInspectCompany(c)}
+                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-indigo-600 transition"
+                    title="Profil Firmy"
+                  >
+                      <ArrowRight size={18}/>
+                  </button>
+              </div>
           )
       }
   ];

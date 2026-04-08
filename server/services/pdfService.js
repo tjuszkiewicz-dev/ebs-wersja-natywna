@@ -34,8 +34,8 @@ hbs.registerHelper('multiply', (a, b) => (a * b).toFixed(2));
 const getBrowser = async () => {
     if (!browserInstance) {
         browserInstance = await puppeteer.launch({
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            headless: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
         });
     }
     return browserInstance;
@@ -94,4 +94,20 @@ const generatePdf = async (docType, data, company, user) => {
     return pdfBuffer;
 };
 
-module.exports = { generatePdf };
+const generateRawPdf = async (html, pdfOptions = {}) => {
+    const browser = await getBrowser();
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const hasCustomOptions = Object.keys(pdfOptions).length > 0;
+    const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        // preferCSSPageSize conflicts with displayHeaderFooter on pages 2+
+        ...(hasCustomOptions ? {} : { preferCSSPageSize: true }),
+        ...pdfOptions,
+    });
+    await page.close();
+    return pdfBuffer;
+};
+
+module.exports = { generatePdf, generateRawPdf };

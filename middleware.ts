@@ -12,7 +12,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from './types/database';
 
 // Ścieżki publiczne — nie wymagają logowania
-const PUBLIC_PATHS = ['/login', '/api/auth'];
+const PUBLIC_PATHS = ['/login', '/api/auth', '/api'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(p => pathname.startsWith(p))

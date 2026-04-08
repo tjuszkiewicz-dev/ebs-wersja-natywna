@@ -7,7 +7,12 @@ import { DataTable, Column } from '../../ui/DataTable';
 import { Badge } from '../../ui/Badge';
 import { Tabs } from '../../ui/Tabs';
 import { StatusBadge } from '../../ui/StatusBadge';
-import { Modal } from '../../ui/Modal'; 
+import { Modal } from '../../ui/Modal';
+import {
+    sanitizeFilename,
+    generateClientSidePdf,
+    enrichBatchWithRanges,
+} from './documentBinderHelpers';
 
 // Declare external libs
 declare const XLSX: any;
@@ -150,136 +155,6 @@ export const HRDocumentBinder: React.FC<Props> = ({
         return rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [distributionBatches, orders]);
 
-    // --- HELPERS ---
-    
-    // Sanitize filename to prevent "Path too long" or invalid chars
-    const sanitizeFilename = (str: string) => {
-        if (!str) return 'file';
-        return str
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents (ą->a)
-            .replace(/[^a-z0-9]/gi, '_') // Replace non-alphanumeric with _
-            .replace(/_+/g, '_') // Collapse multiple _
-            .substring(0, 30); // Truncate rigorously
-    };
-
-    // FIXED GENERATOR: STRICT SINGLE ITEM RECEIPT
-    const generateClientSidePdf = async (type: string, data: any, user: User | undefined) => {
-        if (typeof window === 'undefined' || !(window as any).html2pdf) {
-             return new Blob(["Error: PDF library missing."], { type: 'text/plain' });
-        }
-
-        const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.left = '-9999px';
-        container.style.top = '0';
-        container.style.width = '210mm'; // A4 width
-        container.style.minHeight = '297mm';
-        container.style.padding = '20mm';
-        container.style.backgroundColor = 'white';
-        container.style.fontFamily = 'serif';
-        document.body.appendChild(container);
-
-        // Ensure we extract the single item correctly. 
-        // Logic: if 'items' array exists, take the first one.
-        const item = data.items && data.items.length > 0 ? data.items[0] : { userName: 'Brak Danych', userId: '---', amount: 0, voucherRange: '-' };
-        
-        // Clean Template - NO ORDER INFO
-        container.innerHTML = `
-            <style>
-                .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #000; padding-bottom: 20px; }
-                h1 { font-size: 22px; text-transform: uppercase; margin: 0; padding: 0; }
-                h2 { font-size: 14px; text-transform: uppercase; margin: 5px 0 0 0; color: #555; }
-                .meta { margin-bottom: 30px; font-family: sans-serif; font-size: 12px; line-height: 1.6; }
-                .content-box { border: 1px solid #000; padding: 20px; margin-bottom: 40px; }
-                .row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }
-                .label { font-weight: bold; }
-                .footer { margin-top: 100px; font-size: 10px; color: #666; text-align: center; border-top: 1px solid #ccc; padding-top: 10px; }
-                .signature-box { display: flex; justify-content: space-between; margin-top: 80px; }
-                .sig-line { border-top: 1px dashed #000; width: 40%; padding-top: 5px; text-align: center; font-size: 10px; }
-            </style>
-            
-            <div class="header">
-                <h1>Potwierdzenie Otrzymania Środków</h1>
-                <h2>System Benefitowy EBS</h2>
-            </div>
-
-            <div class="meta">
-                <p><strong>Podmiot Przekazujący:</strong> ${company.name}</p>
-                <p><strong>Data Operacji:</strong> ${new Date(data.date).toLocaleDateString()}</p>
-            </div>
-            
-            <div class="content-box">
-                <div class="row">
-                    <span class="label">Beneficjent (Pracownik):</span>
-                    <span>${item.userName}</span>
-                </div>
-                <div class="row">
-                    <span class="label">Identyfikator Systemowy:</span>
-                    <span>${item.userId}</span>
-                </div>
-                <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;"/>
-                <div class="row">
-                    <span class="label">Przedmiot Wydania:</span>
-                    <span>Voucher Prime (Środki Cyfrowe)</span>
-                </div>
-                <div class="row">
-                    <span class="label">Wartość Nominalna:</span>
-                    <span><strong>${item.amount.toFixed(2)} PLN</strong></span>
-                </div>
-                <div class="row">
-                    <span class="label">Szczegóły / Zakres:</span>
-                    <span style="font-family: monospace; font-size: 12px;">${item.voucherRange || 'Automatyczny przydział'}</span>
-                </div>
-            </div>
-
-            <div class="signature-box">
-                <div class="sig-line">
-                    Podpis Pracodawcy (HR)<br/>
-                    (Wygenerowano Elektronicznie)
-                </div>
-                <div class="sig-line">
-                    Podpis Pracownika<br/>
-                    (Potwierdzenie Odbioru)
-                </div>
-            </div>
-
-            <div class="footer">
-                Dokument wygenerowany w systemie EBS. Numer referencyjny operacji: ${data.id}
-            </div>
-        `;
-
-        try {
-            const opt = {
-                margin: 0, // content has padding
-                filename: `Potwierdzenie_${item.userId}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, logging: false },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            
-            // Critical wait for rendering
-            await new Promise(r => setTimeout(r, 100));
-
-            // @ts-ignore
-            const worker = window.html2pdf().set(opt).from(container).toPdf().get('pdf');
-            const pdf = await worker;
-            const blob = pdf.output('blob');
-            
-            document.body.removeChild(container);
-            return blob;
-        } catch (e) {
-            console.error("PDF Gen Error:", e);
-            document.body.removeChild(container);
-            return new Blob([`Error generating PDF: ${e}`], { type: 'text/plain' });
-        }
-    };
-
-    const fetchPdfBlob = async (type: string, data: any, user: User | undefined) => {
-        // ALWAYS use client-side for individual receipts to ensure simplicity and speed in ZIP
-        // and to avoid server template complexity for single items.
-        return await generateClientSidePdf(type, data, user);
-    };
-
     // --- ZIP GENERATOR (FIXED) ---
     const handleGenerateZip = async () => {
         if (!zipMonth) return;
@@ -340,7 +215,7 @@ export const HRDocumentBinder: React.FC<Props> = ({
                     };
 
                     // Generate using Client Side logic (guaranteed structure)
-                    const blob = await generateClientSidePdf('PROTOCOL', virtualBatch, employees.find(u => u.id === userId));
+                    const blob = await generateClientSidePdf('PROTOCOL', virtualBatch, employees.find(u => u.id === userId), company);
                     
                     const safeDate = trans.date.slice(0, 10);
                     const safeId = sanitizeFilename(trans.sourceRef).slice(0, 10);
@@ -374,30 +249,7 @@ export const HRDocumentBinder: React.FC<Props> = ({
         }
     };
 
-    // --- HELPER: CALCULATE VOUCHER RANGES ---
-    const enrichBatchItemWithRange = (batch: DistributionBatch, item: any) => {
-        const batchTime = new Date(batch.date).getTime();
-        const userVouchers = vouchers.filter(v => {
-            if (v.ownerId !== item.userId) return false;
-            const vTime = new Date(v.issueDate).getTime();
-            return Math.abs(vTime - batchTime) < 3600000; 
-        }).sort((a,b) => a.id.localeCompare(b.id));
-
-        if (userVouchers.length > 0) {
-            const first = userVouchers[0].id.split('/').pop();
-            const last = userVouchers[userVouchers.length - 1].id.split('/').pop();
-            const rangeStr = userVouchers.length > 1 ? `${first}...${last}` : first;
-            return { ...item, voucherRange: rangeStr };
-        }
-        return { ...item, voucherRange: "Generowane w systemie" };
-    };
-
-    const enrichBatchWithRanges = (batch: DistributionBatch): DistributionBatch => {
-        const enrichedItems = (batch.items || []).map(item => enrichBatchItemWithRange(batch, item));
-        return { ...batch, items: enrichedItems };
-    };
-
-    // ... (Excel handlers kept same as before) ...
+    // ... (Excel handlers) ...
     const handleDownloadImportExcel = (entry: ImportHistoryEntry) => {
         if (typeof XLSX === 'undefined') { alert('Brak biblioteki Excel'); return; }
         const users = entry.reportData?.users || [];
@@ -437,7 +289,7 @@ export const HRDocumentBinder: React.FC<Props> = ({
         {
             header: 'Dokument', className: 'text-right',
             cell: (r) => r.type === 'BATCH' 
-                ? <DocumentDownloadButton docName={`Protokol_${r.id}`} type="PROTOCOL" data={enrichBatchWithRanges(r.originalRef as DistributionBatch)} company={company} user={hrUser} />
+                ? <DocumentDownloadButton docName={`Protokol_${r.id}`} type="PROTOCOL" data={enrichBatchWithRanges(r.originalRef as DistributionBatch, vouchers)} company={company} user={hrUser} />
                 : <button onClick={() => onViewEvidence(r.originalRef as Order)} className="text-xs text-indigo-600 font-bold">Lista</button>
         }
     ];
@@ -469,7 +321,7 @@ export const HRDocumentBinder: React.FC<Props> = ({
                             }]
                         };
                         
-                        generateClientSidePdf('PROTOCOL', virtualBatch, employees.find(u => u.id === r.userId))
+                        generateClientSidePdf('PROTOCOL', virtualBatch, employees.find(u => u.id === r.userId), company)
                             .then(blob => saveAs(blob, `Potwierdzenie_${r.userName}_${r.date.slice(0,10)}.pdf`));
                     }}
                     className="p-1.5 hover:bg-slate-100 rounded text-slate-500 border border-transparent hover:border-slate-300 transition"

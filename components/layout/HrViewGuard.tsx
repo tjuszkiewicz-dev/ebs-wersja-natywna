@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertCircle, LogOut, RotateCcw } from 'lucide-react';
 import { Company, User } from '../../types';
 
@@ -11,15 +11,51 @@ interface HrViewGuardProps {
 
 /**
  * Resolves the company for an HR user and renders the error UI if none is found.
- * Extracts the company-resolution + guard pattern from App.tsx so it can be
- * tested and reused independently.
+ * When the company is not in the local state (e.g. real Supabase UUID not in mock data),
+ * it fetches the company from the API so imports always use the correct company_id.
  */
 export const HrViewGuard: React.FC<HrViewGuardProps> = ({ currentUser, companies, onLogout, children }) => {
-  let company = companies.find(c => c.id === currentUser.companyId);
+  const found = companies.find(c => c.id === currentUser.companyId);
+  const [fetchedCompany, setFetchedCompany] = useState<Company | null>(null);
+  const [fetchError, setFetchError] = useState(false);
 
-  if (!company && companies.length > 0) {
-    console.warn('Company mismatch for HR user. Falling back to first available company.');
-    company = companies[0];
+  useEffect(() => {
+    if (found || !currentUser.companyId) return;
+
+    // Company not in local mock state — fetch from API
+    fetch(`/api/companies/${currentUser.companyId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          setFetchedCompany({
+            id:              data.id,
+            name:            data.name ?? '',
+            nip:             data.nip ?? '',
+            balanceActive:   data.balance_active ?? 0,
+            balancePending:  data.balance_pending ?? 0,
+            address: data.address_city ? {
+              street:     data.address_street ?? '',
+              city:       data.address_city ?? '',
+              postalCode: data.address_zip ?? '',
+              country:    'Polska',
+            } : undefined,
+          });
+        } else {
+          setFetchError(true);
+        }
+      })
+      .catch(() => setFetchError(true));
+  }, [currentUser.companyId, found]);
+
+  const company = found ?? fetchedCompany;
+
+  // Still loading
+  if (!company && !fetchError && currentUser.companyId) {
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!company) {
@@ -58,3 +94,4 @@ export const HrViewGuard: React.FC<HrViewGuardProps> = ({ currentUser, companies
 
   return <>{children(company)}</>;
 };
+

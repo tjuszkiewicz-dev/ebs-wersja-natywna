@@ -57,6 +57,37 @@ function SupabaseSync({ children }: Props) {
         return [...filtered, appUser];
       });
 
+      // Pobierz i wstrzyknij firmę użytkownika żeby panel nie wyświetlał domyślnej firmy
+      if (profile.company_id) {
+        const { data: companyRow } = await supabaseBrowser
+          .from('companies')
+          .select('id, name, nip, balance_pending, balance_active, address_street, address_city, address_zip, custom_voucher_validity_days, custom_payment_terms_days')
+          .eq('id', profile.company_id)
+          .single();
+
+        if (companyRow) {
+          actions.setCompanies(prev => {
+            const exists = prev.some(c => c.id === companyRow.id);
+            if (exists) return prev;
+            return [...prev, {
+              id:                      companyRow.id,
+              name:                    companyRow.name ?? '',
+              nip:                     companyRow.nip ?? '',
+              balancePending:          companyRow.balance_pending ?? 0,
+              balanceActive:           companyRow.balance_active ?? 0,
+              voucherValidityDays:     companyRow.custom_voucher_validity_days ?? 7,
+              customPaymentTermsDays:  companyRow.custom_payment_terms_days ?? undefined,
+              address:                 companyRow.address_city ? {
+                street:     companyRow.address_street ?? '',
+                city:       companyRow.address_city ?? '',
+                postalCode: companyRow.address_zip ?? '',
+                country:    'Polska',
+              } : undefined,
+            }];
+          });
+        }
+      }
+
       // Ustaw jako bieżący użytkownik
       actions.login(appUser.id);
       setReady(true);

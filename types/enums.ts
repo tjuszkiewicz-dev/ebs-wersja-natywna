@@ -1,0 +1,71 @@
+export enum Role {
+  SUPERADMIN = 'SUPERADMIN',
+  HR = 'HR',
+  EMPLOYEE = 'EMPLOYEE',
+  DIRECTOR = 'DIRECTOR',
+  MANAGER = 'MANAGER',
+  ADVISOR = 'ADVISOR'
+}
+
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'ANONYMIZED';
+
+export enum VoucherStatus {
+  CREATED = 'CREATED',
+  RESERVED = 'RESERVED',
+  ACTIVE = 'ACTIVE',
+  DISTRIBUTED = 'DISTRIBUTED',
+  CONSUMED = 'CONSUMED',
+  EXPIRED = 'EXPIRED',
+  BUYBACK_PENDING = 'BUYBACK_PENDING',
+  BUYBACK_COMPLETE = 'BUYBACK_COMPLETE'
+}
+
+export enum OrderStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  PAID = 'PAID',
+  REJECTED = 'REJECTED'
+}
+
+export enum ContractType {
+  UOP = 'UOP',
+  UZ = 'UZ'
+}
+
+export enum NotificationTarget {
+  EMPLOYEE = 'EMPLOYEE',
+  HR = 'HR'
+}
+
+export enum NotificationTrigger {
+  VOUCHER_GRANTED = 'VOUCHER_GRANTED',
+  VOUCHER_EXPIRING = 'VOUCHER_EXPIRING',
+  VOUCHER_EXPIRED = 'VOUCHER_EXPIRED',
+  ORDER_UNPAID = 'ORDER_UNPAID',
+  ORDER_PENDING = 'ORDER_PENDING',
+  SYSTEM_ALERT = 'SYSTEM_ALERT'
+}
+
+export type NotificationActionType = 'APPROVE_ORDER' | 'REJECT_ORDER' | 'APPROVE_BUYBACK' | 'VIEW_DETAILS' | 'REVIEW_IBAN' | 'VIEW_TICKET';
+
+export type NotificationPriority = 'CRITICAL' | 'HIGH' | 'NORMAL' | 'LOW';
+
+export enum ServiceType {
+  SUBSCRIPTION = 'SUBSCRIPTION',
+  ONE_TIME = 'ONE_TIME'
+}
+
+export enum DocumentType {
+  AGREEMENT = 'AGREEMENT',
+  INVOICE = 'INVOICE',
+  POLICY = 'POLICY',
+  CONFIRMATION = 'CONFIRMATION',
+  IMPORT_REPORT = 'IMPORT_REPORT',
+  PROTOCOL = 'PROTOCOL'
+}
+
+export enum CommissionType {
+  ACQUISITION = 'ACQUISITION',
+  RECURRING = 'RECURRING',
+  RENEWAL = 'RENEWAL'
+}

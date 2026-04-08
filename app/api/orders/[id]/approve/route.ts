@@ -54,15 +54,16 @@ export async function PATCH(
     const amount = Math.floor(entry.final_netto_voucher ?? entry.voucherPartNet ?? 0);
     if (!userId || amount <= 0) continue;
 
-    const { error: transferErr } = await supabase.rpc('transfer_vouchers', {
+    const { data: distCount, error: transferErr } = await (supabase.rpc as any)('distribute_to_employee', {
+      p_company_id:   order.company_id,
       p_from_user_id: order.hr_user_id,
       p_to_user_id:   userId,
       p_amount:       amount,
-      p_type:         'przekazanie',
       p_order_id:     orderId,
     });
 
     if (transferErr) continue;
+    const actualAmount = (Number(distCount) || amount);
 
     const { data: profile } = await supabase
       .from('user_profiles')
@@ -70,13 +71,13 @@ export async function PATCH(
       .eq('id', userId)
       .single();
 
-    batchItems.push({ userId, userName: profile?.full_name ?? userId, amount });
-    distributedCount += amount;
+    batchItems.push({ userId, userName: profile?.full_name ?? userId, amount: actualAmount });
+    distributedCount += actualAmount;
 
     // In-app notification for employee
     await supabase.from('notifications').insert({
       user_id: userId,
-      message: `Otrzymałeś ${amount} nowych voucherów (dystrybucja automatyczna).`,
+      message: `Otrzymałeś ${actualAmount} nowych voucherów (dystrybucja automatyczna).`,
       type:    'SUCCESS',
     });
   }

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Order, Voucher, BuybackAgreement, AuditLogEntry, Commission, NotificationConfig, ServiceItem, SystemConfig, EntityType, User, Company } from '../types';
+import { Order, Voucher, BuybackAgreement, AuditLogEntry, Commission, NotificationConfig, ServiceItem, SystemConfig, EntityType, User, Company, Role } from '../types';
 import { AlertTriangle, Clock, DollarSign, Shield, Settings, TrendingUp, Activity, Building2, Landmark, HelpCircle, Lock, LayoutGrid, Layers, FileText, ArrowRight, Wallet, X } from 'lucide-react';
 import { AdminStats } from '../components/admin/AdminStats';
 import { VoucherManager } from '../components/admin/VoucherManager';
@@ -20,6 +20,7 @@ import { ToastType } from '../components/Toast';
 import { useStrattonSystem } from '../context/StrattonContext';
 import { PageHeader } from '../components/layout/PageHeader'; 
 import { Tabs } from '../components/ui/Tabs'; 
+import { DashboardNewHR } from './DashboardNewHR';
 
 interface Props {
   currentView: string; 
@@ -102,6 +103,7 @@ export const DashboardSuperadmin: React.FC<Props> = ({
   const [showAlerts, setShowAlerts] = useState(true);
   
   const [inspectingCompany, setInspectingCompany] = useState<Company | null>(null);
+  const [hrPanelCompanyId, setHrPanelCompanyId] = useState<string | null>(null);
   
   // --- COUNTERS ---
   const pendingOrders = orders.filter(o => o.status === 'PENDING');
@@ -311,7 +313,8 @@ export const DashboardSuperadmin: React.FC<Props> = ({
                   users={users}
                   orders={orders}
                   onInspectCompany={setInspectingCompany}
-                  onSyncCrm={actions.handleCrmSync} 
+                  onSyncCrm={actions.handleCrmSync}
+                  onViewHrPanel={setHrPanelCompanyId}
               />
           )}
 
@@ -397,6 +400,40 @@ export const DashboardSuperadmin: React.FC<Props> = ({
               onViewDocument={onViewDocument}
           />
       )}
+
+      {/* HR Panel Overlay */}
+      {hrPanelCompanyId && (() => {
+        const hrComp = companies.find(c => c.id === hrPanelCompanyId);
+        if (!hrComp || !state.currentUser) return null;
+        const hrVouchers = vouchers.filter(v => v.companyId === hrPanelCompanyId);
+        const hrOrders = orders.filter(o => o.companyId === hrPanelCompanyId);
+        return (
+          <div className="fixed inset-0 z-50 bg-black/60 flex flex-col" style={{ backdropFilter: 'blur(2px)' }}>
+            <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <Building2 size={16} className="text-blue-600"/>
+                <span className="font-semibold text-sm text-gray-800">Panel HR: {hrComp.name}</span>
+                <span className="text-xs text-gray-400 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded">Widok Administratora</span>
+              </div>
+              <button onClick={() => setHrPanelCompanyId(null)}
+                className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 px-3 py-1.5 rounded hover:bg-gray-100 transition">
+                <X size={15}/> Zamknij panel HR
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <DashboardNewHR
+                company={hrComp}
+                employees={users.filter(u => u.companyId === hrPanelCompanyId && u.role === Role.EMPLOYEE)}
+                vouchers={hrVouchers}
+                orders={hrOrders}
+                currentUser={state.currentUser}
+                onLogout={() => setHrPanelCompanyId(null)}
+                isAdminView={true}
+              />
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

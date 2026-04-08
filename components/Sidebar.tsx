@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Role, User } from '../types';
-import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
@@ -25,31 +25,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isLogout = false
 }) => {
   
-  const getRoleLabel = (role: Role) => {
-    switch(role) {
+  const roleLabel = useMemo(() => {
+    switch(currentUser.role) {
       case Role.SUPERADMIN: return 'Administrator';
       case Role.HR: return 'Księgowość / HR';
       case Role.EMPLOYEE: return 'Pracownik';
       default: return 'Partner / Sprzedaż';
     }
-  };
+  }, [currentUser.role]);
 
-  const getMenuItems = () => {
+  const menuItems = useMemo(() => {
     switch (currentUser.role) {
       case Role.SUPERADMIN:
         return [
-          { id: 'admin-dashboard', label: 'Centrum Dowodzenia', icon: <ShieldCheck size={20} /> },
-          { id: 'admin-orders', label: 'Weryfikacja Zamówień', icon: <FileText size={20} /> },
-          { id: 'admin-buybacks', label: 'Umowy Odkupu', icon: <Wallet size={20} /> },
+          { id: 'admin-pulpit',    label: 'Pulpit',              icon: <LayoutDashboard size={20} /> },
+          { id: 'admin-klienci',   label: 'Baza klientów',       icon: <Users size={20} /> },
+          { id: 'admin-platnosci', label: 'Płatności i faktury', icon: <CreditCard size={20} /> },
+          { id: 'admin-archiwum',  label: 'Archiwum',            icon: <FolderOpen size={20} /> },
         ];
       case Role.HR:
         return [
-          { id: 'hr-dashboard', label: 'Pulpit Główny', icon: <LayoutDashboard size={20} /> },
-          { id: 'hr-employees', label: 'Kartoteki Pracownicze', icon: <Users size={20} /> },
-          { id: 'hr-orders', label: 'Rozliczenia i Faktury', icon: <FileText size={20} /> },
-          { id: 'hr-reports', label: 'Raporty i JPK', icon: <BarChart3 size={20} /> },
-          { id: 'hr-documents', label: 'Dokumenty (Teczka)', icon: <FolderOpen size={20} /> },
-          { id: 'hr-integrations', label: 'Integracje (Księgowe)', icon: <Settings2 size={20} /> },
+          { id: 'hr-order',     label: 'Nowe zamówienie',       icon: <Plus size={20} /> },
+          { id: 'hr-history',   label: 'Historia zamówień',     icon: <FileText size={20} /> },
+          { id: 'hr-employees', label: 'Kartoteka pracowników', icon: <Users size={20} /> },
+          { id: 'hr-payments',  label: 'Płatności i faktury',   icon: <CreditCard size={20} /> },
         ];
       case Role.EMPLOYEE:
         return [
@@ -69,9 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       default:
         return [];
     }
-  };
-
-  const menuItems = getMenuItems();
+  }, [currentUser.role]);
 
   return (
     <>
@@ -146,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </p>
                 <div className="flex items-center gap-1.5 text-xs text-slate-400">
                   <span className={`w-1.5 h-1.5 rounded-full ${isLogout ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
-                  <span className="truncate">{getRoleLabel(currentUser.role)}</span>
+                  <span className="truncate">{roleLabel}</span>
                 </div>
              </div>
           </button>

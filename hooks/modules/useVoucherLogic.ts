@@ -30,7 +30,7 @@ function dbVoucherToFrontend(v: any): Voucher {
     companyId:  v.company_id,
     emissionId: v.emission_id ?? '',
     ownerId:    v.current_owner_id ?? undefined,
-    expiryDate: v.expires_at      ?? undefined,
+    expiryDate: v.valid_until ?? v.expires_at ?? undefined,
     issueDate:  v.issued_at       ?? new Date().toISOString(),
   };
 }

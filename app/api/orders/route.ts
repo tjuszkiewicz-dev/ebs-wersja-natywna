@@ -3,25 +3,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { getAuthUser, getAuthUserWithRole, unauthorized, badRequest, serverError } from '@/lib/apiAuth';
+import { getAuthUserWithRole, unauthorized, badRequest, serverError } from '@/lib/apiAuth';
 import { getCompanyOrders } from '@/lib/vouchers';
 import { supabaseServer } from '@/lib/supabase';
 import { calculateOrderTotals, FINANCIAL_CONSTANTS } from '@/utils/financialMath';
 
 const QuerySchema = z.object({
-  companyId: z.string().uuid(),
+  companyId: z.string().min(1),
 });
 
 const PlaceOrderSchema = z.object({
-  companyId:        z.string().uuid(),
+  companyId:        z.string().min(1),
+  hrUserId:         z.string().optional(),
   amount:           z.number().positive().max(1_000_000),
   distributionPlan: z.array(z.any()).optional(),
   snapshots:        z.array(z.any()).optional(),
 });
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthUser();
-  if (!user) return unauthorized();
+  const auth = await getAuthUserWithRole();
+  if (!auth) return unauthorized();
 
   const { searchParams } = request.nextUrl;
   const parsed = QuerySchema.safeParse({ companyId: searchParams.get('companyId') });
@@ -50,10 +51,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { companyId, amount, distributionPlan, snapshots } = parsed.data;
+  const { companyId, hrUserId, amount, distributionPlan, snapshots } = parsed.data;
   const supabase = supabaseServer();
   const year = new Date().getFullYear();
   const uniqueSuffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // W trybie dev-proxy auth.id = 'dev-vite' — użyj hrUserId z body (prawdziwy UUID z frontendu)
+  const resolvedHrUserId = UUID_RE.test(auth.id) ? auth.id : (hrUserId && UUID_RE.test(hrUserId) ? hrUserId : null);
 
   // Check whether this is the company's first paid invoice
   const { count } = await supabase
@@ -63,13 +68,23 @@ export async function POST(request: NextRequest) {
     .eq('status', 'paid');
 
   const isFirstInvoice = (count ?? 0) === 0;
-  const totals = calculateOrderTotals(amount, FINANCIAL_CONSTANTS.DEFAULT_SUCCESS_FEE);
+
+  // Pobierz fee_percent firmy — fallback do DEFAULT_SUCCESS_FEE (20%)
+  const { data: companyData } = await supabase
+    .from('companies')
+    .select('fee_percent')
+    .eq('id', companyId)
+    .single();
+  const companyFeeRate = ((companyData as any)?.fee_percent ?? (FINANCIAL_CONSTANTS.DEFAULT_SUCCESS_FEE * 100)) / 100;
+
+  const totals = calculateOrderTotals(amount, companyFeeRate);
 
   const { data: order, error } = await supabase
     .from('voucher_orders')
     .insert({
       company_id:        companyId,
-      hr_user_id:        auth.id,
+      // auth.id może być 'dev-vite' w trybie dev proxy — UUID regex guard
+      hr_user_id:        resolvedHrUserId,
       amount_pln:        totals.voucherValue,
       amount_vouchers:   Math.floor(totals.voucherValue),
       fee_pln:           totals.feeGross,

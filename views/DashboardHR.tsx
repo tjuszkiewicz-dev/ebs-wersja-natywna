@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Company, Order, User, Voucher, ImportRow, ImportHistoryEntry, OrderStatus, PayrollEntry, VoucherStatus } from '../types';
-import { LayoutDashboard, Users, FileText, FolderOpen, HelpCircle, AlertTriangle, CheckCircle2, Clock, Calendar, Download, BarChart3, Settings2, UserPlus, UserCheck, CreditCard, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock, FileText, CreditCard, UserPlus, UserCheck } from 'lucide-react';
 import { EmployeeImportModal } from '../components/hr/EmployeeImportModal';
 import { EmployeeEditModal } from '../components/hr/modals/EmployeeEditModal'; 
 import { DistributionEvidenceModal } from '../components/hr/modals/DistributionEvidenceModal'; 
@@ -17,6 +17,7 @@ import { HRDocumentBinder } from '../components/hr/dashboard/HRDocumentBinder';
 import { HREmployeeTable } from '../components/hr/dashboard/HREmployeeTable';
 import { EmployeeHistoryModal } from '../components/hr/modals/EmployeeHistoryModal';
 import { HRProcessTimeline, ProcessStep } from '../components/hr/dashboard/HRProcessTimeline';
+import { HRPageHeader, HRTab } from '../components/hr/dashboard/HRPageHeader';
 import { HREmployeeGuide } from '../components/hr/dashboard/HREmployeeGuide'; 
 
 // Moduły Enterprise
@@ -24,7 +25,6 @@ import { HRReportCenter } from '../components/hr/reports/HRReportCenter';
 import { HRIntegrationsManager } from '../components/hr/integrations/HRIntegrationsManager';
 
 import { useStrattonSystem } from '../context/StrattonContext'; 
-import { Tabs } from '../components/ui/Tabs';
 import { Button } from '../components/ui/Button';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -49,8 +49,6 @@ interface Props {
   onExportPayrollTemplate: (users: User[]) => void;
 }
 
-// URZĘDOWA STRUKTURA MENU
-type HRTab = 'START' | 'EMPLOYEES' | 'SETTLEMENTS' | 'REPORTS' | 'INTEGRATIONS' | 'DOCUMENTS' | 'HELP';
 
 export const DashboardHR: React.FC<Props> = ({ 
   currentView,
@@ -235,98 +233,15 @@ export const DashboardHR: React.FC<Props> = ({
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-6 relative">
        
-       {/* 1. GŁÓWNY NAGŁÓWEK STRONY (Page Header) */}
-       <div className="bg-white border-b border-slate-200 pt-6 px-4 md:px-8 shadow-sm">
-           <div className="max-w-7xl mx-auto">
-               
-               {/* Top Row: Title, Period Selector, Actions */}
-               <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                   
-                   {/* Left: Branding & Period */}
-                   <div>
-                       <div className="flex items-center gap-3 mb-1">
-                           <h1 className="text-2xl font-bold text-slate-800">Panel Kadrowy</h1>
-                           <span className={`text-[10px] px-2 py-0.5 rounded border uppercase font-bold tracking-wider ${systemStatus.color}`}>
-                               {systemStatus.label}
-                           </span>
-                       </div>
-                       
-                       <div className="flex items-center gap-2 group">
-                           <button 
-                                onClick={() => changePeriod(-1)}
-                                className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
-                           >
-                               <ChevronLeft size={16} />
-                           </button>
-                           
-                           <div className="flex items-center gap-2 text-slate-500 font-medium text-sm border-b border-dashed border-slate-300 pb-0.5 cursor-pointer hover:text-indigo-600 hover:border-indigo-300 transition-colors">
-                               <Calendar size={14} />
-                               <span className="capitalize">
-                                   {new Date(currentPeriod).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}
-                               </span>
-                           </div>
-
-                           <button 
-                                onClick={() => changePeriod(1)}
-                                className="p-1 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition"
-                           >
-                               <ChevronRight size={16} />
-                           </button>
-                       </div>
-                   </div>
-
-                   {/* Right: Primary Actions */}
-                   <div className="flex gap-2 w-full md:w-auto">
-                       <Button 
-                           variant="outline" 
-                           size="sm"
-                           onClick={() => handleTabChange('REPORTS')}
-                           icon={<Download size={16}/>}
-                           className="w-full md:w-auto"
-                       >
-                           Raport
-                       </Button>
-                       {workflowStep === 'ORDER' && activeTab !== 'SETTLEMENTS' && (
-                           <Button 
-                               variant="primary"
-                               size="sm"
-                               onClick={() => handleTabChange('SETTLEMENTS')}
-                               icon={<ArrowRight size={16}/>}
-                               className="w-full md:w-auto"
-                           >
-                               Nowe Zamówienie
-                           </Button>
-                       )}
-                   </div>
-               </div>
-
-               {/* Bottom Row: Tabs */}
-               <div className="flex overflow-x-auto no-scrollbar gap-1 -mb-px">
-                   {[
-                        { id: 'START', label: 'Pulpit', icon: <LayoutDashboard size={16}/> },
-                        { id: 'EMPLOYEES', label: 'Pracownicy', icon: <Users size={16}/> },
-                        { id: 'SETTLEMENTS', label: 'Rozliczenia', icon: <FileText size={16}/> },
-                        { id: 'REPORTS', label: 'Raporty', icon: <BarChart3 size={16}/> },
-                        { id: 'INTEGRATIONS', label: 'Integracje', icon: <Settings2 size={16}/> },
-                        { id: 'DOCUMENTS', label: 'Teczka', icon: <FolderOpen size={16}/> },
-                        { id: 'HELP', label: 'Pomoc', icon: <HelpCircle size={16}/> },
-                   ].map(tab => (
-                       <button
-                           key={tab.id}
-                           onClick={() => handleTabChange(tab.id as HRTab)}
-                           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap ${
-                               activeTab === tab.id
-                               ? 'border-indigo-600 text-indigo-700 bg-indigo-50/10'
-                               : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                           }`}
-                       >
-                           {tab.icon}
-                           {tab.label}
-                       </button>
-                   ))}
-               </div>
-           </div>
-       </div>
+       <HRPageHeader
+           currentPeriod={currentPeriod}
+           systemStatus={systemStatus}
+           workflowStep={workflowStep}
+           activeTab={activeTab}
+           onPrevPeriod={() => changePeriod(-1)}
+           onNextPeriod={() => changePeriod(1)}
+           onTabChange={handleTabChange}
+       />
 
        {/* 2. OBSZAR ROBOCZY */}
        <div className="max-w-7xl mx-auto px-3 md:px-8 mt-6">

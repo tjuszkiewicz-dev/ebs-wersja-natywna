@@ -9,6 +9,7 @@ import {
   INITIAL_AUDIT_LOGS, 
   INITIAL_SERVICES, INITIAL_SYSTEM_CONFIG, INITIAL_TICKETS
 } from '../services/mockData';
+import { dbCompanyToCompany } from '../hooks/modules/useOrderLogic';
 import { ToastMessage, ToastType } from '../components/Toast';
 import { generatePayrollTemplate, parseAndMatchPayroll, generateUUID } from '../services/payrollService';
 
@@ -56,6 +57,7 @@ interface StrattonContextType {
   };
   actions: {
     login: (userId: string) => void; 
+    loginWithUser: (user: User) => void;
     logout: () => void; 
     switchUser: (userId: string) => void;
     setUsers: React.Dispatch<React.SetStateAction<User[]>>;
@@ -65,14 +67,14 @@ interface StrattonContextType {
     handleAddCompany: (newCompanyData: Partial<Company>) => void;
     handleCrmSync: () => Promise<void>; 
     handleManualEmission: (amount: number, description: string) => void;
-    handlePlaceOrder: (amount: number, distributionPlan?: PayrollEntry[]) => void;
+    handlePlaceOrder: (amount: number, distributionPlan?: PayrollEntry[]) => Promise<string | undefined>;
     handleApproveOrder: (orderId: string) => void;
     handleBankPayment: (orderId: string, success: boolean) => void;
     handleDistribute: (employeeId: string, amount: number) => void;
     handleBulkDistribute: (items: { employeeId: string; amount: number }[]) => void; 
     handleDeactivateEmployee: (employeeId: string) => void;
     handleUpdateEmployee: (userId: string, data: Partial<User>) => void;
-    handleBulkImport: (validRows: any[]) => Promise<any>;
+    handleBulkImport: (validRows: any[], overrideCompanyId?: string) => Promise<any>;
     handleServicePurchase: (service: ServiceItem) => void;
     simulateExpiration: () => void;
     handleApproveBuyback: (buybackId: string) => void;
@@ -92,6 +94,7 @@ interface StrattonContextType {
     handleUpdateTicketStatus: (ticketId: string, status: TicketStatus) => void;
     handleAnonymizeUser: (userId: string) => void;
     handleToggleTwoFactor: (userId: string, enabled: boolean) => void; 
+    fetchUsersFromApi: () => Promise<void>;
     addToast: (title: string, message: string, type: ToastType) => void;
     removeToast: (id: string) => void;
   };
@@ -133,7 +136,6 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
     const hasMissingImages = services.some(s => INITIAL_SERVICES.some(is => is.id === s.id) && !s.image);
 
     if (needsImageUpdate || !hasAI || hasFuelCard || hasUnknownServices || hasMissingImages) {
-        console.log('[StrattonContext] DETECTED STALE SERVICES. Forcing reload from INITIAL_SERVICES v15.');
         setServices(INITIAL_SERVICES);
     }
   }, [services, setServices]); 
@@ -165,7 +167,26 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
   );
 
   const currentUser = userLogic.users.find(u => u.id === currentUserId) || null;
-  const [companies, setCompanies] = usePersistedState<Company[]>('ebs_companies_v1', []); 
+
+  // --- Fetch użytkowników z Supabase gdy currentUserId jest znany ---
+  const { fetchUsersFromApi } = userLogic;
+  React.useEffect(() => {
+    if (!currentUserId) return;
+    fetchUsersFromApi();
+  }, [currentUserId, fetchUsersFromApi]);
+
+  const [companies, setCompanies] = useState<Company[]>([]);
+
+  // Pobierz firmy z API (nie localStorage) gdy użytkownik jest zalogowany
+  React.useEffect(() => {
+    if (!currentUserId) return;
+    // Clear stale cache from old localStorage key
+    try { window.localStorage.removeItem('ebs_companies_v3'); } catch {}
+    fetch('/api/companies')
+      .then(r => r.ok ? r.json() : [])
+      .then((rows: any[]) => setCompanies(rows.map(dbCompanyToCompany)))
+      .catch(() => {});
+  }, [currentUserId]);
 
   const voucherLogic = useVoucherLogic(
       userLogic.users,
@@ -190,7 +211,9 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
       logEvent,
       notifLogic.notifyUser,
       notifLogic.addToast,
-      currentUser ?? UNRESOLVED_USER
+      currentUser ?? UNRESOLVED_USER,
+      companies,
+      setCompanies
   );
 
   // --- ACTIONS (Memoized to prevent unnecessary re-renders) ---
@@ -202,6 +225,12 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
           notifLogic.addToast("Zalogowano pomyślnie", `Witaj, ${user.name}`, "SUCCESS");
       }
   }, [setCurrentUserId, userLogic.users, notifLogic.addToast]);
+
+  const loginWithUser = useCallback((user: User) => {
+      userLogic.setUsers(prev => prev.some(u => u.id === user.id) ? prev : [...prev, user]);
+      setCurrentUserId(user.id);
+      notifLogic.addToast("Zalogowano pomyślnie", `Witaj, ${user.name}`, "SUCCESS");
+  }, [setCurrentUserId, userLogic.setUsers, notifLogic.addToast]);
 
   const logout = useCallback(() => {
       setCurrentUserId(null);
@@ -381,9 +410,11 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
     },
     actions: {
       login,
+      loginWithUser,
       logout,
       switchUser,
       setUsers: userLogic.setUsers,
+      setCompanies: orderLogic.setCompanies,
       handleUpdateSystemConfig,
       handleUpdateNotificationConfig: notifLogic.handleUpdateNotificationConfig,
       handleUpdateCompanyConfig,
@@ -417,6 +448,7 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
       handleUpdateTicketStatus,
       handleAnonymizeUser: userLogic.handleAnonymizeUser,
       handleToggleTwoFactor,
+      fetchUsersFromApi: userLogic.fetchUsersFromApi,
       addToast: notifLogic.addToast,
       removeToast: notifLogic.removeToast
     }
@@ -424,7 +456,7 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
     currentUser, userLogic.users, voucherLogic.vouchers, orderLogic.companies, orderLogic.orders, voucherLogic.buybacks,
     auditLogs, orderLogic.commissions, quarterlyStats, notifLogic.notifications, notifLogic.notificationConfigs,
     services, voucherLogic.transactions, userLogic.importHistory, voucherLogic.distributionBatches, systemConfig, notifLogic.toasts, tickets,
-    login, logout, switchUser, userLogic.setUsers, handleUpdateSystemConfig, notifLogic.handleUpdateNotificationConfig, handleUpdateCompanyConfig,
+    login, loginWithUser, logout, switchUser, userLogic.setUsers, orderLogic.setCompanies, handleUpdateSystemConfig, notifLogic.handleUpdateNotificationConfig, handleUpdateCompanyConfig,
     orderLogic.handleAddCompany, orderLogic.handleCrmSync, voucherLogic.handleManualEmission, orderLogic.handlePlaceOrder, orderLogic.handleApproveOrder,
     orderLogic.handleBankPayment, voucherLogic.handleDistribute, voucherLogic.handleBulkDistribute, userLogic.handleDeactivateEmployee,
     userLogic.handleUpdateEmployee, userLogic.handleBulkImport, voucherLogic.handleServicePurchase, voucherLogic.simulateExpiration,
@@ -432,7 +464,7 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
     notifLogic.handleMarkSingleNotificationRead, handleExportPayrollTemplate, handleParseAndMatchPayroll, handleNotificationAction,
     notifLogic.handleClearNotifications, userLogic.handleUpdateUserFinance, userLogic.handleRequestIbanChange, userLogic.handleResolveIbanChange,
     handleManageService, handleCreateTicket, handleReplyTicket, handleUpdateTicketStatus, userLogic.handleAnonymizeUser, handleToggleTwoFactor,
-    notifLogic.addToast, notifLogic.removeToast
+    notifLogic.addToast, notifLogic.removeToast, userLogic.fetchUsersFromApi
   ]);
 
   return (

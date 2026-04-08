@@ -6,7 +6,7 @@ import { z } from 'zod';
 const ImportRowSchema = z.object({
     name:         z.string(),
     surname:      z.string(),
-    email:        z.string().email(),
+    email:        z.string().min(1),   // email format validated by Supabase auth itself
     pesel:        z.string().optional(),
     department:   z.string().optional(),
     position:     z.string().optional(),
@@ -17,7 +17,7 @@ const ImportRowSchema = z.object({
 
 const BulkImportSchema = z.object({
     validRows: z.array(ImportRowSchema).min(1).max(500),
-    companyId: z.string().uuid(),
+    companyId: z.string().min(1),
 });
 
 // POST /api/users/bulk-import
@@ -47,29 +47,53 @@ export async function POST(req: NextRequest) {
         const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '!';
         const email = row.email.toLowerCase().trim();
 
-        // Utwórz konto w auth.users
+        // Spróbuj utwórzyć konto w auth.users
+        let userId: string;
         const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
             email,
             password: tempPassword,
             email_confirm: true,
         });
 
-        if (authError || !newUser.user) {
-            errors.push(`${email}: ${authError?.message ?? 'unknown error'}`);
+        if (authError) {
+            // Przypadek: użytkownik już istnieje w auth — znajdź go przez user_profiles
+            if (
+                authError.message?.toLowerCase().includes('already') ||
+                authError.message?.toLowerCase().includes('database error creating new user')
+            ) {
+                // Szybszy lookup przez auth.admin.getUserByEmail lub user_profiles
+                // Spróbuj najpierw przez auth admin listUsers z filtrem
+                const { data: listData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+                const existing = listData?.users?.find(u => u.email?.toLowerCase() === email);
+                if (existing) {
+                    userId = existing.id;
+                } else {
+                    // Ostateczny fallback: sprawdź user_profiles po emailu (jeśli kolumna istnieje)
+                    errors.push(`${email}: już istnieje, ale nie znaleziono profilu`);
+                    continue;
+                }
+            } else {
+                errors.push(`${email}: ${authError.message}`);
+                continue;
+            }
+        } else if (!newUser.user) {
+            errors.push(`${email}: no user returned`);
             continue;
+        } else {
+            userId = newUser.user.id;
         }
 
-        const userId = newUser.user.id;
         const rawIban = row.iban ? row.iban.replace(/\s+/g, '').toUpperCase() : null;
         const isUZ = row.contractType?.toUpperCase().includes('UZ') || row.contractType?.includes('ZLECENIE');
 
-        // Utwórz profil
+        // Utwórz lub zaktualizuj profil (upsert)
         const { error: profileError } = await supabase
             .from('user_profiles')
-            .insert({
+            .upsert({
                 id:            userId,
                 role:          'pracownik',
                 full_name:     `${row.name} ${row.surname}`,
+                company_id:    companyId,
                 department:    row.department ?? null,
                 position:      row.position ?? null,
                 phone_number:  row.phoneNumber ?? null,
@@ -81,9 +105,11 @@ export async function POST(req: NextRequest) {
                 status:        'active',
                 terms_accepted: true,
                 terms_accepted_at: now,
-            });
+                temp_password: tempPassword,
+            }, { onConflict: 'id' });
 
         if (profileError) {
+
             errors.push(`${email}: profile error — ${profileError.message}`);
             continue;
         }
@@ -112,5 +138,6 @@ export async function POST(req: NextRequest) {
         imported: createdUsers.length,
         errors,
         reportId,
+        users: createdUsers.map(u => ({ id: u.id, email: u.email, name: u.name, tempPassword: u.tempPassword })),
     }, { status: 201 });
 }

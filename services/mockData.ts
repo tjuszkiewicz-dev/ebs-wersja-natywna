@@ -126,26 +126,11 @@ export const INITIAL_USERS: User[] = [
     identity: { firstName: 'Daria', lastName: 'Dyrektor', pesel: '', email: 'daria.d@eliton-benefits.com' },
     organization: { department: 'Sales', position: 'Director' }
   },
-  // --- Clients ---
-  {
-    id: 'HR-042',
-    role: Role.HR,
-    companyId: 'FIRMA-042',
-    name: 'Anna Nowak (HR)',
-    email: 'hr@techsolutions.pl',
-    voucherBalance: 0,
-    pesel: '85010112345',
-    department: 'HR',
-    position: 'Manager',
-    status: 'ACTIVE',
-    identity: { firstName: 'Anna', lastName: 'Nowak', pesel: '85010112345', email: 'hr@techsolutions.pl' },
-    organization: { department: 'HR', position: 'Manager' }
-  },
   // --- EMPLOYEES (New EPS Structure) ---
   {
     id: 'EMP-001',
     role: Role.EMPLOYEE,
-    companyId: 'FIRMA-042',
+    companyId: 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2',
     status: 'ACTIVE',
     voucherBalance: 150,
     
@@ -184,7 +169,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'EMP-002',
     role: Role.EMPLOYEE,
-    companyId: 'FIRMA-042',
+    companyId: 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2',
     status: 'ACTIVE',
     voucherBalance: 50,
 
@@ -216,15 +201,36 @@ export const INITIAL_USERS: User[] = [
 
 export const INITIAL_COMPANIES: Company[] = [
   {
-    id: 'FIRMA-042',
+    id: 'a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1',
+    name: 'Stratton Prime S.A.',
+    nip: '521-000-00-01',
+    balancePending: 0,
+    balanceActive: 1000,
+    advisorId: ADVISOR_ID,
+    managerId: MANAGER_ID,
+    directorId: DIRECTOR_ID,
+    email: 'biuro@strattonprime.pl',
+    phone: '+48 22 100 200 300',
+    contactPersonName: 'Katarzyna Wiśniewska',
+    voucherValidityDays: 7,
+    address: { street: 'ul. Marszałkowska 1', city: 'Warszawa', postalCode: '00-001', country: 'Polska' },
+    correspondenceAddress: { street: 'ul. Marszałkowska 1', city: 'Warszawa', postalCode: '00-001', country: 'Polska' }
+  },
+  {
+    id: 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2',
     name: 'TechSolutions Sp. z o.o.',
     nip: '525-000-11-22',
     balancePending: 0,
     balanceActive: 500,
-    // CRM Linking
     advisorId: ADVISOR_ID,
     managerId: MANAGER_ID,
-    directorId: DIRECTOR_ID
+    directorId: DIRECTOR_ID,
+    email: 'hr@techsolutions.pl',
+    phone: '+48 12 345 678 90',
+    contactPersonName: 'Anna Nowak',
+    voucherValidityDays: 7,
+    address: { street: 'ul. Krakowska 42', city: 'Kraków', postalCode: '30-001', country: 'Polska' },
+    correspondenceAddress: { street: 'ul. Krakowska 42', city: 'Kraków', postalCode: '30-001', country: 'Polska' }
   }
 ];
 
@@ -235,7 +241,7 @@ const generateVouchers = (count: number, status: VoucherStatus, ownerId?: string
     id: `SP/FIRMA-042/INIT-ORDER/EMISJA-01/V-${String(i + 1).padStart(6, '0')}`,
     value: 1, // 1 Voucher = 1 PLN
     status,
-    companyId: 'FIRMA-042',
+    companyId: 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2',
     orderId: 'INIT-ORDER',
     emissionId: 'EMISJA-01',
     ownerId: ownerId,
@@ -415,7 +421,7 @@ export const INITIAL_TICKETS: SupportTicket[] = [
         status: 'OPEN',
         creatorId: 'EMP-001',
         creatorName: 'Jan Kowalski',
-        companyId: 'FIRMA-042',
+        companyId: 'b2b2b2b2-b2b2-4b2b-8b2b-b2b2b2b2b2b2',
         createdAt: new Date(Date.now() - 86400000).toISOString(),
         updatedAt: new Date(Date.now() - 86400000).toISOString(),
         messages: [

@@ -15,8 +15,7 @@ function EmployerContent() {
 
   if (!currentUser) return null;
 
-  const company = companies.find(c => c.id === currentUser.companyId)
-    ?? companies[0];
+  const company = companies.find(c => c.id === currentUser.companyId);
 
   if (!company) {
     return (

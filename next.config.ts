@@ -4,7 +4,7 @@ const productionDomain = process.env.NEXT_PUBLIC_APP_URL
     ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
     : null;
 
-const allowedOrigins = ['localhost:3000', 'localhost:3005'];
+const allowedOrigins = ['localhost:3010', 'localhost:3011'];
 if (productionDomain) allowedOrigins.push(productionDomain);
 
 const nextConfig: NextConfig = {

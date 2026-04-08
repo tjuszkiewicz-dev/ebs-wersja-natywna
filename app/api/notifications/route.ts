@@ -28,13 +28,13 @@ export async function GET() {
     return NextResponse.json(data);
 }
 
-// POST /api/notifications — utwórz powiadomienie (tylko service_role / wewnętrzne)
+// POST /api/notifications — utwórz powiadomienie (superadmin lub pracodawca / wewnętrzne)
 export async function POST(req: NextRequest) {
-    const user = await getAuthUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const { getAuthUserWithRole } = await import('@/lib/apiAuth');
+    const auth = await getAuthUserWithRole();
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Tylko superadmin lub system może tworzyć powiadomienia dla innych
-    if (user.role !== 'superadmin') {
+    if (!['superadmin', 'pracodawca'].includes(auth.role)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

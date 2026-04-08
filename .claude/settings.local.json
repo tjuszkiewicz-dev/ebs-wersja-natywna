@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx claude-flow:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep -v \"^[[:space:]]*$\")",
+      "Bash(xargs wc:*)",
+      "Bash(xargs ls:*)",
+      "Bash(wc:*)",
+      "Bash(node:*)",
+      "Bash(npx supabase:*)",
+      "Bash(find /c/Users/Użytkownik/Desktop/ebs-wersja-natywna -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" -o -name \"*.json\" -o -name \"*.jsx\" -o -name \"*.js\" \\\\\\) ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" -exec wc -l {} +)",
+      "Bash(find /c/Users/Użytkownik/Desktop/ebs-wersja-natywna -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" ! -path \"*/dist/*\" -exec wc -l {} +)",
+      "Bash(grep -r \"console\\\\.\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" ! -path \"*/dist/*\")",
+      "Bash(grep -r \"TODO\\\\|FIXME\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" ! -path \"*/dist/*\")",
+      "Bash(grep -r \"^[[:space:]]*//\\\\s*[a-zA-Z]\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" ! -path \"*/dist/*\")",
+      "Bash(find:*)",
+      "Bash(grep -n \"^ *//\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna/context/StrattonContext.tsx)",
+      "Bash(grep -rn \"import.*never used\\\\|unused import\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\")",
+      "Bash(grep -rn \"// REMOVED\\\\|// OLD\\\\|// DEPRECATED\\\\|// UNUSED\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" ! -path \"*/dist/*\")",
+      "Read(//tmp/**)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "claude-flow"
+  ]
+}

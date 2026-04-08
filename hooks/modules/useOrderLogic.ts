@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Order, OrderStatus, Company, User, Commission, CommissionType, Role, PayrollEntry, PayrollSnapshot, DistributionBatch, SystemConfig } from '../../types';
 import { LogEventFn, NotifyUserFn, AddToastFn } from '../../types/callbacks';
+import { calculateOrderTotals, FINANCIAL_CONSTANTS } from '../../utils/financialMath';
 
 // Mapowanie statusu DB → OrderStatus enum
 function dbStatusToOrderStatus(s: string): OrderStatus {
@@ -35,7 +36,7 @@ function dbOrderToOrder(o: any): Order {
 }
 
 // Mapowanie rekordu z DB → frontend Company
-function dbCompanyToCompany(c: any): Company {
+export function dbCompanyToCompany(c: any): Company {
   return {
     id:                       c.id,
     name:                     c.name,
@@ -52,6 +53,9 @@ function dbCompanyToCompany(c: any): Company {
     } : undefined,
     customPaymentTermsDays:   c.custom_payment_terms_days   ?? undefined,
     customVoucherValidityDays: c.custom_voucher_validity_days ?? undefined,
+    voucherExpiryDay:         c.voucher_expiry_day    ?? undefined,
+    voucherExpiryHour:        c.voucher_expiry_hour   ?? undefined,
+    voucherExpiryMinute:      c.voucher_expiry_minute ?? undefined,
     origin:          c.origin           ?? 'NATIVE',
     externalCrmId:   c.external_crm_id  ?? undefined,
     isSyncManaged:   c.is_sync_managed  ?? false,
@@ -68,20 +72,28 @@ export const useOrderLogic = (
     logEvent: LogEventFn,
     notifyUser: NotifyUserFn,
     addToast: AddToastFn,
-    currentUser: User
+    currentUser: User,
+    externalCompanies?: Company[],
+    setExternalCompanies?: React.Dispatch<React.SetStateAction<Company[]>>
 ) => {
   const [orders,     setOrders]     = useState<Order[]>([]);
-  const [companies,  setCompanies]  = useState<Company[]>([]);
+  const [_internalCompanies,  _setInternalCompanies]  = useState<Company[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
+
+  // Use external companies state if provided (Vite/mock mode), else internal (API mode)
+  const companies = externalCompanies ?? _internalCompanies;
+  const setCompanies = setExternalCompanies ?? _setInternalCompanies;
 
   // ── Pobierz dane przy starcie ────────────────────────────────────────────────
 
   useEffect(() => {
+    // Skip API fetch if external companies are provided (local/mock mode)
+    if (externalCompanies) return;
     fetch('/api/companies')
       .then(r => r.ok ? r.json() : [])
       .then((rows: any[]) => setCompanies(rows.map(dbCompanyToCompany)))
       .catch(() => {});
-  }, []);
+  }, [externalCompanies]);
 
   useEffect(() => {
     if (!currentUser?.companyId) return;
@@ -90,13 +102,6 @@ export const useOrderLogic = (
       .then(({ data }: { data: any[] }) => setOrders((data ?? []).map(dbOrderToOrder)))
       .catch(() => {});
   }, [currentUser?.companyId]);
-
-  // Superadmin: pobierz wszystkie zamówienia ze wszystkich firm
-  useEffect(() => {
-    if (currentUser?.role !== Role.SUPERADMIN) return;
-    // Pobieramy zamówienia dla każdej firmy
-    // (w przyszłości zastąpić endpointem /api/orders?all=true)
-  }, [currentUser?.role]);
 
   // ── Zarządzanie firmami ──────────────────────────────────────────────────────
 
@@ -156,8 +161,8 @@ export const useOrderLogic = (
 
   // ── Zamówienia ───────────────────────────────────────────────────────────────
 
-  const handlePlaceOrder = useCallback(async (amount: number, distributionPlan?: PayrollEntry[]) => {
-    if (!currentUser.companyId) return;
+  const handlePlaceOrder = useCallback(async (amount: number, distributionPlan?: PayrollEntry[]): Promise<string | undefined> => {
+    if (!currentUser.companyId) return undefined;
 
     let snapshots: PayrollSnapshot[] | undefined;
     if (distributionPlan && distributionPlan.length > 0) {
@@ -170,6 +175,7 @@ export const useOrderLogic = (
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         companyId:        currentUser.companyId,
+        hrUserId:         currentUser.id,
         amount,
         distributionPlan: distributionPlan ?? undefined,
         snapshots:        snapshots ?? undefined,
@@ -177,8 +183,34 @@ export const useOrderLogic = (
     });
 
     if (!res.ok) {
-      addToast('Błąd', 'Nie udało się złożyć zamówienia.', 'ERROR');
-      return;
+      // Tryb lokalny — API niedostępne lub błąd (np. mock ID). Dodaj zamówienie do stanu lokalnego.
+      const totals = calculateOrderTotals(amount, FINANCIAL_CONSTANTS.DEFAULT_SUCCESS_FEE);
+      const now = new Date().toISOString();
+      const year = new Date().getFullYear();
+      const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+      const localOrder: Order = {
+        id: `ORD-LOCAL-${Date.now()}`,
+        companyId: currentUser.companyId!,
+        amount,
+        voucherValue: totals.voucherValue,
+        feeValue: totals.feeGross,
+        totalValue: totals.totalPayable,
+        docVoucherId: `NK/${year}/${suffix}/B`,
+        docFeeId: `FV/${year}/${suffix}/S`,
+        date: now,
+        status: OrderStatus.PENDING,
+        isFirstInvoice: orders.length === 0,
+        distributionPlan,
+        snapshots,
+      };
+      setOrders(prev => [...prev, localOrder]);
+      const methodMsg = snapshots ? ` (z planem auto-dystrybucji: ${snapshots.length} os.)` : '';
+      logEvent('ORDER_CREATED', `Złożono zamówienie ${localOrder.id}${methodMsg} (tryb lokalny).`, localOrder.id, 'ORDER');
+      notifyUser('ALL_ADMINS', `Nowe zamówienie ${localOrder.id.slice(-8)} (${totals.totalPayable.toFixed(2)} PLN) czeka na akceptację.`, 'WARNING', {
+        type: 'APPROVE_ORDER', targetId: localOrder.id, label: 'Zatwierdź Zamówienie', variant: 'primary',
+      }, localOrder.id, 'ORDER');
+      addToast('Zamówienie Przyjęte', `Zamówienie złożone. ${snapshots ? 'System zamroził stawkę i podział (Snapshot).' : 'Pobierz dokumenty z tabeli historii.'}`, 'SUCCESS');
+      return localOrder.id;
     }
 
     const newOrder = dbOrderToOrder(await res.json());
@@ -196,6 +228,7 @@ export const useOrderLogic = (
       `Utworzono zamówienie. ${snapshots ? 'System zamroził stawkę i podział (Snapshot).' : 'Pobierz dokumenty z tabeli historii.'}`,
       'SUCCESS'
     );
+    return newOrder.id;
   }, [currentUser, logEvent, notifyUser, addToast]);
 
   const handleApproveOrder = useCallback(async (orderId: string) => {

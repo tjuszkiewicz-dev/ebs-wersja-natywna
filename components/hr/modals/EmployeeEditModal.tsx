@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, User as UserIcon, Building2, CreditCard, Phone, AlertCircle, ShieldCheck } from 'lucide-react';
+import { X, Save, User as UserIcon, Building2, CreditCard, Phone, AlertCircle, ShieldCheck, KeyRound, Eye, EyeOff, Copy, RefreshCw, Check } from 'lucide-react';
 import { User, ContractType, UserStatus } from '../../../types';
 import { validatePLIBAN } from '../../../services/payrollService';
 import { Input } from '../../ui/Input';
@@ -44,6 +44,15 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   const [isSaved, setIsSaved] = useState(false);
   const [ibanError, setIbanError] = useState<string | undefined>(undefined);
 
+  // --- PASSWORD MANAGEMENT ---
+  const [credPassword, setCredPassword] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [isPasswordEditing, setIsPasswordEditing] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [copiedCreds, setCopiedCreds] = useState(false);
+
   // Initialize form on open
   useEffect(() => {
     if (isOpen) {
@@ -71,10 +80,59 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         
         setIsSaved(false);
         setIbanError(undefined);
+        setCredPassword((user as any).tempPassword ?? null);
+        setShowPassword(false);
+        setNewPasswordInput('');
+        setIsPasswordEditing(false);
+        setPasswordSaved(false);
+        setCopiedCreds(false);
     }
   }, [isOpen, user]);
 
   if (!isOpen) return null;
+
+  const generatePassword = () => {
+    const pwd =
+      Math.random().toString(36).slice(2, 6).toUpperCase() +
+      Math.random().toString(36).slice(2, 6) +
+      Math.floor(10 + Math.random() * 90) +
+      '!';
+    setNewPasswordInput(pwd);
+    setIsPasswordEditing(true);
+  };
+
+  const handleSavePassword = async () => {
+    const pwd = newPasswordInput.trim();
+    if (!pwd || pwd.length < 8) return;
+    setIsSavingPassword(true);
+    try {
+      const res = await fetch(`/api/employees/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: pwd }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCredPassword(data.newPassword);
+        setIsPasswordEditing(false);
+        setNewPasswordInput('');
+        setPasswordSaved(true);
+        setShowPassword(true);
+        setTimeout(() => setPasswordSaved(false), 3000);
+      }
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleCopyCredentials = () => {
+    const pwd = credPassword ?? newPasswordInput;
+    const text = `Login (e-mail): ${email}\nHasło: ${pwd}`;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedCreds(true);
+      setTimeout(() => setCopiedCreds(false), 2500);
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
@@ -205,6 +263,105 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                                     </p>
                                 </div>
                             </div>
+                        </Card>
+
+                        {/* ── DOSTĘP DO PLATFORMY ── */}
+                        <Card title="Dostęp do Platformy EBS" className="md:col-span-2">
+                          <div className="flex flex-col gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* E-mail / login */}
+                              <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                                  Login (adres e-mail)
+                                </label>
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+                                  <span className="font-mono text-sm text-slate-800 flex-1 select-all">{email}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => { navigator.clipboard.writeText(email); }}
+                                    title="Kopiuj e-mail"
+                                    className="text-slate-400 hover:text-slate-700 transition"
+                                  >
+                                    <Copy size={14}/>
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Hasło */}
+                              <div>
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                                  Hasło tymczasowe
+                                </label>
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+                                  {credPassword ? (
+                                    <>
+                                      <span className="font-mono text-sm text-slate-800 flex-1 select-all tracking-widest">
+                                        {showPassword ? credPassword : '••••••••••'}
+                                      </span>
+                                      <button type="button" onClick={() => setShowPassword(v => !v)} title={showPassword ? 'Ukryj' : 'Pokaż'} className="text-slate-400 hover:text-slate-700 transition">
+                                        {showPassword ? <EyeOff size={14}/> : <Eye size={14}/>}
+                                      </button>
+                                      <button type="button" onClick={handleCopyCredentials} title="Kopiuj dane logowania" className="text-slate-400 hover:text-slate-700 transition">
+                                        {copiedCreds ? <Check size={14} className="text-emerald-500"/> : <Copy size={14}/>}
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-slate-400 italic flex-1">Nie ustawiono — użyj opcji poniżej</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ustaw nowe hasło */}
+                            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <KeyRound size={15} className="text-amber-600"/>
+                                <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">Ustaw nowe hasło</span>
+                              </div>
+                              <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                  <input
+                                    type="text"
+                                    value={newPasswordInput}
+                                    onChange={e => { setNewPasswordInput(e.target.value); setIsPasswordEditing(true); }}
+                                    placeholder="Wpisz lub wygeneruj nowe hasło..."
+                                    className="w-full font-mono text-sm border border-amber-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-slate-300"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={generatePassword}
+                                  className="flex items-center gap-1.5 px-3 py-2 border border-amber-300 bg-white text-amber-700 rounded-lg text-xs font-bold hover:bg-amber-100 transition whitespace-nowrap"
+                                >
+                                  <RefreshCw size={13}/> Generuj
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSavePassword}
+                                  disabled={!newPasswordInput.trim() || newPasswordInput.length < 8 || isSavingPassword}
+                                  className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 disabled:opacity-40 transition whitespace-nowrap"
+                                >
+                                  {isSavingPassword ? <RefreshCw size={13} className="animate-spin"/> : (passwordSaved ? <Check size={13}/> : <Save size={13}/>)}
+                                  {passwordSaved ? 'Zapisano' : 'Zapisz'}
+                                </button>
+                              </div>
+                              <p className="text-[10px] text-amber-600 mt-2">
+                                Hasło zostanie zmienione w systemie i zapisane w kartotece pracownika. Przekaż je pracownikowi — powinien je zmienić po pierwszym logowaniu.
+                              </p>
+                            </div>
+
+                            {/* Kopiuj pełne dane logowania */}
+                            {credPassword && (
+                              <button
+                                type="button"
+                                onClick={handleCopyCredentials}
+                                className="flex items-center justify-center gap-2 w-full py-2.5 border border-slate-300 bg-white text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 transition"
+                              >
+                                {copiedCreds ? <Check size={14} className="text-emerald-500"/> : <Copy size={14}/>}
+                                {copiedCreds ? 'Skopiowano dane logowania!' : 'Kopiuj pełne dane logowania (e-mail + hasło)'}
+                              </button>
+                            )}
+                          </div>
                         </Card>
 
                     </div>

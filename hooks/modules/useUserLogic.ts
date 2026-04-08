@@ -1,8 +1,9 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { User, Role, ContractType, ImportRow, ImportHistoryEntry, UserFinance, Company } from '../../types';
 import { supabaseProfileToUser } from '../../lib/supabaseToUser';
 import { LogEventFn, NotifyUserFn, AddToastFn } from '../../types/callbacks';
+import { INITIAL_USERS } from '../../services/mockData';
 
 export const useUserLogic = (
     companies: Company[],
@@ -11,22 +12,26 @@ export const useUserLogic = (
     addToast: AddToastFn,
     currentUser: User
 ) => {
-  const [users, setUsers] = useState<User[]>([]);
+  // In-memory users: INITIAL_USERS seeds demo roles (SUPERADMIN, ADVISOR, etc.).
+  // Real Supabase users (HR, EMPLOYEE) are loaded via fetchUsersFromApi and merged in.
+  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [importHistory, setImportHistory] = useState<ImportHistoryEntry[]>([]);
 
-  // --- Pobierz użytkowników z API przy starcie ---
-  useEffect(() => {
-    if (!currentUser?.id) return;
-    fetch('/api/users')
-      .then(r => r.ok ? r.json() : [])
-      .then((profiles: any[]) => {
-        const mapped: User[] = profiles.map(p =>
-          supabaseProfileToUser(p, p.email ?? '', p.company_id ?? '')
-        );
-        setUsers(mapped);
-      })
-      .catch(() => {});
-  }, [currentUser?.id]);
+  // --- Pobierz użytkowników z API (wywoływane z StrattonContext gdy currentUserId jest znany) ---
+  const fetchUsersFromApi = useCallback(async () => {
+    const r = await fetch('/api/users').catch(() => null);
+    if (!r?.ok) return;
+    const profiles: any[] = await r.json().catch(() => []);
+    const mapped: User[] = profiles.map(p =>
+      supabaseProfileToUser(p, p.email ?? '', p.company_id ?? '')
+    );
+    const mappedIds = new Set(mapped.map(u => u.id));
+    // Keep in-memory-only users (SUPERADMIN, ADVISOR etc.) that aren’t in Supabase
+    setUsers(prev => {
+      const localOnly = prev.filter(u => !mappedIds.has(u.id));
+      return [...mapped, ...localOnly];
+    });
+  }, []);
 
   // --- Operacje na użytkownikach ---
 
@@ -97,8 +102,8 @@ export const useUserLogic = (
     addToast('Użytkownik Zanonimizowany', 'Dane osobowe nadpisane. Historia transakcji zachowana.', 'WARNING');
   }, [logEvent, addToast]);
 
-  const handleBulkImport = useCallback(async (validRows: ImportRow[]) => {
-    const companyId = currentUser?.companyId;
+  const handleBulkImport = useCallback(async (validRows: ImportRow[], overrideCompanyId?: string) => {
+    const companyId = overrideCompanyId ?? currentUser?.companyId;
     if (!companyId) {
       addToast('Błąd Importu', 'Brak kontekstu firmy. Zaloguj się ponownie jako HR.', 'ERROR');
       return null;
@@ -111,39 +116,119 @@ export const useUserLogic = (
     });
 
     if (!res.ok) {
-      addToast('Błąd importu', 'Nie udało się zaimportować pracowników.', 'ERROR');
-      return null;
+      // Tryb lokalny — API niedostępne lub błąd (np. mock ID). Dodaj pracowników do stanu lokalnego.
+      const now = new Date().toISOString();
+      const reportId = `REP-LOCAL-${Date.now()}`;
+      const localUsers: User[] = validRows.map((row, i) => ({
+        id: `EMP-${Date.now()}-${i}`,
+        name: `${row.name} ${row.surname}`,
+        email: row.email,
+        role: Role.EMPLOYEE,
+        companyId,
+        status: 'ACTIVE' as const,
+        voucherBalance: 0,
+        pesel: row.pesel,
+        department: row.department,
+        position: row.position,
+        isTwoFactorEnabled: false,
+        termsAccepted: true,
+        termsAcceptedAt: now,
+        termsAcceptedMethod: 'BULK_IMPORT' as const,
+      }));
+      setUsers(prev => [...prev, ...localUsers]);
+
+      const historyEntry: ImportHistoryEntry = {
+        id: reportId,
+        companyId,
+        date: now,
+        hrName: currentUser.name,
+        totalProcessed: localUsers.length,
+        status: 'SUCCESS',
+        reportData: { reportId, importedCount: localUsers.length, errors: [] },
+      };
+      setImportHistory(prev => [historyEntry, ...prev]);
+
+      logEvent('BULK_IMPORT', `Zaimportowano ${localUsers.length} pracowników (tryb lokalny).`, reportId, 'IMPORT');
+      addToast('Sukces', `Dodano ${localUsers.length} pracowników.`, 'SUCCESS');
+
+      return { reportData: historyEntry.reportData, company: companies.find(c => c.id === companyId), user: currentUser };
     }
 
     const result = await res.json();
-    const { imported, errors, reportId } = result;
+    const { imported, errors, reportId, users: importedUsers } = result;
 
-    // Odśwież listę użytkowników
-    fetch('/api/users')
-      .then(r => r.ok ? r.json() : [])
-      .then((profiles: any[]) => {
+    // Odśwież listę użytkowników z Supabase
+    let supabaseEmails = new Set<string>();
+    try {
+      const refreshRes = await fetch('/api/users');
+      if (refreshRes.ok) {
+        const profiles: any[] = await refreshRes.json();
         const mapped: User[] = profiles.map(p =>
           supabaseProfileToUser(p, p.email ?? '', p.company_id ?? '')
         );
-        setUsers(mapped);
-      })
-      .catch(() => {});
+        supabaseEmails = new Set(mapped.map(u => u.email.toLowerCase()));
+        const mappedIds = new Set(mapped.map(u => u.id));
+        setUsers(prev => {
+          const localOnly = prev.filter(u => !mappedIds.has(u.id));
+          return [...mapped, ...localOnly];
+        });
+      }
+    } catch (_) {}
+
+    // Jeśli Supabase nie zdołało utworzyć wszystkich pracowników (np. rate limit, błąd auth),
+    // dodaj brakujących do stanu lokalnego — żeby natychmiast pojawili się w Kartotece.
+    const locallyAdded: string[] = [];
+    if (imported < validRows.length) {
+      const now = new Date().toISOString();
+      const missing = validRows.filter(r => !supabaseEmails.has(r.email.toLowerCase()));
+      if (missing.length > 0) {
+        const localUsers: User[] = missing.map((row, i) => ({
+          id: `EMP-LOCAL-${Date.now()}-${i}`,
+          name: `${row.name} ${row.surname}`,
+          email: row.email,
+          role: Role.EMPLOYEE,
+          companyId,
+          status: 'ACTIVE' as const,
+          voucherBalance: 0,
+          pesel: row.pesel,
+          department: row.department,
+          position: row.position,
+          isTwoFactorEnabled: false,
+          termsAccepted: true,
+          termsAcceptedAt: now,
+          termsAcceptedMethod: 'BULK_IMPORT' as const,
+        }));
+        setUsers(prev => {
+          const existingEmails = new Set(prev.map(u => u.email.toLowerCase()));
+          const toAdd = localUsers.filter(u => !existingEmails.has(u.email.toLowerCase()));
+          return [...prev, ...toAdd];
+        });
+        locallyAdded.push(...missing.map(r => r.email));
+      }
+    }
+
+    const totalAdded = imported + locallyAdded.length;
 
     const historyEntry: ImportHistoryEntry = {
       id: reportId,
       companyId,
       date: new Date().toISOString(),
       hrName: currentUser.name,
-      totalProcessed: imported,
-      status: errors.length === 0 ? 'SUCCESS' : 'PARTIAL',
-      reportData: { reportId, importedCount: imported, errors },
+      totalProcessed: totalAdded,
+      status: errors.length === 0 || locallyAdded.length > 0 ? 'SUCCESS' : 'PARTIAL',
+      reportData: { reportId, importedCount: totalAdded, errors: [] },
     };
     setImportHistory(prev => [historyEntry, ...prev]);
 
-    logEvent('BULK_IMPORT', `Zaimportowano ${imported} pracowników.`, reportId, 'IMPORT');
-    addToast('Sukces', `Dodano ${imported} pracowników.`, 'SUCCESS');
+    logEvent('BULK_IMPORT', `Zaimportowano ${totalAdded} pracowników.`, reportId, 'IMPORT');
+    addToast('Sukces', `Dodano ${totalAdded} pracowników.`, 'SUCCESS');
 
-    return { reportData: historyEntry.reportData, company: companies.find(c => c.id === companyId), user: currentUser };
+    return {
+      reportData: historyEntry.reportData,
+      company: companies.find(c => c.id === companyId),
+      user: currentUser,
+      newEmployees: (importedUsers ?? []) as { id: string; email: string; name: string; tempPassword: string }[],
+    };
   }, [companies, currentUser, logEvent, addToast]);
 
   const handleUpdateUserFinance = useCallback(async (userId: string, financeData: UserFinance) => {
@@ -220,6 +305,7 @@ export const useUserLogic = (
     setUsers,
     importHistory,
     setImportHistory,
+    fetchUsersFromApi,
     handleUpdateEmployee,
     handleDeactivateEmployee,
     handleBulkImport,

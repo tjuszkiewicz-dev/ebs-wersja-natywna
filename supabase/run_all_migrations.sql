@@ -1125,3 +1125,17 @@ CREATE POLICY "Zamówienia firmy — pracodawca"
         AND up.company_id = voucher_orders.company_id
     )
   );
+
+-- ============================================================
+-- MIGRACJA 014 � krs/regon w companies; umowa_pdf_url w voucher_orders
+-- ============================================================
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS krs   TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS regon TEXT;
+ALTER TABLE voucher_orders ADD COLUMN IF NOT EXISTS umowa_pdf_url TEXT;
+
+-- ============================================================
+-- MIGRACJA 015 — fee_percent per company (15–31%, domyślnie 20%)
+-- ============================================================
+ALTER TABLE companies
+  ADD COLUMN IF NOT EXISTS fee_percent NUMERIC(5,2) NOT NULL DEFAULT 20.00
+    CONSTRAINT companies_fee_percent_range CHECK (fee_percent >= 15 AND fee_percent <= 31);

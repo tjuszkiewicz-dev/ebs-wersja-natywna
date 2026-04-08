@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Run expiry sweep before returning — marks distributed past valid_until as expired
+    await supabase.rpc('expire_overdue_vouchers', { p_company_id: companyId } as any);
+
     const { data, error } = await supabase
       .from('vouchers')
       .select('*')

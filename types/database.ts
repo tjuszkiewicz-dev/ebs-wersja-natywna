@@ -115,6 +115,9 @@ export interface Database {
           director_id:                  string | null;
           custom_voucher_validity_days: number | null;
           custom_payment_terms_days:    number | null;
+          voucher_expiry_day:           number;
+          voucher_expiry_hour:          number;
+          voucher_expiry_minute:        number;
           origin:                       'NATIVE' | 'CRM_SYNC';
           external_crm_id:              string | null;
           is_sync_managed:              boolean;
@@ -135,6 +138,9 @@ export interface Database {
           director_id?:                  string | null;
           custom_voucher_validity_days?: number | null;
           custom_payment_terms_days?:    number | null;
+          voucher_expiry_day?:           number;
+          voucher_expiry_hour?:          number;
+          voucher_expiry_minute?:        number;
           origin?:                       'NATIVE' | 'CRM_SYNC';
           external_crm_id?:              string | null;
           is_sync_managed?:              boolean;
@@ -155,6 +161,9 @@ export interface Database {
           director_id?:                  string | null;
           custom_voucher_validity_days?: number | null;
           custom_payment_terms_days?:    number | null;
+          voucher_expiry_day?:           number;
+          voucher_expiry_hour?:          number;
+          voucher_expiry_minute?:        number;
           origin?:                       'NATIVE' | 'CRM_SYNC';
           external_crm_id?:              string | null;
           is_sync_managed?:              boolean;
@@ -732,6 +741,61 @@ export interface Database {
           rejection_reason?: string | null;
           resolved_at?:      string | null;
           created_at?:       string;
+        };
+        Relationships: [];
+      };
+
+      financial_documents: {
+        Row: {
+          id:                    string;
+          company_id:            string;
+          linked_order_id:       string | null;
+          type:                  'nota' | 'faktura_vat';
+          document_number:       string;
+          amount_net:            number;
+          vat_amount:            number;
+          amount_gross:          number;
+          status:                'pending' | 'paid';
+          issued_at:             string;
+          payment_due_date:      string | null;
+          payment_confirmed_at:  string | null;
+          external_payment_ref:  string | null;
+          pdf_url:               string | null;
+          created_at:            string;
+        };
+        Insert: {
+          id?:                   string;
+          company_id:            string;
+          linked_order_id?:      string | null;
+          type:                  'nota' | 'faktura_vat';
+          document_number:       string;
+          amount_net:            number;
+          vat_amount:            number;
+          amount_gross:          number;
+          status?:               'pending' | 'paid';
+          issued_at?:            string;
+          payment_due_date?:     string | null;
+          payment_confirmed_at?: string | null;
+          external_payment_ref?: string | null;
+          pdf_url?:              string | null;
+          created_at?:           string;
+        };
+        Update: {
+          id?:                   string;
+          company_id?:           string;
+          linked_order_id?:      string | null;
+          type?:                 'nota' | 'faktura_vat';
+          document_number?:      string;
+          amount_net?:           number;
+          vat_amount?:           number;
+          amount_gross?:         number;
+          status?:               'pending' | 'paid';
+          issued_at?:            string;
+          payment_due_date?:     string | null;
+          payment_confirmed_at?: string | null;
+          external_payment_ref?: string | null;
+          pdf_url?:              string | null;
+          created_at?:           string;
         };
         Relationships: [];
       };
