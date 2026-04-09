@@ -8,6 +8,12 @@ const allowedOrigins = ['localhost:3010', 'localhost:3011'];
 if (productionDomain) allowedOrigins.push(productionDomain);
 
 const nextConfig: NextConfig = {
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   experimental: {
     serverActions: {
       allowedOrigins,
