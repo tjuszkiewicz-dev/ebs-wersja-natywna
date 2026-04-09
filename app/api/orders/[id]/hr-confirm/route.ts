@@ -42,7 +42,7 @@ export async function PATCH(
     }
   }
 
-  // 1. Update status → approved
+  // 1. Update status → approved (HR acknowledges payment obligation — no vouchers emitted yet)
   const { error: updateErr } = await supabase
     .from('voucher_orders')
     .update({ status: 'approved', updated_at: new Date().toISOString() })
@@ -50,87 +50,13 @@ export async function PATCH(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // 2. Emit vouchers — minted to the HR user (company account owner)
-  const { error: mintErr } = await supabase.rpc('mint_vouchers', {
-    p_order_id:     orderId,
-    p_company_id:   order.company_id,
-    p_owner_id:     order.hr_user_id,
-    p_quantity:     order.amount_vouchers,
-    p_valid_months: 12,
-  });
+  // NOTE: Vouchers are NOT minted and NOT distributed here.
+  // Minting and distribution happen in PATCH /api/orders/[id]/pay after admin confirms payment.
 
-  if (mintErr) return NextResponse.json({ error: mintErr.message }, { status: 500 });
-
-  // 3. Auto-distribute based on payroll plan in order
-  const planSource: any[] =
-    (order.payroll_snapshots as any[] | null) ??
-    (order.distribution_plan as any[] | null) ??
-    [];
-
-  let distributedCount = 0;
+  const distributedCount = 0;
   const batchItems: { userId: string; userName: string; amount: number }[] = [];
 
-  for (const entry of planSource) {
-    const userId = entry.matched_user_id ?? entry.matchedUserId;
-    const amount = Math.floor(entry.final_netto_voucher ?? entry.voucherPartNet ?? entry.amount ?? 0);
-    if (!userId || amount <= 0) continue;
-
-    const { data: distCount, error: transferErr } = await (supabase.rpc as any)('distribute_to_employee', {
-      p_company_id:   order.company_id,
-      p_from_user_id: order.hr_user_id,
-      p_to_user_id:   userId,
-      p_amount:       amount,
-      p_order_id:     orderId,
-    });
-
-    if (transferErr) continue;
-    const actualAmount = (Number(distCount) || amount);
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('full_name')
-      .eq('id', userId)
-      .single();
-
-    batchItems.push({ userId, userName: profile?.full_name ?? userId, amount: actualAmount });
-    distributedCount += actualAmount;
-
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      message: `Otrzymałeś ${actualAmount} nowych voucherów od pracodawcy.`,
-      type:    'SUCCESS',
-    });
-  }
-
-  // 4. Save distribution batch protocol
-  if (batchItems.length > 0) {
-    const batchId = `PROTOCOL-HR-${new Date().toISOString().slice(0, 10)}-${orderId.slice(-8).toUpperCase()}`;
-
-    const { error: batchErr } = await supabase
-      .from('distribution_batches')
-      .insert({
-        id:           batchId,
-        company_id:   order.company_id,
-        hr_user_id:   order.hr_user_id,
-        hr_name:      'HR (Potwierdzenie własne)',
-        total_amount: distributedCount,
-        order_id:     orderId,
-        status:       'completed',
-      });
-
-    if (!batchErr) {
-      await supabase
-        .from('distribution_batch_items')
-        .insert(batchItems.map(item => ({
-          batch_id:  batchId,
-          user_id:   item.userId,
-          user_name: item.userName,
-          amount:    item.amount,
-        })));
-    }
-  }
-
-  // 5. Generuj dokumenty księgowe (nota + faktura VAT za obsługę)
+  // 2. Generuj dokumenty księgowe (nota + faktura VAT za obsługę)
   let notaId: string | null = null;
   let fakturaId: string | null = null;
   let notaPdfUrl: string | null = null;
@@ -170,7 +96,7 @@ export async function PATCH(
       issuedAt:           now,
       docNotaNumber,
       docFakturaNumber,
-      distributionSummary: `Emisja ${order.amount_vouchers} voucherów dla ${batchItems.length} pracowników`,
+      distributionSummary: `Zamówienie ${order.amount_vouchers} voucherów — oczekuje na opłacenie`,
     });
 
     notaId       = docs.notaId;

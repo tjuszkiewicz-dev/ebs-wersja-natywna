@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Role, User } from '../types';
-import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
@@ -9,6 +9,7 @@ interface SidebarProps {
   onChangeView: (view: string) => void;
   isOpen: boolean; // Mobile state
   onClose: () => void; // Mobile close handler
+  onToggleDesktop?: () => void; // Desktop toggle handler
   isDesktopOpen: boolean; // Desktop collapse state
   onSwitchUser: () => void; // NOW USED FOR LOGOUT
   isLogout?: boolean; // Prop to style the button as Logout
@@ -20,6 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onChangeView, 
   isOpen, 
   onClose,
+  onToggleDesktop,
   isDesktopOpen,
   onSwitchUser,
   isLogout = false
@@ -82,25 +84,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside className={`
-        fixed inset-y-0 left-0 z-50 bg-slate-900 text-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 overflow-hidden
+        fixed inset-y-0 left-0 z-50 text-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 overflow-hidden
+        ${currentUser.role === Role.EMPLOYEE ? 'bg-black' : 'bg-white border-r border-slate-200'}
         ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72'} 
         md:translate-x-0 md:static md:shadow-none
-        ${isDesktopOpen ? 'md:w-72' : 'md:w-0'}
+        ${isDesktopOpen ? 'md:w-72' : 'md:w-16'}
       `}>
-        {/* Brand Header */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-800 bg-slate-950/30 whitespace-nowrap min-w-[18rem]">
-          <div>
-            <h1 className="text-xl font-bold tracking-wider text-emerald-400">ELITON BENEFITS</h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">System (EBS)</p>
-          </div>
-          <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white transition p-1">
-            <X size={24} />
-          </button>
-        </div>
-
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto no-scrollbar whitespace-nowrap min-w-[18rem]">
-          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Menu Systemowe</p>
+        <nav className={`flex-1 py-6 space-y-1 overflow-y-auto no-scrollbar overflow-x-hidden ${currentUser.role === Role.EMPLOYEE ? 'bg-black' : 'bg-white'}`}
+          style={{ padding: isDesktopOpen ? undefined : '24px 0' }}
+        >
+          {isDesktopOpen && (
+            <p className={`px-4 text-xs font-semibold uppercase tracking-wider mb-2 whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-500' : 'text-slate-400'}`}>Menu Systemowe</p>
+          )}
           {menuItems.map((item) => (
             <button
               key={item.id}
@@ -108,49 +104,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onChangeView(item.id);
                 onClose(); 
               }}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
-                currentView === item.id
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              title={!isDesktopOpen ? item.label : undefined}
+              className={`w-full flex items-center py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
+                isDesktopOpen ? 'gap-3 px-4' : 'justify-center px-0'
+              } ${
+                currentUser.role === Role.EMPLOYEE
+                  ? currentView === item.id ? 'text-white bg-slate-800 shadow-sm' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
+                  : currentView === item.id ? 'text-slate-900 bg-slate-100 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
               }`}
             >
-              <span className={currentView === item.id ? 'text-white' : 'text-slate-500 group-hover:text-white'}>
+              <span className={`flex-shrink-0 ${
+                currentUser.role === Role.EMPLOYEE
+                  ? currentView === item.id ? 'text-emerald-400' : 'text-slate-500 group-hover:text-white'
+                  : currentView === item.id ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-900'
+              }`}>
                 {item.icon}
               </span>
-              <span>{item.label}</span>
-              {currentView === item.id && <ChevronRight size={16} className="ml-auto opacity-50" />}
+              {isDesktopOpen && <span className="whitespace-nowrap">{item.label}</span>}
+              {isDesktopOpen && currentView === item.id && <ChevronRight size={16} className="ml-auto opacity-50" />}
             </button>
           ))}
         </nav>
 
-        {/* User Profile / Logout (Bottom Sticky) */}
-        <div className="p-4 bg-slate-950/30 border-t border-slate-800 whitespace-nowrap min-w-[18rem]">
+        {/* Bottom / Collapse */}
+        <div className={`border-t ${currentUser.role === Role.EMPLOYEE ? 'bg-black border-white/10' : 'bg-white border-slate-200'} ${isDesktopOpen ? 'p-4' : 'p-2'}`}>
           <button 
-            onClick={onSwitchUser}
-            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors group text-left relative overflow-hidden ${
-                isLogout ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400' : 'bg-slate-800 hover:bg-slate-700'
-            }`}
+            onClick={() => {
+              if (window.innerWidth >= 768) {
+                if (onToggleDesktop) onToggleDesktop();
+              } else {
+                onClose();
+              }
+            }}
+            className={`w-full flex items-center justify-center p-3 rounded-xl transition-colors group ${currentUser.role === Role.EMPLOYEE ? 'bg-slate-800/50 hover:bg-slate-700/60' : 'bg-slate-100 hover:bg-slate-200'}`}
           >
-             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg flex-shrink-0 ${
-                 isLogout ? 'bg-red-500/20 text-red-400' : 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white'
-             }`}>
-                {isLogout ? <LogOut size={18}/> : currentUser.name.charAt(0)}
-             </div>
-             
-             <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium truncate ${isLogout ? 'text-red-400' : 'text-white'}`}>
-                    {isLogout ? 'Wyloguj się' : currentUser.name}
-                </p>
-                <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                  <span className={`w-1.5 h-1.5 rounded-full ${isLogout ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
-                  <span className="truncate">{roleLabel}</span>
+            {isDesktopOpen ? (
+              <div className="flex items-center gap-3 w-full">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg flex-shrink-0 transition-colors ${currentUser.role === Role.EMPLOYEE ? 'bg-slate-700 text-slate-300 group-hover:text-white' : 'bg-slate-200 text-slate-500 group-hover:text-slate-900'}`}>
+                  <ChevronLeft size={20}/>
                 </div>
-             </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p className={`text-sm font-medium transition-colors whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-300 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>Schowaj pasek</p>
+                  <p className={`text-xs whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-500' : 'text-slate-400'}`}>Zwiń menu boczne</p>
+                </div>
+              </div>
+            ) : (
+              <ChevronRight size={20} className={`transition-colors ${currentUser.role === Role.EMPLOYEE ? 'text-slate-400 group-hover:text-white' : 'text-slate-400 group-hover:text-slate-900'}`} />
+            )}
           </button>
-          
-          <div className="mt-3 text-center">
-            <p className="text-[10px] text-slate-600">Wersja EBS 1.0.9 (Accounting UI)</p>
-          </div>
+          {isDesktopOpen && (
+            <div className="mt-3 text-center">
+            <p className={`text-[10px] whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-600' : 'text-slate-400'}`}>Wersja EBS 1.0.9 (Accounting UI)</p>
+            </div>
+          )}
         </div>
       </aside>
     </>

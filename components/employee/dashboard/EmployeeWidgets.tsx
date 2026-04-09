@@ -6,8 +6,8 @@ export const SectionDivider: React.FC<{ title: string; subtitle?: string; accent
   <div className="flex items-center gap-4 py-2 mb-2">
     <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ background: accent }} />
     <div>
-      <h2 className="text-lg font-black text-gray-900 tracking-tight">{title}</h2>
-      {subtitle && <p className="text-xs text-gray-400 font-medium">{subtitle}</p>}
+      <h2 className="text-lg font-black text-white tracking-tight">{title}</h2>
+      {subtitle && <p className="text-xs text-white/60 font-medium">{subtitle}</p>}
     </div>
   </div>
 );
@@ -19,29 +19,50 @@ export const AppIconCard: React.FC<{
   gradient: string;
   hasAccess: boolean;
   price?: number;
+  image?: string;
   onClick: () => void;
-}> = ({ icon, name, desc, gradient, hasAccess, price, onClick }) => (
+}> = ({ icon, name, desc, gradient, hasAccess, price, image, onClick }) => (
   <motion.div
     whileHover={{ y: -4, transition: { type: 'spring', stiffness: 400, damping: 20 } }}
     whileTap={{ scale: 0.97 }}
     onClick={onClick}
-    className="relative rounded-2xl p-5 cursor-pointer shadow-sm border border-white/80 overflow-hidden"
+    className="relative rounded-2xl cursor-pointer shadow-sm border border-white/80 overflow-hidden"
     style={{ background: gradient }}
   >
-    <div className="flex justify-between items-start mb-4">
-      <div className="w-12 h-12 rounded-2xl bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm">
-        {icon}
+    {image && (
+      <>
+        <img
+          src={image}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 0.18 }}
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0" style={{ background: gradient, opacity: 0.72 }} />
+      </>
+    )}
+    {image && (
+      <div className="relative w-full h-20 overflow-hidden rounded-t-2xl -mb-2">
+        <img src={image} alt="" className="w-full h-full object-cover" aria-hidden="true" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white/90" />
       </div>
-      {hasAccess ? (
-        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-500 text-white uppercase tracking-wider">Aktywny</span>
-      ) : (
-        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/80 text-gray-500 uppercase tracking-wider">{price} pkt</span>
-      )}
-    </div>
-    <h3 className="font-bold text-gray-900 text-sm">{name}</h3>
-    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</p>
-    <div className="flex items-center gap-1 mt-3 text-xs font-bold" style={{ color: hasAccess ? '#16a34a' : '#6b7280' }}>
-      {hasAccess ? 'Otwórz aplikację' : 'Aktywuj'} <ArrowRight size={12} />
+    )}
+    <div className={`relative p-5 ${image ? 'pt-3' : ''}`}>
+      <div className="flex justify-between items-start mb-4">
+        <div className="w-12 h-12 rounded-2xl bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm">
+          {icon}
+        </div>
+        {hasAccess ? (
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-500 text-white uppercase tracking-wider">Aktywny</span>
+        ) : (
+          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/80 text-gray-500 uppercase tracking-wider">{price} pkt</span>
+        )}
+      </div>
+      <h3 className="font-bold text-gray-900 text-sm">{name}</h3>
+      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</p>
+      <div className="flex items-center gap-1 mt-3 text-xs font-bold" style={{ color: hasAccess ? '#16a34a' : '#6b7280' }}>
+        {hasAccess ? 'Otwórz aplikację' : 'Aktywuj'} <ArrowRight size={12} />
+      </div>
     </div>
   </motion.div>
 );

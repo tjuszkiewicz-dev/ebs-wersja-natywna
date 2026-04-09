@@ -240,11 +240,21 @@ const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void }> = 
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export const AdminPlatnosci: React.FC = () => {
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [search,    setSearch]    = useState('');
-  const [selected,  setSelected]  = useState<Company | null>(null);
+  const [companies,    setCompanies]    = useState<Company[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
+  const [search,       setSearch]       = useState('');
+  const [selected,     setSelected]     = useState<Company | null>(null);
+  const [pendingSet,   setPendingSet]   = useState<Set<string>>(new Set());
+
+  const fetchPending = useCallback(async () => {
+    try {
+      const res = await fetch('/api/invoices/pending-companies');
+      if (!res.ok) return;
+      const ids: string[] = await res.json();
+      setPendingSet(new Set(ids));
+    } catch { /* cicho — wskaźnik opcjonalny */ }
+  }, []);
 
   const fetchCompanies = useCallback(async () => {
     setLoading(true);
@@ -261,7 +271,7 @@ export const AdminPlatnosci: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
+  useEffect(() => { fetchCompanies(); fetchPending(); }, [fetchCompanies, fetchPending]);
 
   const filtered = companies.filter((c) => {
     const q = search.toLowerCase();
@@ -330,6 +340,11 @@ export const AdminPlatnosci: React.FC = () => {
                   <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                     <Hash size={9} />{company.nip}
                   </p>
+                  {pendingSet.has(company.id) && (
+                    <p className="text-[10px] font-bold text-emerald-500 mt-1 animate-pulse">
+                      ● Nie opłacone
+                    </p>
+                  )}
                 </div>
               </div>
             </button>

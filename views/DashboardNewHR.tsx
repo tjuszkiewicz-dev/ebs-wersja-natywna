@@ -621,7 +621,7 @@ export const DashboardNewHR: React.FC<Props> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-[#f3f4f6]" style={{ fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
+    <div className="min-h-screen" style={{ fontFamily: '"Segoe UI", system-ui, sans-serif' }}>
 
       {/* ── TOP BAR ─────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-gray-200 px-6 py-0 flex items-center justify-between" style={{ height: 48 }}>

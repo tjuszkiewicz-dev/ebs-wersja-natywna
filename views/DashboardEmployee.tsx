@@ -211,29 +211,21 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* Hero - desktop */}
-      <div className="hidden md:grid md:grid-cols-2 gap-6 items-start">
+      <div className="hidden md:grid gap-6 items-start" style={{ gridTemplateColumns: '2fr 3fr' }}>
         <div>
-          <div className="mb-2">
-            <h1 className="text-3xl font-black text-gray-900 tracking-tight">
-              Czesc, <span style={{ color: '#7C3AED' }}>{user.name.split(' ')[0]}</span>
-            </h1>
-            <p className="text-gray-500 text-sm mt-1">Twoje benefity pracownicze w jednym miejscu.</p>
-          </div>
-          <div className="mt-6">
-            <WalletCard user={user} />
-          </div>
+          <WalletCard user={user} />
         </div>
-        <div className="grid grid-cols-2 gap-4 mt-12">
+        <div className="grid grid-cols-2 gap-4 h-full">
           {[
             { label: 'Aktywne uslugi', value: [hasMentalHealthAccess, hasLegalAccess, hasSecureMessengerAccess, hasVaultAccess].filter(Boolean).length, unit: 'szt.', color: '#7C3AED' },
             { label: 'Transakcje', value: transactions.length, unit: 'lacznie', color: '#2563EB' },
             { label: 'Vouchery', value: vouchers.filter(v => v.status === VoucherStatus.DISTRIBUTED).length, unit: 'aktywnych', color: '#16a34a' },
             { label: 'Partnerzy', value: 14, unit: 'dostepnych', color: '#ea580c' },
           ].map(({ label, value, unit, color }) => (
-            <div key={label} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
+            <div key={label} className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-sm flex flex-col justify-center">
               <p className="text-2xl font-black" style={{ color }}>{value}</p>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{unit}</p>
-              <p className="text-sm font-semibold text-gray-600 mt-1">{label}</p>
+              <p className="text-xs font-bold text-white/50 uppercase tracking-wider">{unit}</p>
+              <p className="text-sm font-semibold text-white/70 mt-1">{label}</p>
             </div>
           ))}
         </div>
@@ -272,6 +264,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="Wellbeing"
             desc="AI Coach, medytacje i sesje deep work."
             gradient="linear-gradient(135deg,#f5f3ff,#ede9fe)"
+            image="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasMentalHealthAccess}
             price={100}
             onClick={() => hasMentalHealthAccess ? setActiveTab('WELLBEING') : wellbeingService && setSelectedService(wellbeingService)}
@@ -281,6 +274,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="AI Prawnik"
             desc="Analiza umow i porady prawne 24/7."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            image="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasLegalAccess}
             price={150}
             onClick={() => hasLegalAccess ? setActiveTab('LEGAL') : legalService && setSelectedService(legalService)}
@@ -290,6 +284,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="Secure Messenger"
             desc="Szyfrowana komunikacja end-to-end."
             gradient="linear-gradient(135deg,#f0fdf4,#dcfce7)"
+            image="https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasSecureMessengerAccess}
             price={200}
             onClick={() => hasSecureMessengerAccess ? setActiveTab('SECURE_MESSENGER') : setSelectedService(secureMessengerService)}
@@ -299,6 +294,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="Digital Vault"
             desc="Prywatny sejf cyfrowy 10 GB. AES-256."
             gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
+            image="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasVaultAccess}
             price={50}
             onClick={() => hasVaultAccess ? setActiveTab('DIGITAL_VAULT') : setSelectedService(vaultService)}
@@ -309,7 +305,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       {/* Strefa Partnerow */}
       <div>
         <SectionDivider title="Strefa Partnerow" subtitle="Ekskluzywne oferty dla pracownikow EBS" accent="#22C55E" />
-        <div className="rounded-3xl bg-white border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
+        <div className="rounded-3xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-sm overflow-hidden divide-y divide-white/10">
           <div id="section-luxmed" className="px-6 md:px-8">
             <LuxMedSection onSelect={(pkg) => handlePartnerRequest('LuxMed', pkg)} />
           </div>
@@ -331,22 +327,22 @@ export const DashboardEmployee: React.FC<Props> = ({
       {/* Mobile: recent transactions */}
       <div className="md:hidden">
         <SectionDivider title="Ostatnie Transakcje" accent="#2563EB" />
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
+        <div className="bg-white/10 backdrop-blur-sm rounded-2xl border border-white/20 shadow-sm overflow-hidden divide-y divide-white/10">
           {transactions.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-8">Brak transakcji</p>
+            <p className="text-center text-sm text-white/40 py-8">Brak transakcji</p>
           ) : (
             transactions.slice(0, 5).map(t => (
               <div key={t.id} className="flex justify-between items-center px-5 py-3.5">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${t.type === 'CREDIT' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${t.type === 'CREDIT' ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-white/60'}`}>
                     {t.type === 'CREDIT' ? '+' : '-'}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800 leading-tight">{t.serviceName || 'Doladowanie'}</p>
-                    <p className="text-[10px] text-gray-400">{new Date(t.date).toLocaleDateString('pl-PL')}</p>
+                    <p className="text-xs font-bold text-white/90 leading-tight">{t.serviceName || 'Doladowanie'}</p>
+                    <p className="text-[10px] text-white/50">{new Date(t.date).toLocaleDateString('pl-PL')}</p>
                   </div>
                 </div>
-                <span className={`text-sm font-black ${t.type === 'CREDIT' ? 'text-green-600' : 'text-gray-800'}`}>
+                <span className={`text-sm font-black ${t.type === 'CREDIT' ? 'text-green-400' : 'text-white/90'}`}>
                   {t.type === 'CREDIT' ? '+' : '-'}{t.amount} pkt
                 </span>
               </div>
@@ -372,8 +368,8 @@ export const DashboardEmployee: React.FC<Props> = ({
           </div>
         </div>
         {count === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-gray-100">
-            <p className="text-gray-400 text-sm mb-6">Przejdz do katalogu, aby aktywowac uslugi.</p>
+          <div className="text-center py-20 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20">
+            <p className="text-white/50 text-sm mb-6">Przejdz do katalogu, aby aktywowac uslugi.</p>
             <Button variant="primary" onClick={() => setActiveTab('CATALOG')}>Przegladaj Katalog</Button>
           </div>
         ) : (
@@ -389,15 +385,15 @@ export const DashboardEmployee: React.FC<Props> = ({
   };
 
   return (
-    <div className="min-h-full pb-28 md:pb-6" style={{ background: '#F9FAFB' }}>
+    <div className="min-h-full pb-28 md:pb-6">
       <AnimatePresence mode="wait">
         {(activeTab === 'WALLET' || activeTab === 'CATALOG') && (
           <div key="wallet-catalog" className="space-y-12">
             <div id="section-wallet">{renderWallet()}</div>
             <div id="catalog-anchor" className="flex items-center gap-4 py-4">
-              <div className="h-px flex-1 bg-gray-200" />
-              <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">Katalog Uslug</span>
-              <div className="h-px flex-1 bg-gray-200" />
+              <div className="h-px flex-1 bg-white/20" />
+              <span className="text-sm font-bold text-white/40 uppercase tracking-widest">Katalog Uslug</span>
+              <div className="h-px flex-1 bg-white/20" />
             </div>
             <div className="min-h-[600px]">
               <ServiceCatalog

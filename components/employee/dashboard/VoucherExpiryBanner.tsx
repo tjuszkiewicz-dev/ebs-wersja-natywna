@@ -50,6 +50,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
   const [activating,   setActivating]   = useState(false);
   const [activated,    setActivated]    = useState(false);
   const [activateErr,  setActivateErr]  = useState<string | null>(null);
+  const [dismissed,    setDismissed]    = useState(false);
 
   // Primary signal: employee has/had vouchers
   const hasBalance = balance > 0 || vouchers.some(v =>
@@ -97,7 +98,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
     }
   }, []);
 
-  if (loading || expiryDay === null || !hasBalance || !countdown) return null;
+  if (loading || expiryDay === null || !hasBalance || !countdown || dismissed) return null;
 
   const isExpired = countdown.days === 0 && countdown.hours === 0 &&
     countdown.minutes === 0 && countdown.seconds === 0;
@@ -105,7 +106,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
   // Activation success state
   if (activated) {
     return (
-      <div className="rounded-2xl px-5 py-4 flex items-center gap-4 bg-green-50 border border-green-200">
+      <div className="rounded-2xl px-5 py-4 flex items-center gap-4 bg-green-50 border border-green-200 relative">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-green-100">
           <CheckCircle size={20} className="text-green-600" />
         </div>
@@ -113,6 +114,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
           <p className="text-sm font-bold text-green-700">Vouchery zostały aktywowane!</p>
           <p className="text-xs text-green-500">Możesz korzystać z benefitów. Następne wygaśnięcie: {expiryDay}. dnia przyszłego miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}.</p>
         </div>
+        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-green-200 text-green-400 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
     );
   }
@@ -120,7 +122,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
   // Expired state — show "Aktywuj vouchery" button directly in banner
   if (isExpired) {
     return (
-      <div className="rounded-2xl px-5 py-4 flex items-center gap-4 bg-orange-50 border border-orange-200">
+      <div className="rounded-2xl px-5 py-4 flex items-center gap-4 bg-orange-50 border border-orange-200 relative">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-orange-100">
           <AlertTriangle size={20} className="text-orange-600" />
         </div>
@@ -141,6 +143,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
             : <><Zap size={14} /> Aktywuj vouchery</>
           }
         </button>
+        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-orange-200 text-orange-400 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
     );
   }
@@ -149,21 +152,21 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
   return (
     <>
       <div
-        className="rounded-2xl px-5 py-4 flex items-center gap-4 cursor-pointer transition-all bg-amber-50 border border-amber-200 hover:bg-amber-100"
-        onClick={() => setShowModal(true)}
+        className="rounded-2xl px-5 py-4 flex items-center gap-4 transition-all bg-amber-50 border border-amber-200"
       >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100 cursor-pointer" onClick={() => setShowModal(true)}>
           <Clock size={20} className="text-amber-600" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-amber-700">Vouchery wygasą {expiryDay}. dnia miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}</p>
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowModal(true)}>
+          <p className="text-sm font-bold text-amber-700">Vouchery wygasną {expiryDay}. dnia miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}</p>
           <p className="text-xs text-amber-500">
             Pozostało: {countdown.days}d {pad(countdown.hours)}:{pad(countdown.minutes)}:{pad(countdown.seconds)}
           </p>
         </div>
-        <span className="text-xs font-semibold px-3 py-1 rounded-full flex-shrink-0 bg-amber-500 text-white">
+        <span className="text-xs font-semibold px-3 py-1 rounded-full flex-shrink-0 bg-amber-500 text-white cursor-pointer" onClick={() => setShowModal(true)}>
           Szczegóły
         </span>
+        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-amber-200 text-amber-400 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
 
       {/* Modal — info o nadchodzącym wygaśnięciu */}

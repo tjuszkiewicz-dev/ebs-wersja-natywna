@@ -216,14 +216,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin, onLogi
         {/* ── Centered layout ── */}
         <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px' }}>
 
-          {/* EBS logo above card */}
-          <div className="ebs-up" style={{ animationDelay:'0s', marginBottom:8, display:'flex', flexDirection:'column', alignItems:'center', gap:8 }}>
-            <img src="/EBS black.svg" alt="EBS" style={{ height:144, objectFit:'contain', filter:'invert(1) brightness(2)' }}/>
-            <div style={{ padding:'6px 28px', border:'1px solid rgba(255,255,255,0.15)', borderRadius:8, background:'rgba(255,255,255,0.04)', backdropFilter:'blur(8px)' }}>
-              <span style={{ color:'rgba(255,255,255,0.7)', fontSize:11, fontWeight:600, letterSpacing:'0.18em', textTransform:'uppercase', whiteSpace:'nowrap' }}>Eliton Benefits System</span>
-            </div>
-          </div>
-
           {/* Login card — 40% smaller (maxWidth 264px) */}
           <div className="ebs-up" style={{ width:'100%', maxWidth:264, animationDelay:'.05s' }}>
             <div className="ebs-card-border">

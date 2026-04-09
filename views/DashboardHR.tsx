@@ -231,7 +231,7 @@ export const DashboardHR: React.FC<Props> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20 md:pb-6 relative">
+    <div className="min-h-screen font-sans text-slate-900 pb-20 md:pb-6 relative">
        
        <HRPageHeader
            currentPeriod={currentPeriod}

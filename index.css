@@ -1,6 +1,5 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,8 +7,8 @@
 
 /* GLOBAL BASE STYLES */
 body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f8fafc; /* slate-50 */
+  font-family: 'DM Sans', sans-serif;
+  background-color: #080613;
   color: #0f172a; /* slate-900 */
 }
 
@@ -152,3 +151,23 @@ body {
   border-color: #3b82f6; /* blue-500 */
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); /* focus:ring-2 focus:ring-blue-200 */
 }
+
+@keyframes ebs-logo-glow-1 {
+  0%, 100% { transform: translate(-10px, 5px) scale(1) rotate(0deg); opacity: 0.35; }
+  25%      { transform: translate(10px, -7px) scale(1.3) rotate(15deg); opacity: 0.63; }
+  50%      { transform: translate(7px, 10px) scale(0.8) rotate(-10deg); opacity: 0.28; }
+  75%      { transform: translate(-7px, -10px) scale(1.1) rotate(5deg); opacity: 0.56; }
+}
+@keyframes ebs-logo-glow-2 {
+  0%, 100% { transform: translate(10px, -5px) scale(1.2) rotate(0deg); opacity: 0.28; }
+  25%      { transform: translate(-10px, 7px) scale(0.9) rotate(-15deg); opacity: 0.56; }
+  50%      { transform: translate(-15px, -5px) scale(1.4) rotate(15deg); opacity: 0.35; }
+  75%      { transform: translate(5px, 12px) scale(1) rotate(-5deg); opacity: 0.63; }
+}
+@keyframes ebs-logo-float {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-4px); }
+}
+.ebs-logo-glow-1 { animation: ebs-logo-glow-1 6s ease-in-out infinite alternate; }
+.ebs-logo-glow-2 { animation: ebs-logo-glow-2 8s ease-in-out infinite alternate-reverse; }
+.ebs-logo-float { animation: ebs-logo-float 4s ease-in-out infinite; }

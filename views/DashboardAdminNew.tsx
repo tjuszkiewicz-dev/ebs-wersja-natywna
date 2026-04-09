@@ -53,10 +53,10 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
   return (
     <div
       className="-m-4 md:-m-8 min-h-screen"
-      style={{ backgroundColor: '#f3f4f6', fontFamily: '"Segoe UI", system-ui, sans-serif' }}
+      style={{ backgroundColor: 'transparent', fontFamily: '"Segoe UI", system-ui, sans-serif' }}
     >
       {/* ── TOP BAR (identyczny styl jak HR) ─────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200 px-6 flex items-center justify-between" style={{ height: 48 }}>
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 flex items-center justify-between" style={{ height: 48 }}>
         <div className="flex items-center gap-3">
           <ShieldCheck size={16} className="text-blue-600" />
           <span className="font-semibold text-gray-800 text-sm">Panel Administracyjny</span>
@@ -66,7 +66,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
       </div>
 
       {/* ── TAB BAR (identyczny styl jak HR) ─────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200 px-6">
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-6">
         <div className="flex gap-0">
           {tabs.map((t) => (
             <button

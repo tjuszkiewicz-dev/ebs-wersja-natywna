@@ -33,86 +33,8 @@ export async function PATCH(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
-  // 2. Emit vouchers — minted to the HR user (company account owner)
-  const { error: mintErr } = await supabase.rpc('mint_vouchers', {
-    p_order_id:     orderId,
-    p_company_id:   order.company_id,
-    p_owner_id:     order.hr_user_id,
-    p_quantity:     order.amount_vouchers,
-    p_valid_months: 12,
-  });
+  // NOTE: Vouchers are NOT minted and NOT distributed at approve time.
+  // Minting and distribution happen in PATCH /api/orders/[id]/pay after payment is confirmed.
 
-  if (mintErr) return NextResponse.json({ error: mintErr.message }, { status: 500 });
-
-  // 3. Auto-distribute if payroll plan exists (Trust Model — before payment)
-  const planSource: any[] = (order.payroll_snapshots as any[] | null) ?? (order.distribution_plan as any[] | null) ?? [];
-  let distributedCount = 0;
-  const batchItems: { userId: string; userName: string; amount: number }[] = [];
-
-  for (const entry of planSource) {
-    const userId = entry.matched_user_id ?? entry.matchedUserId;
-    const amount = Math.floor(entry.final_netto_voucher ?? entry.voucherPartNet ?? 0);
-    if (!userId || amount <= 0) continue;
-
-    const { data: distCount, error: transferErr } = await (supabase.rpc as any)('distribute_to_employee', {
-      p_company_id:   order.company_id,
-      p_from_user_id: order.hr_user_id,
-      p_to_user_id:   userId,
-      p_amount:       amount,
-      p_order_id:     orderId,
-    });
-
-    if (transferErr) continue;
-    const actualAmount = (Number(distCount) || amount);
-
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('full_name')
-      .eq('id', userId)
-      .single();
-
-    batchItems.push({ userId, userName: profile?.full_name ?? userId, amount: actualAmount });
-    distributedCount += actualAmount;
-
-    // In-app notification for employee
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      message: `Otrzymałeś ${actualAmount} nowych voucherów (dystrybucja automatyczna).`,
-      type:    'SUCCESS',
-    });
-  }
-
-  // 4. Save distribution batch protocol
-  if (batchItems.length > 0) {
-    const batchId = `PROTOCOL-AUTO-${new Date().toISOString().slice(0, 10)}-${orderId.slice(-8).toUpperCase()}`;
-
-    const { error: batchErr } = await supabase
-      .from('distribution_batches')
-      .insert({
-        id:           batchId,
-        company_id:   order.company_id,
-        hr_user_id:   order.hr_user_id,
-        hr_name:      'System (Auto-Trust)',
-        total_amount: distributedCount,
-        order_id:     orderId,
-        status:       'completed',
-      });
-
-    if (!batchErr) {
-      await supabase
-        .from('distribution_batch_items')
-        .insert(batchItems.map(item => ({
-          batch_id:  batchId,
-          user_id:   item.userId,
-          user_name: item.userName,
-          amount:    item.amount,
-        })));
-    }
-  }
-
-  return NextResponse.json({
-    approved:     true,
-    distributed:  distributedCount,
-    batchCreated: batchItems.length > 0,
-  });
+  return NextResponse.json({ approved: true, distributed: 0, batchCreated: false });
 }

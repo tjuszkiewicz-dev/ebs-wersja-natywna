@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Sidebar } from './components/Sidebar';
+import SoftAurora from './components/ui/SoftAurora';
 import { DashboardAdminNew } from './views/DashboardAdminNew';
 import { DashboardNewHR } from './views/DashboardNewHR';
 import { DashboardEmployee } from './views/DashboardEmployee';
 import { DashboardSales } from './views/DashboardSales';
 import { LoginScreen } from './views/LoginScreen';
 import { Role, Order, BuybackAgreement, Notification, User, DistributionBatch, VoucherStatus } from './types';
-import { Menu, Search, Settings, Wallet, Clock } from 'lucide-react';
+import { Search, Settings, Wallet, Clock } from 'lucide-react';
 import { DocumentModal } from './components/DocumentModal';
 import { ToastContainer } from './components/Toast';
 import { NotificationCenter } from './components/notifications/NotificationCenter';
@@ -293,7 +294,28 @@ const AppContent = () => {
   };
 
   return (
-    <div className="flex h-screen font-sans bg-slate-50 text-slate-900">
+    <div className={`flex h-screen font-sans text-slate-900 relative overflow-hidden ${currentUser?.role === Role.EMPLOYEE ? '' : 'bg-slate-100'}`}>
+      {/* SoftAurora background — only for EMPLOYEE role */}
+      {currentUser?.role === Role.EMPLOYEE && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+          <SoftAurora
+            speed={0.6}
+            scale={1.4}
+            brightness={1.4}
+            color1="#44fb37"
+            color2="#1d6acd"
+            noiseFrequency={1.5}
+            noiseAmplitude={2.5}
+            bandHeight={0.8}
+            bandSpread={1.5}
+            octaveDecay={0.04}
+            layerOffset={0.9}
+            colorSpeed={0.6}
+            enableMouseInteraction={false}
+            mouseInfluence={0.25}
+          />
+        </div>
+      )}
       <ToastContainer toasts={toasts} removeToast={actions.removeToast} />
       <SessionGuard /> {/* GLOBAL SECURITY GUARD */}
       
@@ -321,6 +343,7 @@ const AppContent = () => {
         onChangeView={setCurrentView}
         isOpen={isMobileSidebarOpen}
         onClose={() => setIsMobileSidebarOpen(false)}
+        onToggleDesktop={() => setDesktopSidebarOpen(prev => !prev)}
         isDesktopOpen={isDesktopSidebarOpen}
         onSwitchUser={actions.logout}
         isLogout={true} 
@@ -328,64 +351,67 @@ const AppContent = () => {
       
       <div className="flex-1 flex flex-col min-w-0 relative transition-all duration-300">
         {/* Changed z-20 to z-40 to be above DashboardHR content (which uses z-30) */}
-        <header className="h-16 md:h-20 flex items-center justify-between px-4 md:px-8 flex-shrink-0 z-40 relative border-b bg-white border-slate-200">
-          <div className="flex items-center gap-4">
+          <header className={`h-16 md:h-20 flex items-center px-4 md:px-8 flex-shrink-0 z-40 relative border-b ${currentUser?.role === Role.EMPLOYEE ? 'bg-black border-black' : 'bg-white border-slate-200'}`}>
+          {/* LEFT */}
+          <div className="flex-1 flex items-center gap-4">
             <button
               onClick={handleToggleSidebar}
-              className="p-2 -ml-2 rounded-lg transition text-slate-600 hover:bg-slate-100"
+              className={`self-stretch -ml-1 px-2 rounded-lg transition flex items-center justify-center overflow-visible ${currentUser?.role === Role.EMPLOYEE ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}
             >
-              <Menu size={24} />
+              <img src="/EBS black.svg" alt="EBS" style={{ height: 62, width: 'auto', objectFit: 'contain', filter: currentUser?.role === Role.EMPLOYEE ? 'brightness(0) invert(1)' : 'none', display: 'block' }} />
             </button>
-            <div>
-              <h2 className="text-lg font-bold hidden sm:block text-slate-800">
-                {currentUser.role === Role.SUPERADMIN ? 'Panel Administracyjny' :
-                 currentUser.role === Role.HR ? 'Zarządzanie Kadrami' :
-                 currentUser.role === Role.EMPLOYEE ? 'Strefa Pracownika' : 'Strefa Partnera'}
+            <div className="hidden sm:block">
+              <h2 className={`text-lg font-bold leading-tight ${currentUser?.role === Role.EMPLOYEE ? 'text-white' : 'text-slate-900'}`}>
+                Cześć, <span style={{ color: currentUser?.role === Role.EMPLOYEE ? '#a78bfa' : '#7C3AED' }}>{currentUser.name.split(' ')[0]}</span>
               </h2>
-              <p className="text-xs hidden sm:block text-slate-500">
-                {companies.find(c => c.id === currentUser.companyId)?.name || 'Platforma Centralna'}
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* CENTER: Search */}
+          <button
+              onClick={() => setIsSearchOpen(true)}
+              className={`hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-xs cursor-pointer transition w-96 ${
+                currentUser?.role === Role.EMPLOYEE
+                  ? 'bg-white/10 border border-white/20 text-white/50 hover:bg-white/15 hover:border-white/30'
+                  : 'bg-slate-100 border border-slate-200 text-slate-400 hover:bg-slate-200 hover:border-slate-300'
+              }`}
+              title="Szukaj (Ctrl+K)"
+          >
+              <Search size={14} />
+              <span className="flex-1 text-left">Szukaj...</span>
+              <span className={`px-1.5 rounded text-[10px] border ${
+                currentUser?.role === Role.EMPLOYEE ? 'bg-white/10 border-white/20' : 'bg-white border-slate-200 text-slate-400'
+              }`}>Ctrl+K</span>
+          </button>
+
+          {/* RIGHT */}
+          <div className="flex-1 flex items-center gap-3 justify-end">
             {/* SEARCH / STATS BAR for Employee */}
             {currentUser?.role === Role.EMPLOYEE && (
-                <div className="hidden lg:flex items-center gap-4 mr-6 pl-6 border-l border-slate-100">
-                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all ${expiryExpired ? 'bg-slate-100 border-slate-200 opacity-50 grayscale' : 'bg-emerald-50/50 border-emerald-100'}`}>
-                       <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-colors ${expiryExpired ? 'bg-slate-300 text-slate-400 shadow-none' : 'bg-emerald-600 text-white shadow-emerald-600/20'}`}>
+                <div className="hidden lg:flex items-center gap-4 mr-4 pl-4 border-l border-white/10">
+                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all ${expiryExpired ? 'bg-white/5 border-white/10 opacity-50 grayscale' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                       <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-colors ${expiryExpired ? 'bg-white/10 text-white/30 shadow-none' : 'bg-emerald-600 text-white shadow-emerald-600/20'}`}>
                           <Wallet size={18} />
                        </div>
                        <div className="flex flex-col">
-                          <span className={`text-[10px] font-bold uppercase leading-none tracking-tight ${expiryExpired ? 'text-slate-400' : 'text-emerald-600'}`}>Twoje Saldo</span>
-                          <span className={`text-base font-bold leading-tight ${expiryExpired ? 'text-slate-400' : 'text-slate-800'}`}>
-                            {currentUser.voucherBalance} <span className="text-xs font-normal text-slate-400">pkt</span>
+                          <span className={`text-[10px] font-bold uppercase leading-none tracking-tight ${expiryExpired ? 'text-white/30' : 'text-emerald-400'}`}>Twoje Saldo</span>
+                          <span className={`text-base font-bold leading-tight ${expiryExpired ? 'text-white/30' : 'text-white'}`}>
+                            {currentUser.voucherBalance} <span className="text-xs font-normal text-white/40">pkt</span>
                           </span>
                        </div>
                     </div>
 
-                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all ${expiryExpired ? 'bg-slate-100 border-slate-200 opacity-50 grayscale' : expiryUrgent ? 'bg-amber-50 border-amber-200 shadow-sm' : 'bg-slate-50/50 border-slate-100 opacity-60'}`}>
-                       <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${expiryExpired ? 'bg-slate-300 text-slate-400 shadow-none' : expiryUrgent ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-slate-200 text-slate-400'}`}>
+                    <div className={`flex items-center gap-3 px-4 py-2 rounded-2xl border transition-all ${expiryExpired ? 'bg-white/5 border-white/10 opacity-50 grayscale' : expiryUrgent ? 'bg-amber-500/10 border-amber-500/30 shadow-sm' : 'bg-white/5 border-white/10 opacity-60'}`}>
+                       <div className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${expiryExpired ? 'bg-white/10 text-white/30 shadow-none' : expiryUrgent ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-white/10 text-white/40'}`}>
                           <Clock size={18} />
                        </div>
                        <div className="flex flex-col">
-                          <span className={`text-[10px] font-bold uppercase leading-none tracking-tight ${expiryExpired ? 'text-slate-400' : expiryUrgent ? 'text-amber-600' : 'text-slate-400'}`}>Wygasają za</span>
-                          <span className={`text-base font-bold leading-tight ${expiryExpired ? 'text-slate-400' : expiryUrgent ? 'text-slate-800' : 'text-slate-500'}`}>{expiryDisplay}</span>
+                          <span className={`text-[10px] font-bold uppercase leading-none tracking-tight ${expiryExpired ? 'text-white/30' : expiryUrgent ? 'text-amber-400' : 'text-white/30'}`}>Wygasają za</span>
+                          <span className={`text-base font-bold leading-tight ${expiryExpired ? 'text-white/30' : expiryUrgent ? 'text-white' : 'text-white/50'}`}>{expiryDisplay}</span>
                        </div>
                     </div>
                 </div>
             )}
-
-            {/* Search Trigger Button */}
-            <button
-                onClick={() => setIsSearchOpen(true)}
-                className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs cursor-pointer transition mr-2 bg-slate-50 border border-slate-200 text-slate-400 hover:bg-slate-100 hover:border-slate-300"
-                title="Szukaj (Ctrl+K)"
-            >
-                <Search size={14} />
-                <span>Szukaj...</span>
-                <span className="bg-white border border-slate-200 px-1.5 rounded text-[10px] shadow-sm ml-2">Ctrl+K</span>
-            </button>
 
             <NotificationCenter 
                 notifications={myNotifications}
@@ -404,29 +430,42 @@ const AppContent = () => {
             />
             
             <button
-                title="Ustawienia" onClick={() => setIsSettingsOpen(true)} className="p-2 rounded-full transition relative group text-slate-500 hover:bg-slate-100"
+                title="Ustawienia" onClick={() => setIsSettingsOpen(true)} className={`p-2 rounded-full transition relative group ${
+                  currentUser?.role === Role.EMPLOYEE ? 'text-white/50 hover:bg-white/10' : 'text-slate-400 hover:bg-slate-100'
+                }`}
             >
                 <Settings size={20} />
             </button>
 
-
             <button
                onClick={actions.logout}
-               className="hidden md:flex items-center gap-3 pl-3 pr-2 py-1.5 rounded-full border transition group border-slate-200 bg-white hover:border-red-200 hover:bg-red-50"
+               className={`hidden md:flex items-center gap-3 pl-3 pr-2 py-1.5 rounded-full border transition group ${
+                 currentUser?.role === Role.EMPLOYEE
+                   ? 'border-white/20 bg-white/5 hover:border-red-500/40 hover:bg-red-500/10'
+                   : 'border-slate-200 bg-white hover:border-red-300 hover:bg-red-50'
+               }`}
                title="Wyloguj się"
             >
                <div className="text-right hidden lg:block">
-                  <p className="text-xs font-bold group-hover:text-red-400 text-slate-700 group-hover:text-red-700">{currentUser.name}</p>
-                  <p className="text-xs uppercase text-slate-400">{currentUser.role}</p>
+                  <p className={`text-xs font-bold group-hover:text-red-400 ${
+                    currentUser?.role === Role.EMPLOYEE ? 'text-white/80' : 'text-slate-700'
+                  }`}>{currentUser.name}</p>
+                  <p className={`text-xs uppercase ${
+                    currentUser?.role === Role.EMPLOYEE ? 'text-white/40' : 'text-slate-400'
+                  }`}>{currentUser.role}</p>
                </div>
-               <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold border transition bg-slate-100 text-slate-600 border-slate-100 group-hover:bg-red-500 group-hover:text-white">
+               <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold border transition group-hover:bg-red-500 group-hover:text-white ${
+                 currentUser?.role === Role.EMPLOYEE
+                   ? 'bg-white/10 text-white/70 border-white/10'
+                   : 'bg-slate-100 text-slate-600 border-slate-200'
+               }`}>
                   {currentUser.name.charAt(0)}
                </div>
             </button>
           </div>
         </header>
 
-        <main id="main-scroll-container" className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth bg-slate-50/50">
+        <main id="main-scroll-container" className="flex-1 overflow-y-auto p-4 md:p-8 relative scroll-smooth">
            <div className="max-w-7xl mx-auto">
               {renderContent()}
            </div>
