@@ -264,7 +264,6 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="Wellbeing"
             desc="AI Coach, medytacje i sesje deep work."
             gradient="linear-gradient(135deg,#f5f3ff,#ede9fe)"
-            image="https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasMentalHealthAccess}
             price={100}
             onClick={() => hasMentalHealthAccess ? setActiveTab('WELLBEING') : wellbeingService && setSelectedService(wellbeingService)}
@@ -274,7 +273,6 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="AI Prawnik"
             desc="Analiza umow i porady prawne 24/7."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
-            image="https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasLegalAccess}
             price={150}
             onClick={() => hasLegalAccess ? setActiveTab('LEGAL') : legalService && setSelectedService(legalService)}
@@ -284,7 +282,6 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="Secure Messenger"
             desc="Szyfrowana komunikacja end-to-end."
             gradient="linear-gradient(135deg,#f0fdf4,#dcfce7)"
-            image="https://images.unsplash.com/photo-1614064641938-3bbee52942c7?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasSecureMessengerAccess}
             price={200}
             onClick={() => hasSecureMessengerAccess ? setActiveTab('SECURE_MESSENGER') : setSelectedService(secureMessengerService)}
@@ -294,7 +291,6 @@ export const DashboardEmployee: React.FC<Props> = ({
             name="Digital Vault"
             desc="Prywatny sejf cyfrowy 10 GB. AES-256."
             gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
-            image="https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&q=80&w=600"
             hasAccess={hasVaultAccess}
             price={50}
             onClick={() => hasVaultAccess ? setActiveTab('DIGITAL_VAULT') : setSelectedService(vaultService)}
