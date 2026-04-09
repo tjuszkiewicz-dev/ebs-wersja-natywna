@@ -57,7 +57,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({ user }) => {
             <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <div style={{ position: 'absolute', width: '130%', height: '100%', borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(16,185,129,0.45) 0%, transparent 75%)', filter: 'blur(18px)', mixBlendMode: 'screen' }}/>
               <div style={{ position: 'absolute', width: '70%', height: '70%', borderRadius: '50%', background: 'radial-gradient(circle, rgba(34,197,94,0.65) 0%, transparent 75%)', filter: 'blur(10px)', mixBlendMode: 'screen' }}/>
-              <img src="/EBS Neonb-no-bg.png" alt="EBS" style={{ width: '100%', objectFit: 'contain', position: 'relative', zIndex: 2, filter: 'drop-shadow(0 0 10px rgba(34,197,94,0.7)) drop-shadow(0 0 4px rgba(74,222,128,0.8))' }}/>
+              <img src="/ebs-neon-no-bg.png" alt="EBS" style={{ width: '100%', objectFit: 'contain', position: 'relative', zIndex: 2, filter: 'drop-shadow(0 0 10px rgba(34,197,94,0.7)) drop-shadow(0 0 4px rgba(74,222,128,0.8))' }}/>
             </div>
           </div>
         </div>

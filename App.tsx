@@ -358,7 +358,7 @@ const AppContent = () => {
               onClick={handleToggleSidebar}
               className={`self-stretch -ml-1 px-2 rounded-lg transition flex items-center justify-center overflow-visible ${currentUser?.role === Role.EMPLOYEE ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}
             >
-              <img src="/EBS black.svg" alt="EBS" style={{ height: 62, width: 'auto', objectFit: 'contain', filter: currentUser?.role === Role.EMPLOYEE ? 'brightness(0) invert(1)' : 'none', display: 'block' }} />
+              <img src="/ebs-black.svg" alt="EBS" style={{ height: 62, width: 'auto', objectFit: 'contain', filter: currentUser?.role === Role.EMPLOYEE ? 'brightness(0) invert(1)' : 'none', display: 'block' }} />
             </button>
             <div className="hidden sm:block">
               <h2 className={`text-lg font-bold leading-tight ${currentUser?.role === Role.EMPLOYEE ? 'text-white' : 'text-slate-900'}`}>
