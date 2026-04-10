@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle, Smartphone } from 'lucide-react';
 import { User, Role } from '../types';
 import { TWO_FA_DEMO_CODE } from '../utils/config';
+import MagicRings from '../components/ui/MagicRings';
 
 
 
@@ -173,25 +174,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin, onLogi
 
       <div style={{ height:'100vh', position:'relative', background:'#030712', overflow:'hidden' }}>
 
-        {/* ── Full-screen background ── */}
-        <div style={{ position:'absolute', inset:0 }}>
-          {/* BG mesh */}
-          <div style={{
-            position:'absolute', inset:0,
-            background:'radial-gradient(ellipse at 15% 15%, rgba(37,99,235,.18) 0%,transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(16,185,129,.15) 0%,transparent 55%), radial-gradient(ellipse at 55% 45%, rgba(8,145,178,.1) 0%,transparent 60%), #030712'
-          }}/>
-          
-          <div style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none' }}>
-            
+        {/* ==== Full-screen background ==== */}
+          <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
+            <MagicRings particleCount={30} baseSpeed={0.05} particleColors={['#2563eb', '#10b981', '#0891b2']} />
           </div>
-          {/* Orbs — corners */}
-          <div className="ebs-orb" style={{ position:'absolute', width:420, height:420, borderRadius:'50%', filter:'blur(80px)', top:'-8%', left:'-8%', background:'radial-gradient(circle,rgba(37,99,235,.42) 0%,transparent 70%)', pointerEvents:'none' }}/>
-          <div className="ebs-orb" style={{ position:'absolute', width:360, height:360, borderRadius:'50%', filter:'blur(70px)', bottom:'5%', right:'-8%', background:'radial-gradient(circle,rgba(16,185,129,.38) 0%,transparent 70%)', pointerEvents:'none', animationDelay:'5s' }}/>
-          <div className="ebs-orb" style={{ position:'absolute', width:280, height:280, borderRadius:'50%', filter:'blur(60px)', top:'42%', right:'18%', background:'radial-gradient(circle,rgba(8,145,178,.3) 0%,transparent 70%)', pointerEvents:'none', animationDelay:'9s' }}/>
 
-        </div>
-
-        {/* ── Centered layout ── */}
+          {/* ── Centered layout ── */}
         <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px' }}>
 
           {/* Login card — 40% smaller (maxWidth 264px) */}
