@@ -14,33 +14,40 @@ export const SectionDivider: React.FC<{ title: string; subtitle?: string; accent
 
 export const AppIconCard: React.FC<{
   icon: React.ReactNode;
+  image?: string;
   name: string;
   desc: string;
   gradient: string;
   hasAccess: boolean;
   price?: number;
   onClick: () => void;
-}> = ({ icon, name, desc, gradient, hasAccess, price, onClick }) => (
+}> = ({ icon, image, name, desc, gradient, hasAccess, price, onClick }) => (
   <motion.div
     whileHover={{ y: -4, transition: { type: 'spring', stiffness: 400, damping: 20 } }}
     whileTap={{ scale: 0.97 }}
     onClick={onClick}
-    className="relative rounded-2xl p-5 cursor-pointer shadow-sm border border-white/80 overflow-hidden"
+    className="relative rounded-2xl p-5 cursor-pointer shadow-sm border border-white/20 overflow-hidden"
     style={{ background: gradient }}
   >
-    <div className="flex justify-between items-start mb-4">
-      <div className="w-12 h-12 rounded-2xl bg-white/70 backdrop-blur-sm flex items-center justify-center shadow-sm">
+    {image && (
+      <div className="absolute inset-0 pointer-events-none select-none">
+        <img src={image} alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/45" />
+      </div>
+    )}
+    <div className="relative z-10 flex justify-between items-start mb-4">
+      <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm">
         {icon}
       </div>
       {hasAccess ? (
         <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-green-500 text-white uppercase tracking-wider">Aktywny</span>
       ) : (
-        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-white/80 text-gray-500 uppercase tracking-wider">{price} pkt</span>
+        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-black/30 text-white uppercase tracking-wider">{price} vou</span>
       )}
     </div>
-    <h3 className="font-bold text-gray-900 text-sm">{name}</h3>
-    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{desc}</p>
-    <div className="flex items-center gap-1 mt-3 text-xs font-bold" style={{ color: hasAccess ? '#16a34a' : '#6b7280' }}>
+    <h3 className="relative z-10 font-bold text-white text-sm">{name}</h3>
+    <p className="relative z-10 text-xs text-white/70 mt-0.5 line-clamp-2">{desc}</p>
+    <div className="relative z-10 flex items-center gap-1 mt-3 text-xs font-bold text-white/80">
       {hasAccess ? 'Otwórz aplikację' : 'Aktywuj'} <ArrowRight size={12} />
     </div>
   </motion.div>

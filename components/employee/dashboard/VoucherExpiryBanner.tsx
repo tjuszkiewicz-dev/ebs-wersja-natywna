@@ -114,7 +114,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
           <p className="text-sm font-bold text-green-700">Vouchery zostały aktywowane!</p>
           <p className="text-xs text-green-500">Możesz korzystać z benefitów. Następne wygaśnięcie: {expiryDay}. dnia przyszłego miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}.</p>
         </div>
-        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-green-200 text-green-400 transition" aria-label="Zamknij"><X size={16} /></button>
+        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
     );
   }
@@ -143,7 +143,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
             : <><Zap size={14} /> Aktywuj vouchery</>
           }
         </button>
-        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-orange-200 text-orange-400 transition" aria-label="Zamknij"><X size={16} /></button>
+        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
     );
   }
@@ -166,7 +166,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
         <span className="text-xs font-semibold px-3 py-1 rounded-full flex-shrink-0 bg-amber-500 text-white cursor-pointer" onClick={() => setShowModal(true)}>
           Szczegóły
         </span>
-        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-amber-200 text-amber-400 transition" aria-label="Zamknij"><X size={16} /></button>
+        <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
 
       {/* Modal — info o nadchodzącym wygaśnięciu */}

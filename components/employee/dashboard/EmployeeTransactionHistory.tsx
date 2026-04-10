@@ -53,8 +53,8 @@ export const EmployeeTransactionHistory: React.FC<EmployeeTransactionHistoryProp
           sortable: true,
           className: 'text-right',
           cell: (t) => t.type === 'CREDIT' 
-            ? <span className="font-bold text-emerald-600">+{t.amount} pkt</span>
-            : <span className="font-bold text-slate-800">-{t.amount} pkt</span>
+            ? <span className="font-bold text-emerald-600">+{t.amount} vou</span>
+            : <span className="font-bold text-slate-800">-{t.amount} vou</span>
       }
   ];
 

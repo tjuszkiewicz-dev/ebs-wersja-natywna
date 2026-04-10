@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Voucher, VoucherStatus, BuybackAgreement, ServiceItem,
@@ -9,6 +9,7 @@ import { EmployeeTransactionHistory } from '../components/employee/dashboard/Emp
 import { EmployeeBuybackList } from '../components/employee/dashboard/EmployeeBuybackList';
 import { RedemptionModal } from '../components/employee/RedemptionModal';
 import { WalletCard } from '../components/employee/mobile/WalletCard';
+import StarBorder from '../components/bits/StarBorder/StarBorder';
 import { SupportTicketSystem } from '../components/support/SupportTicketSystem';
 import { EmployeeGuide } from '../components/employee/dashboard/EmployeeGuide';
 import { MentalHealthDashboard } from '../components/employee/dashboard/MentalHealthDashboard';
@@ -24,12 +25,13 @@ import { PZUPartnerSection } from '../components/employee/dashboard/partners/PZU
 import { InsurancePartnersGrid } from '../components/employee/dashboard/partners/InsurancePartnersGrid';
 import {
   Wallet, History, Grid, Lock, Brain,
-  Scale, ShieldCheck, X, Zap, Building2, HeartPulse, MessageSquare
-} from 'lucide-react';
+  Scale, ShieldCheck, X, Zap, Building2, HeartPulse, MessageSquare, Shield, Users, Moon, Heart, Smartphone
+, Plane, Compass, Utensils, Baby, Landmark, UserCheck, TrendingUp, ShoppingCart } from 'lucide-react';
 import { useStrattonSystem } from '../context/StrattonContext';
 import { Button } from '../components/ui/Button';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { SectionDivider, AppIconCard, FloatingTabBar } from '../components/employee/dashboard/EmployeeWidgets';
+import { ServiceCarousel } from '../components/ui/ServiceCarousel';
 
 /* Types */
 interface Props {
@@ -142,7 +144,7 @@ export const DashboardEmployee: React.FC<Props> = ({
     const s: ServiceItem = {
       id: `PARTNER-${Date.now()}`,
       name: `${partnerName}: ${productName}`,
-      description: `Specjalna oferta partnerska od ${partnerName} dla pracowników EBS. Kliknij "Zatwierdź", aby zamówić kontakt z konsultantem.`,
+      description: `Specjalna oferta partnerska od ${partnerName} dla pracownik�w EBS. Kliknij "Zatwierd�", aby zam�wi� kontakt z konsultantem.`,
       price: 0,
       type: ServiceType.ONE_TIME,
       icon: 'Shield',
@@ -222,7 +224,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             { label: 'Vouchery', value: vouchers.filter(v => v.status === VoucherStatus.DISTRIBUTED).length, unit: 'aktywnych', color: '#16a34a' },
             { label: 'Partnerzy', value: 14, unit: 'dostepnych', color: '#ea580c' },
           ].map(({ label, value, unit, color }) => (
-            <div key={label} className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/20 shadow-sm flex flex-col justify-center">
+            <div key={label} className="rounded-2xl p-5 border border-white/10 shadow-sm flex flex-col justify-center backdrop-blur-md" style={{ background: 'rgba(5, 8, 15, 0.72)' }}>
               <p className="text-2xl font-black" style={{ color }}>{value}</p>
               <p className="text-xs font-bold text-white/50 uppercase tracking-wider">{unit}</p>
               <p className="text-sm font-semibold text-white/70 mt-1">{label}</p>
@@ -235,12 +237,13 @@ export const DashboardEmployee: React.FC<Props> = ({
       <div>
         <SectionDivider title="Szybki dostep" accent="#2563EB" />
         <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-1 px-1 snap-x snap-mandatory">
-          {quickActions.map(({ id, label, icon: Icon, color, bg }) => (
-            <motion.button
+          {quickActions.map(({ id, label, icon: Icon }) => (
+            <StarBorder
               key={id}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2.5 px-4 py-3 rounded-2xl font-bold text-sm flex-shrink-0 snap-start border border-white shadow-sm"
-              style={{ background: bg, color }}
+              color="#10b981"
+              speed="6s"
+              thickness={2}
+              className="flex-shrink-0 snap-start"
               onClick={() => {
                 if (id === 'health') document.getElementById('section-luxmed')?.scrollIntoView({ behavior: 'smooth' });
                 if (id === 'insurance') document.getElementById('section-insurance')?.scrollIntoView({ behavior: 'smooth' });
@@ -250,17 +253,24 @@ export const DashboardEmployee: React.FC<Props> = ({
             >
               <Icon size={17} />
               {label}
-            </motion.button>
+            </StarBorder>
           ))}
+        </div>
+
+        <div id="catalog-anchor" className="flex items-center gap-4 py-4 w-full select-none mt-4">
+          <div className="h-px flex-1 bg-white/20" />
+          <span className="text-sm font-bold text-white/50 uppercase tracking-widest">Katalog Usług</span>
+          <div className="h-px flex-1 bg-white/20" />
         </div>
       </div>
 
       {/* Twoje Aplikacje */}
-      <div>
-        <SectionDivider title="Twoje Aplikacje" subtitle="Zarzadzane przez Eliton" accent="#7C3AED" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="!mt-4">
+        <SectionDivider title="Twoje Aplikacje" subtitle="Zarządzane przez Eliton" accent="#7C3AED" />
+        <ServiceCarousel>
           <AppIconCard
             icon={<Brain size={24} style={{ color: '#7C3AED' }} />}
+            image="/coach.png"
             name="Wellbeing"
             desc="AI Coach, medytacje i sesje deep work."
             gradient="linear-gradient(135deg,#f5f3ff,#ede9fe)"
@@ -270,8 +280,9 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<Scale size={24} style={{ color: '#b45309' }} />}
+            image="/prawnik.png"
             name="AI Prawnik"
-            desc="Analiza umow i porady prawne 24/7."
+            desc="Analiza umów i porady prawne 24/7."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={hasLegalAccess}
             price={150}
@@ -279,6 +290,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<Lock size={24} style={{ color: '#16a34a' }} />}
+            image="/klodka.png"
             name="Secure Messenger"
             desc="Szyfrowana komunikacja end-to-end."
             gradient="linear-gradient(135deg,#f0fdf4,#dcfce7)"
@@ -288,6 +300,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<ShieldCheck size={24} style={{ color: '#2563EB' }} />}
+            image="/sejf.png"
             name="Digital Vault"
             desc="Prywatny sejf cyfrowy 10 GB. AES-256."
             gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
@@ -295,29 +308,320 @@ export const DashboardEmployee: React.FC<Props> = ({
             price={50}
             onClick={() => hasVaultAccess ? setActiveTab('DIGITAL_VAULT') : setSelectedService(vaultService)}
           />
-        </div>
+        </ServiceCarousel>
       </div>
 
-      {/* Strefa Partnerow */}
+      {/* Profitowi – Ubezpieczenia i Zdrowie */}
       <div>
-        <SectionDivider title="Strefa Partnerow" subtitle="Ekskluzywne oferty dla pracownikow EBS" accent="#22C55E" />
-        <div className="rounded-3xl bg-white/10 backdrop-blur-sm border border-white/20 shadow-sm overflow-hidden divide-y divide-white/10">
-          <div id="section-luxmed" className="px-6 md:px-8">
-            <LuxMedSection onSelect={(pkg) => handlePartnerRequest('LuxMed', pkg)} />
-          </div>
-          <div className="px-6 md:px-8">
-            <SignalIdunaSection onSelect={(plan) => handlePartnerRequest('Signal Iduna', plan)} />
-          </div>
-          <div id="section-orange" className="px-6 md:px-8">
-            <OrangePartnerSection onSelect={(offer) => handlePartnerRequest('Orange', offer)} />
-          </div>
-          <div className="px-6 md:px-8">
-            <PZUPartnerSection onSelect={(product) => handlePartnerRequest('PZU', product)} />
-          </div>
-          <div id="section-insurance" className="px-6 md:px-8">
-            <InsurancePartnersGrid onSelect={(partner, product) => handlePartnerRequest(partner, product)} />
-          </div>
-        </div>
+        <SectionDivider title="Profitowi" subtitle="Ubezpieczenia i Zdrowie" accent="#10B981" />
+        <ServiceCarousel>
+          <AppIconCard
+            icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=800"
+            name="Luxmed"
+            desc="Pakiet Optyka i Rehabilitacja. Szybki dostęp do specjalistów."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Luxmed (Profitowi)', 'Pakiet Optyka i Rehabilitacja')}
+          />
+          <AppIconCard
+            icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=800"
+            name="PZU"
+            desc="Ubezpieczenie NNW Pracownicze. Ochrona całą dobę."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('PZU (Profitowi)', 'Ubezpieczenie NNW Pracownicze')}
+          />
+          <AppIconCard
+            icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800"
+            name="Uniga"
+            desc="Szerokie ubezpieczenie na życie dla rodziny."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Uniga (Profitowi)', 'Ubezpieczenie na Życie')}
+          />
+          <AppIconCard
+            icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800"
+            name="Loyds"
+            desc="Ubezpieczenie od utraty dochodu dla menedżerów."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Loyds (Profitowi)', 'Ubezpieczenie od Utraty Dochodu')}
+          />
+        </ServiceCarousel>
+      </div>
+
+      {/* Multipolisa.pl – Ubezpieczenia i zdrowie */}
+      <div>
+        <SectionDivider title="Multipolisa.pl" subtitle="Ubezpieczenia i zdrowie" accent="#F59E0B" />
+        <ServiceCarousel>
+          <AppIconCard
+            icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800"
+            name="Ergo Hestia"
+            desc="Pakiet Bezpieczny Dom od wszelkich zdarzeń."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Ergo Hestia (Multipolisa)', 'Pakiet Bezpieczny Dom')}
+          />
+          <AppIconCard
+            icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800"
+            name="Warta"
+            desc="Ubezpieczenie turystyczne na delegacje i wakacje."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Warta (Multipolisa)', 'Ubezpieczenie Turystyczne')}
+          />
+          <AppIconCard
+            icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800"
+            name="TU Zdrowie"
+            desc="Pakiet podstawowych badań i przeglądowy dla aktywnych."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('TU Zdrowie (Multipolisa)', 'Pakiet Badań Profilaktycznych')}
+          />
+          <AppIconCard
+            icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1542382121-e9de4599fb4b?auto=format&fit=crop&q=80&w=800"
+            name="Leadenhall"
+            desc="OC w życiu prywatnym, chroni przed pomyłkami na codzień."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Leadenhall (Multipolisa)', 'Ubezpieczenie OC w Życiu Prywatnym')}
+          />
+        </ServiceCarousel>
+      </div>
+
+      {/* Goldman Sachs */}
+      <div>
+        <SectionDivider title="Goldman Sachs" subtitle="Fundusze inwestycyjne" accent="#3B82F6" />
+        <ServiceCarousel>
+          <AppIconCard
+            icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
+            image="https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&q=80&w=800"
+            name="IKE"
+            desc="Indywidualne Konto Emerytalne z korzyściami podatkowymi."
+            gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Goldman Sachs', 'IKE')}
+          />
+          <AppIconCard
+            icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
+            image="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=800"
+            name="IKZE"
+            desc="Indywidualne Konto Zabezpieczenia Emerytalnego."
+            gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
+            hasAccess={false}
+            price={0}
+            onClick={() => handlePartnerRequest('Goldman Sachs', 'IKZE')}
+          />
+          <AppIconCard
+            icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
+            image=""
+            name="Wolne miejsce"
+            desc="Wkrótce nowy produkt inwestycyjny."
+            gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
+            hasAccess={false}
+            price={0}
+            onClick={() => {}}
+          />
+          <AppIconCard
+            icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
+            image=""
+            name="Wolne miejsce"
+            desc="Wkrótce nowy produkt inwestycyjny."
+            gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
+            hasAccess={false}
+            price={0}
+            onClick={() => {}}
+          />
+        </ServiceCarousel>
+      </div>
+
+      {/* Wellbeing */}
+      <div>
+        <SectionDivider title="Wellbeing" subtitle="Jednorazowe produkty" accent="#10B981" />
+        <ServiceCarousel>
+          <AppIconCard
+            icon={<Smartphone size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?auto=format&fit=crop&q=80&w=800"
+            name="Cyfrowy detoks w 15 minut"
+            desc="ONE-TIME • Jak odzyskać spokój bez wyrzucania telefonu."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={9}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Cyfrowy detoks w 15 minut')}
+          />
+          <AppIconCard
+            icon={<Heart size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800"
+            name="Trening odporności (Resilience)"
+            desc="ONE-TIME • Techniki jednostek specjalnych dla korporacji."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={33}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Trening odporności na stres')}
+          />
+          <AppIconCard
+            icon={<MessageSquare size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800"
+            name="Sztuka asertywności na Teamsach"
+            desc="ONE-TIME • Jak mówić nie, bez wyrzutów sumienia."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={21}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Sztuka asertywności na Teamsach')}
+          />
+          <AppIconCard
+            icon={<Moon size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1511296933631-18b46797e652?auto=format&fit=crop&q=80&w=800"
+            name="Sen jako Twój najlepszy projekt"
+            desc="ONE-TIME • Biohacking nocnej regeneracji."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={44}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Sen jako Twój najlepszy projekt')}
+          />
+          <AppIconCard
+            icon={<Users size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1593642532973-d31b6557fa68?auto=format&fit=crop&q=80&w=800"
+            name="Praca z domu i samotność"
+            desc="ONE-TIME • Jak budować relacje w trybie remote."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={15}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Praca z domu i samotność')}
+          />
+          <AppIconCard
+            icon={<Shield size={24} style={{ color: '#10B981' }} />}
+            image="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800"
+            name="Inwestowanie dla ostrożnych"
+            desc="ONE-TIME • Podstawy budowania poduszki."
+            gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
+            hasAccess={false}
+            price={28}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Inwestowanie dla ostrożnych')}
+          />
+        </ServiceCarousel>
+      </div>
+
+
+      {/* Poradniki */}
+      <div>
+        <SectionDivider title="Poradniki" subtitle="Dowiedz się więcej" accent="#F59E0B" />
+        <ServiceCarousel>
+          <AppIconCard
+            icon={<ShoppingCart size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800"
+            name="Psychologia zakupów online"
+            desc="ONE-TIME • Jak nie dać się zmanipulować algorytmom."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={7}
+            onClick={() => handlePartnerRequest('Poradniki', 'Psychologia zakupów online')}
+          />
+          <AppIconCard
+            icon={<TrendingUp size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800"
+            name="Negocjacje podwyżki w 2026"
+            desc="ONE-TIME • Nowoczesne argumenty oparte na danych."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={42}
+            onClick={() => handlePartnerRequest('Poradniki', 'Negocjacje podwyżki w 2026')}
+          />
+          <AppIconCard
+            icon={<UserCheck size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?auto=format&fit=crop&q=80&w=800"
+            name="Personal Branding wewnątrz firmy"
+            desc="ONE-TIME • Jak być widocznym, nie będąc nachalnym."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={19}
+            onClick={() => handlePartnerRequest('Poradniki', 'Personal Branding wewnątrz firmy')}
+          />
+          <AppIconCard
+            icon={<Landmark size={24} style={{ color: '#F59E0B' }} />}
+            image="https://images.unsplash.com/photo-1565514020176-6c2235b8b3a9?auto=format&fit=crop&q=80&w=800"
+            name="Emerytura 2.0"
+            desc="ONE-TIME • Zrozumieć PPK, IKE i IKZE bez bólu głowy."
+            gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
+            hasAccess={false}
+            price={36}
+            onClick={() => handlePartnerRequest('Poradniki', 'Emerytura 2.0')}
+          />
+        </ServiceCarousel>
+      </div>
+
+      {/* E-booki */}
+      <div>
+        <SectionDivider title="E-booki" subtitle="Poczytaj sobie" accent="#EC4899" />
+        <ServiceCarousel>
+          <AppIconCard
+            icon={<Baby size={24} style={{ color: '#EC4899' }} />}
+            image="https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=800"
+            name="Bajka na dobranoc: Robot, który chciał mieć sny"
+            desc="ONE-TIME • Audio dla dzieci pracowników."
+            gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
+            hasAccess={false}
+            price={11}
+            onClick={() => handlePartnerRequest('E-booki', 'Bajka na dobranoc')}
+          />
+          <AppIconCard
+            icon={<Utensils size={24} style={{ color: '#EC4899' }} />}
+            image="https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800"
+            name="Kuchnia w 15 minut"
+            desc="ONE-TIME • Meal-prep dla zapracowanych."
+            gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
+            hasAccess={false}
+            price={24}
+            onClick={() => handlePartnerRequest('E-booki', 'Kuchnia w 15 minut')}
+          />
+          <AppIconCard
+            icon={<Compass size={24} style={{ color: '#EC4899' }} />}
+            image="https://images.unsplash.com/photo-1455355675860-e883e35ab3a7?auto=format&fit=crop&q=80&w=800"
+            name="Hobby zamiast scrollowania"
+            desc="ONE-TIME • Jak znaleźć pasję, która nie wymaga ekranu."
+            gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
+            hasAccess={false}
+            price={17}
+            onClick={() => handlePartnerRequest('E-booki', 'Hobby zamiast scrollowania')}
+          />
+          <AppIconCard
+            icon={<Plane size={24} style={{ color: '#EC4899' }} />}
+            image="https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=800"
+            name="Podróże z nielimitowanym urlopem"
+            desc="ONE-TIME • Jak planować workation."
+            gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
+            hasAccess={false}
+            price={48}
+            onClick={() => handlePartnerRequest('E-booki', 'Podróże z nielimitowanym urlopem')}
+          />
+          <AppIconCard
+            icon={<Users size={24} style={{ color: '#EC4899' }} />}
+            image="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=800"
+            name="Komunikacja między pokoleniami"
+            desc="ONE-TIME • Jak dogadać się z Gen Z i Boomerami."
+            gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
+            hasAccess={false}
+            price={39}
+            onClick={() => handlePartnerRequest('E-booki', 'Komunikacja między pokoleniami')}
+          />
+        </ServiceCarousel>
       </div>
 
       {/* Mobile: recent transactions */}
@@ -339,7 +643,7 @@ export const DashboardEmployee: React.FC<Props> = ({
                   </div>
                 </div>
                 <span className={`text-sm font-black ${t.type === 'CREDIT' ? 'text-green-400' : 'text-white/90'}`}>
-                  {t.type === 'CREDIT' ? '+' : '-'}{t.amount} pkt
+                  {t.type === 'CREDIT' ? '+' : '-'}{t.amount} vou
                 </span>
               </div>
             ))
@@ -360,7 +664,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }} />
           <div className="relative z-10">
             <h2 className="text-3xl font-black text-white mb-2">Aktywne uslugi</h2>
-            <p className="text-white/70">{count > 0 ? `Korzystasz z ${count} usług EBS.` : 'Nie aktywowałeś jeszcze żadnych usług.'}</p>
+            <p className="text-white/70">{count > 0 ? `Korzystasz z ${count} us�ug EBS.` : 'Nie aktywowa�e� jeszcze �adnych us�ug.'}</p>
           </div>
         </div>
         {count === 0 ? (
@@ -386,21 +690,6 @@ export const DashboardEmployee: React.FC<Props> = ({
         {(activeTab === 'WALLET' || activeTab === 'CATALOG') && (
           <div key="wallet-catalog" className="space-y-12">
             <div id="section-wallet">{renderWallet()}</div>
-            <div id="catalog-anchor" className="flex items-center gap-4 py-4">
-              <div className="h-px flex-1 bg-white/20" />
-              <span className="text-sm font-bold text-white/40 uppercase tracking-widest">Katalog Uslug</span>
-              <div className="h-px flex-1 bg-white/20" />
-            </div>
-            <div className="min-h-[600px]">
-              <ServiceCatalog
-                services={displayServices}
-                userBalance={user.voucherBalance}
-                onPurchase={setSelectedService}
-              />
-            </div>
-            <div className="text-center py-8">
-              <div className="w-2 h-2 rounded-full mx-auto bg-gray-300" />
-            </div>
           </div>
         )}
         {activeTab === 'HISTORY' && (

@@ -40,6 +40,8 @@ module.exports = {
         'fade-in': 'fadeIn 0.5s ease-out',
         'slide-in-from-right': 'slideInFromRight 0.3s ease-out',
         'zoom-in-95': 'zoomIn95 0.2s ease-out',
+        'star-movement-bottom': 'star-movement-bottom linear infinite alternate',
+        'star-movement-top': 'star-movement-top linear infinite alternate',
       },
       keyframes: {
         fadeIn: {
@@ -53,7 +55,15 @@ module.exports = {
         zoomIn95: {
           '0%': { opacity: '0', transform: 'scale(0.95)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
-        }
+        },
+        'star-movement-bottom': {
+          '0%': { transform: 'translate(0%, 0%)', opacity: '1' },
+          '100%': { transform: 'translate(-100%, 0%)', opacity: '0' },
+        },
+        'star-movement-top': {
+          '0%': { transform: 'translate(0%, 0%)', opacity: '1' },
+          '100%': { transform: 'translate(100%, 0%)', opacity: '0' },
+        },
       }
     },
   },

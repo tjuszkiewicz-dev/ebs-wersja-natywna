@@ -20,7 +20,7 @@ export const EmployeeStats: React.FC<EmployeeStatsProps> = ({
             <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm">Aktywne</span>
           </div>
           <p className="text-sm opacity-80 mb-1">Dostępne Środki</p>
-          <h3 className="text-4xl font-bold tracking-tight">{user.voucherBalance} pkt</h3>
+          <h3 className="text-4xl font-bold tracking-tight">{user.voucherBalance} vou</h3>
           <p className="text-xs mt-4 opacity-60">1 Voucher = 1 PLN</p>
         </div>
 

@@ -142,7 +142,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({ services, userBa
                             {!service.image && (
                                 <div className="flex items-baseline gap-1 mb-4">
                                     <span className="text-3xl font-black text-slate-900">{service.price}</span>
-                                    <span className="text-sm font-bold text-slate-400">pkt</span>
+                                    <span className="text-sm font-bold text-slate-400">vou</span>
                                     {service.type === ServiceType.SUBSCRIPTION && <span className="text-[10px] text-slate-400 ml-1">/ mies.</span>}
                                 </div>
                             )}
@@ -156,7 +156,7 @@ export const ServiceCatalog: React.FC<ServiceCatalogProps> = ({ services, userBa
                                 <div className="flex flex-col">
                                     <span className={`text-[10px] font-bold uppercase tracking-widest ${service.image ? 'text-slate-400' : 'text-slate-400'}`}>Koszt</span>
                                     <span className={`text-2xl font-black ${service.image ? 'text-white' : 'text-slate-900'}`}>
-                                        {service.price} <span className={`text-sm font-bold ${service.image ? 'text-slate-400' : 'text-slate-400'}`}>pkt</span>
+                                        {service.price} <span className={`text-sm font-bold ${service.image ? 'text-slate-400' : 'text-slate-400'}`}>vou</span>
                                     </span>
                                 </div>
                                 <button className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm group-hover:shadow-md ${
