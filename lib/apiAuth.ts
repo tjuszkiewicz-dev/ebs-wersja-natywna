@@ -58,11 +58,15 @@ export async function getAuthUser(): Promise<User | null> {
     return { id: 'dev-vite', email: 'dev@ebs.local', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '' } as unknown as User;
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnon) return null;
+
   const cookieStore = await cookies();
 
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnon,
     {
       cookies: {
         getAll() {
@@ -77,8 +81,12 @@ export async function getAuthUser(): Promise<User | null> {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch {
+    return null;
+  }
 }
 
 /** Odpowiedź 401 Unauthorized */
