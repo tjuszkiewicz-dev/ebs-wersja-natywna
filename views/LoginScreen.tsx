@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle, Smartphone } from 'lucide-react';
 import { User, Role } from '../types';
 import { TWO_FA_DEMO_CODE } from '../utils/config';
-import MagicRings from '../components/ui/MagicRings';
+
 
 
 interface LoginScreenProps {
@@ -180,31 +180,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin, onLogi
             position:'absolute', inset:0,
             background:'radial-gradient(ellipse at 15% 15%, rgba(37,99,235,.18) 0%,transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(16,185,129,.15) 0%,transparent 55%), radial-gradient(ellipse at 55% 45%, rgba(8,145,178,.1) 0%,transparent 60%), #030712'
           }}/>
-          {/* MagicRings */}
+          
           <div style={{ position:'absolute', inset:0, zIndex:1, pointerEvents:'none' }}>
-            <MagicRings
-              color="#fc42ff"
-              colorTwo="#42fcff"
-              ringCount={8}
-              speed={0.7}
-              attenuation={10}
-              lineThickness={2.5}
-              baseRadius={0.39}
-              radiusStep={0.07}
-              scaleRate={0.1}
-              opacity={0.9}
-              blur={0}
-              noiseAmount={0}
-              rotation={0}
-              ringGap={1.5}
-              fadeIn={0.7}
-              fadeOut={0.5}
-              followMouse={false}
-              mouseInfluence={0.2}
-              hoverScale={1.2}
-              parallax={0.05}
-              clickBurst
-            />
+            
           </div>
           {/* Orbs — corners */}
           <div className="ebs-orb" style={{ position:'absolute', width:420, height:420, borderRadius:'50%', filter:'blur(80px)', top:'-8%', left:'-8%', background:'radial-gradient(circle,rgba(37,99,235,.42) 0%,transparent 70%)', pointerEvents:'none' }}/>
