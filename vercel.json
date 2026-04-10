@@ -1,5 +1,8 @@
 {
-  "buildCommand": "next build",
-  "outputDirectory": ".next",
-  "framework": "nextjs"
+  "buildCommand": "vite build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "http://localhost:3010/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
