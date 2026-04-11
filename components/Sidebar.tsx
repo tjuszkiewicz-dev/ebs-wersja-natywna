@@ -1,7 +1,7 @@
 
 import React, { useMemo } from 'react';
 import { Role, User } from '../types';
-import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History } from 'lucide-react';
 
 interface SidebarProps {
   currentUser: User;
@@ -54,9 +54,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ];
       case Role.EMPLOYEE:
         return [
-          { id: 'emp-dashboard', label: 'Pulpit', icon: <Wallet size={20} /> },
-          { id: 'emp-catalog', label: 'Zamknięty Katalog Usług', icon: <Grid size={20} /> },
-          { id: 'emp-history', label: 'Historia', icon: <FileText size={20} /> },
+          { id: 'emp-twoje-aplikacje', label: 'Twoje Aplikacje', icon: <Smartphone size={20} /> },
+          { id: 'emp-profitowi', label: 'Profitowi', icon: <HeartPulse size={20} /> },
+          { id: 'emp-multipolisa', label: 'Multipolisa.pl', icon: <Shield size={20} /> },
+          { id: 'emp-goldman', label: 'Goldman Sachs', icon: <TrendingUp size={20} /> },
+          { id: 'emp-wellbeing', label: 'Wellbeing', icon: <Brain size={20} /> },
+          { id: 'emp-poradniki', label: 'Poradniki', icon: <BookOpen size={20} /> },
+          { id: 'emp-ebooki', label: 'E-booki', icon: <FileText size={20} /> },
+          { id: 'emp-history', label: 'Historia', icon: <History size={20} /> },
           { id: 'emp-support', label: 'Centrum Pomocy', icon: <HelpCircle size={20} /> },
           { id: 'emp-active-services', label: 'Aktywne usługi', icon: <ShieldCheck size={20} /> },
         ];

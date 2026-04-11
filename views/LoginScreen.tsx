@@ -176,9 +176,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ users, onLogin, onLogi
 
         {/* ==== Full-screen background ==== */}
           <div style={{ position: 'absolute', inset: 0, zIndex: 0, overflow: 'hidden' }}>
-            <MagicRings particleCount={30} baseSpeed={0.05} particleColors={['#2563eb', '#10b981', '#0891b2']} />
+            <MagicRings />
           </div>
-
           {/* ── Centered layout ── */}
         <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px' }}>
 

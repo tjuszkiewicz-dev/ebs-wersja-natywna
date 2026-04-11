@@ -82,17 +82,15 @@ export const DashboardEmployee: React.FC<Props> = ({
     if (currentView === 'emp-history') { setActiveTab('HISTORY'); sc.scrollTo({ top: 0 }); }
     else if (currentView === 'emp-active-services') { setActiveTab('ACTIVE_SERVICES'); sc.scrollTo({ top: 0 }); }
     else if (currentView === 'emp-support') { setActiveTab('SUPPORT'); sc.scrollTo({ top: 0 }); }
-    else if (currentView === 'emp-catalog') {
+    else if (currentView.startsWith('emp-')) {
       if (activeTab !== 'CATALOG') setActiveTab('CATALOG');
       if (!isScrollingRef.current) {
         setTimeout(() => {
-          const el = document.getElementById('catalog-anchor');
+          const elName = currentView.replace('emp-', 'sec-emp-');
+          const el = document.getElementById(elName);
           if (el) { const r = el.getBoundingClientRect(); if (Math.abs(r.top) > 100) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
         }, 100);
       }
-    } else if (currentView === 'emp-dashboard') {
-      if (activeTab !== 'WALLET') setActiveTab('WALLET');
-      if (!isScrollingRef.current) sc.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [currentView]);
 
@@ -102,11 +100,21 @@ export const DashboardEmployee: React.FC<Props> = ({
       isScrollingRef.current = true;
       if ((window as any)._scrollT) clearTimeout((window as any)._scrollT);
       (window as any)._scrollT = setTimeout(() => { isScrollingRef.current = false; }, 150);
-      const anchor = document.getElementById('catalog-anchor');
-      if (!anchor || !onViewChange) return;
-      const isCat = anchor.getBoundingClientRect().top < window.innerHeight * 0.8;
-      if (isCat && currentView !== 'emp-catalog') onViewChange('emp-catalog');
-      else if (!isCat && currentView !== 'emp-dashboard') onViewChange('emp-dashboard');
+
+      const sections = ['sec-emp-ebooki', 'sec-emp-poradniki', 'sec-emp-wellbeing', 'sec-emp-goldman', 'sec-emp-multipolisa', 'sec-emp-profitowi', 'sec-emp-twoje-aplikacje'];
+      if (!onViewChange) return;
+
+      for (const s of sections) {
+        const el = document.getElementById(s);
+        if (el) {
+          const r = el.getBoundingClientRect();
+          if (r.top < window.innerHeight * 0.4) {
+            const newView = s.replace('sec-emp-', 'emp-');
+            if (currentView !== newView) onViewChange(newView);
+            return;
+          }
+        }
+      }
     };
     const sc = document.getElementById('main-scroll-container') || window;
     sc.addEventListener('scroll', handle, { passive: true });
@@ -265,7 +273,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* Twoje Aplikacje */}
-      <div className="!mt-4">
+        <div id="sec-emp-twoje-aplikacje" className="!mt-4">
         <SectionDivider title="Twoje Aplikacje" subtitle="Zarządzane przez Eliton" accent="#7C3AED" />
         <ServiceCarousel>
           <AppIconCard
@@ -312,7 +320,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* Profitowi – Ubezpieczenia i Zdrowie */}
-      <div>
+      <div id="sec-emp-profitowi">
         <SectionDivider title="Profitowi" subtitle="Ubezpieczenia i Zdrowie" accent="#10B981" />
         <ServiceCarousel>
           <AppIconCard
@@ -359,7 +367,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* Multipolisa.pl – Ubezpieczenia i zdrowie */}
-      <div>
+      <div id="sec-emp-multipolisa">
         <SectionDivider title="Multipolisa.pl" subtitle="Ubezpieczenia i zdrowie" accent="#F59E0B" />
         <ServiceCarousel>
           <AppIconCard
@@ -406,7 +414,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* Goldman Sachs */}
-      <div>
+      <div id="sec-emp-goldman">
         <SectionDivider title="Goldman Sachs" subtitle="Fundusze inwestycyjne" accent="#3B82F6" />
         <ServiceCarousel>
           <AppIconCard
@@ -453,7 +461,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* Wellbeing */}
-      <div>
+      <div id="sec-emp-wellbeing">
         <SectionDivider title="Wellbeing" subtitle="Jednorazowe produkty" accent="#10B981" />
         <ServiceCarousel>
           <AppIconCard
@@ -521,7 +529,7 @@ export const DashboardEmployee: React.FC<Props> = ({
 
 
       {/* Poradniki */}
-      <div>
+      <div id="sec-emp-poradniki">
         <SectionDivider title="Poradniki" subtitle="Dowiedz się więcej" accent="#F59E0B" />
         <ServiceCarousel>
           <AppIconCard
@@ -568,7 +576,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
 
       {/* E-booki */}
-      <div>
+      <div id="sec-emp-ebooki">
         <SectionDivider title="E-booki" subtitle="Poczytaj sobie" accent="#EC4899" />
         <ServiceCarousel>
           <AppIconCard
