@@ -349,7 +349,7 @@ const AppContent = () => {
         isLogout={true} 
       />
       
-      <div className="flex-1 flex flex-col min-w-0 relative transition-all duration-300">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 relative transition-all duration-300">
         {/* Changed z-20 to z-40 to be above DashboardHR content (which uses z-30) */}
           <header className={`h-16 md:h-20 flex items-center px-4 md:px-8 flex-shrink-0 z-40 relative border-b ${currentUser?.role === Role.EMPLOYEE ? 'bg-black border-black' : 'bg-white border-slate-200'}`}>
           {/* LEFT */}

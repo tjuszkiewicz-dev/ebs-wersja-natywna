@@ -92,7 +92,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         fixed inset-y-0 left-0 z-50 text-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 overflow-hidden
         ${currentUser.role === Role.EMPLOYEE ? 'bg-black' : 'bg-white border-r border-slate-200'}
         ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72'} 
-        md:translate-x-0 md:static md:shadow-none
+        md:translate-x-0 md:sticky md:top-0 md:h-screen md:shadow-none
         ${isDesktopOpen ? 'md:w-72' : 'md:w-16'}
       `}>
         {/* Navigation */}
