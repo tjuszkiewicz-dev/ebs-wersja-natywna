@@ -20,34 +20,35 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const { data, error: authError } = await supabaseBrowser.auth.signInWithPassword({
-      email,
+    const emailValue = email.trim().toLowerCase();
+
+    // 1. Zaloguj i ustaw ciasteczka przeglądarki!
+    const { data: authData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
+      email: emailValue,
       password,
     });
 
-    if (authError || !data?.user) {
+    if (authError || !authData?.user) {
       setError(authError?.message ?? 'Nieprawidłowy email lub hasło.');
       setLoading(false);
       return;
     }
 
-    const { data: profile } = await supabaseBrowser
-      .from('user_profiles')
-      .select('role')
-      .eq('id', data.user.id)
-      .single();
+    // 2. Skoro mamy już sesję, pobierzmy profil omijając RLS poprzez nasz backendowy endpoint!
+    // Endpoint /api/auth/login zwraca gotowy zmapowany profil aplikacji (m.in. poprawną rolę).
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: emailValue, password }),
+    });
 
-    const role    = (profile?.role ?? 'pracownik') as DbRole;
-    const roleMap: Record<DbRole, string> = {
-      superadmin: ROLE_DASHBOARD[Role.SUPERADMIN],
-      pracodawca: ROLE_DASHBOARD[Role.HR],
-      pracownik:  ROLE_DASHBOARD[Role.EMPLOYEE],
-      partner:    ROLE_DASHBOARD[Role.ADVISOR],
-      menedzer:   ROLE_DASHBOARD[Role.MANAGER],
-      dyrektor:   ROLE_DASHBOARD[Role.DIRECTOR],
-    };
-
-    router.push(roleMap[role] ?? '/dashboard/employee');
+    if (res.ok) {
+      const userData = await res.json();
+      router.push(ROLE_DASHBOARD[userData.role as Role] ?? '/dashboard/employee');
+    } else {
+      // Fallback, np. gdy endpoint padnie, a logowanie przeszło przez SDK Supabase.
+      router.push('/dashboard/employee');
+    }
   }
 
   return (
