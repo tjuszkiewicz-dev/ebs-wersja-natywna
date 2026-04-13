@@ -15,7 +15,13 @@ export default async function NetworkDashboardPage() {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (c) => c.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
+        setAll: (c) => {
+          try {
+            c.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          } catch {
+            // Called from a Server Component — middleware handles session refresh
+          }
+        },
       },
     }
   );

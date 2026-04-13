@@ -19,7 +19,8 @@
       "Bash(grep -rn \"import.*never used\\\\|unused import\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\")",
       "Bash(grep -rn \"// REMOVED\\\\|// OLD\\\\|// DEPRECATED\\\\|// UNUSED\" /c/Users/Użytkownik/Desktop/ebs-wersja-natywna --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.next/*\" ! -path \"*/node_modules/*\" ! -path \"*/.claude/*\" ! -path \"*/dist/*\")",
       "Read(//tmp/**)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npm install:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
