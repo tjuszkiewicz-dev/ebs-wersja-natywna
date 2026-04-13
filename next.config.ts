@@ -1,11 +1,29 @@
 import type { NextConfig } from 'next';
 
-const productionDomain = process.env.NEXT_PUBLIC_APP_URL
-    ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
-    : null;
-
+// Zbierz wszystkie dozwolone originy dla Server Actions
+// Vercel generuje różne URL dla różnych deployów — dodajemy wszystkie warianty
 const allowedOrigins = ['localhost:3010', 'localhost:3011'];
-if (productionDomain) allowedOrigins.push(productionDomain);
+
+// Główna domena produkcyjna z NEXT_PUBLIC_APP_URL
+if (process.env.NEXT_PUBLIC_APP_URL) {
+  try {
+    const host = new URL(process.env.NEXT_PUBLIC_APP_URL).host;
+    if (!allowedOrigins.includes(host)) allowedOrigins.push(host);
+  } catch { /* nieprawidłowy URL — ignoruj */ }
+}
+
+// Vercel preview URL z VERCEL_URL (automatycznie ustawiany przez Vercel)
+// Format: project-name-xxx.vercel.app
+if (process.env.VERCEL_URL) {
+  const vercelHost = process.env.VERCEL_URL; // Vercel nie dodaje protokołu
+  if (!allowedOrigins.includes(vercelHost)) allowedOrigins.push(vercelHost);
+}
+
+// Vercel Branch URL
+if (process.env.VERCEL_BRANCH_URL) {
+  const branchHost = process.env.VERCEL_BRANCH_URL;
+  if (!allowedOrigins.includes(branchHost)) allowedOrigins.push(branchHost);
+}
 
 const nextConfig: NextConfig = {
   typescript: {

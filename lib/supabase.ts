@@ -9,21 +9,20 @@ import { createClient } from '@supabase/supabase-js';
 import { createBrowserClient, createServerClient } from '@supabase/ssr';
 import type { Database } from '../types/database';
 
-const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
-if (!supabaseUrl || !supabaseAnon) {
-  throw new Error(
-    'Brakuje zmiennych środowiskowych Supabase. ' +
-    'Sprawdź NEXT_PUBLIC_SUPABASE_URL i NEXT_PUBLIC_SUPABASE_ANON_KEY w .env.local'
-  );
-}
+const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
+const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
 
 // ---------------------------------------------------------------------------
 // Klient przeglądarkowy — używaj w komponentach React (client components)
+// Lazy fallback gdy env vars nie są dostępne (build-time, SSR bez env)
 // ---------------------------------------------------------------------------
-export const supabaseBrowser = createBrowserClient<Database>(supabaseUrl, supabaseAnon);
+export const supabaseBrowser = supabaseUrl && supabaseAnon
+  ? createBrowserClient<Database>(supabaseUrl, supabaseAnon)
+  : createBrowserClient<Database>(
+      'https://placeholder.supabase.co',
+      'placeholder-anon-key'
+    );
 
 // ---------------------------------------------------------------------------
 // Klient serwerowy — używaj w API Routes i Server Components

@@ -23,25 +23,41 @@ export async function loginAction(
     return { ok: false, message: 'Podaj email i hasło.' };
   }
 
+  // Sprawdź env vars — brak = fail fast z czytelnym komunikatem
+  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const serviceKey   = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseAnon) {
+    console.error('[loginAction] Brak NEXT_PUBLIC_SUPABASE_URL lub NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    return { ok: false, message: 'Błąd konfiguracji serwera (Supabase URL). Skontaktuj się z administratorem.' };
+  }
+  if (!serviceKey) {
+    console.error('[loginAction] Brak SUPABASE_SERVICE_ROLE_KEY');
+    return { ok: false, message: 'Błąd konfiguracji serwera (service key). Skontaktuj się z administratorem.' };
+  }
+
   const cookieStore = await cookies();
 
-  // createServerClient ustawia ciasteczka przez cookieStore (Server Action = można pisać)
+  // createServerClient ustawia ciasteczka sesji przez cookieStore
+  // W Server Action cookieStore jest mutowalny — try/catch usunięty celowo,
+  // żeby błąd ustawiania cookies nie był ukryty.
   const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnon,
     {
       cookies: {
         getAll() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // ignoruj błędy z Server Components (tu jesteśmy w Server Action, więc OK)
-          }
+          cookiesToSet.forEach(({ name, value, options }) => {
+            try {
+              cookieStore.set(name, value, options);
+            } catch (err) {
+              console.error('[loginAction] Nie można ustawić ciasteczka:', name, err);
+            }
+          });
         },
       },
     }
@@ -53,13 +69,25 @@ export async function loginAction(
   });
 
   if (authError || !authData?.user) {
-    return { ok: false, message: authError?.message ?? 'Nieprawidłowy email lub hasło.' };
+    // Mapuj angielskie błędy Supabase na polskie komunikaty
+    const msg = authError?.message ?? '';
+    if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+      return { ok: false, message: 'Nieprawidłowy email lub hasło.' };
+    }
+    if (msg.includes('Email not confirmed')) {
+      return { ok: false, message: 'Adres email nie został potwierdzony. Sprawdź skrzynkę pocztową.' };
+    }
+    if (msg.includes('Too many requests')) {
+      return { ok: false, message: 'Zbyt wiele prób logowania. Poczekaj chwilę i spróbuj ponownie.' };
+    }
+    console.error('[loginAction] signInWithPassword error:', authError);
+    return { ok: false, message: msg || 'Błąd logowania. Spróbuj ponownie.' };
   }
 
   // Pobierz rolę przez service role (omija RLS)
   const admin = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    supabaseUrl,
+    serviceKey,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
@@ -70,7 +98,8 @@ export async function loginAction(
     .single();
 
   if (profileError || !profile) {
-    return { ok: false, message: 'Profil użytkownika nie istnieje w systemie.' };
+    console.error('[loginAction] Brak profilu dla user.id:', authData.user.id, profileError);
+    return { ok: false, message: 'Profil użytkownika nie istnieje w systemie. Skontaktuj się z administratorem.' };
   }
 
   if (profile.status === 'inactive') {
