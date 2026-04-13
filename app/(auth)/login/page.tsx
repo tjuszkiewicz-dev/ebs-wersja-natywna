@@ -2,14 +2,13 @@
 
 import React, { useState } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
-import { createBrowserClient } from '@supabase/ssr';
 import MagicRings from '@/components/ui/MagicRings';
 
 export default function LoginPage() {
-  const [email,     setEmail]     = useState('');
-  const [password,  setPassword]  = useState('');
-  const [error,     setError]     = useState('');
-  const [isPending, setIsPending] = useState(false);
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [error,       setError]       = useState('');
+  const [isPending,   setIsPending]   = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -18,51 +17,33 @@ export default function LoginPage() {
     setIsPending(true);
 
     try {
-      // 1. Logowanie przez browser client — cookies sesji ustawiane są
-      //    automatycznie po stronie przeglądarki (SameSite=Lax, Secure na HTTPS).
-      //    To gwarantuje że middleware i server components widzą sesję.
-      const supabase = createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-      );
-
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
+      // Wywołaj /api/auth/login-v2 — serwer ustawia ciasteczka sesji przez Set-Cookie
+      // (nagłówek HTTP), co gwarantuje że middleware i server components je odczytają.
+      const res = await fetch('/api/auth/login-v2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email:    email.trim().toLowerCase(),
+          password,
+        }),
+        credentials: 'same-origin',
       });
 
-      if (authError) {
-        const msg = authError.message ?? '';
-        if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
-          setError('Nieprawidłowy email lub hasło.');
-        } else if (msg.includes('Email not confirmed')) {
-          setError('Adres email nie został potwierdzony. Sprawdź skrzynkę pocztową lub poproś administratora.');
-        } else if (msg.includes('Too many requests')) {
-          setError('Zbyt wiele prób logowania. Odczekaj chwilę i spróbuj ponownie.');
-        } else {
-          setError(msg || 'Błąd logowania. Spróbuj ponownie.');
-        }
-        return;
-      }
-
-      // 2. Pobierz redirect URL (rola → dashboard) z serwera.
-      //    GET /api/auth/session czyta sesję z ciasteczek i zwraca redirectUrl.
-      const res = await fetch('/api/auth/session', { credentials: 'include' });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        setError(json.error ?? 'Błąd pobierania profilu. Skontaktuj się z administratorem.');
+        setError(json.error ?? 'Błąd logowania. Spróbuj ponownie.');
         return;
       }
 
-      // 3. Pełny reload (nie router.push) — gwarantuje że serwer odczyta
-      //    świeże ciasteczka przy pierwszym żądaniu do dashboardu.
+      // Ciasteczka sesji są już w przeglądarce (Set-Cookie z serwera).
+      // Pełny reload gwarantuje że serwer zobaczy je przy pierwszym żądaniu.
       setRedirecting(true);
       window.location.href = json.redirectUrl ?? '/dashboard/employee';
 
     } catch (err) {
-      console.error('[login] unexpected error:', err);
-      setError('Nieoczekiwany błąd. Spróbuj odświeżyć stronę.');
+      console.error('[login] fetch error:', err);
+      setError('Błąd sieci. Sprawdź połączenie i spróbuj ponownie.');
     } finally {
       setIsPending(false);
     }
@@ -71,12 +52,6 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @keyframes ebs-orb {
-          0%,100% { transform: translate(0,0) scale(1); opacity:.35; }
-          25%     { transform: translate(40px,-30px) scale(1.12); opacity:.55; }
-          50%     { transform: translate(-20px,50px) scale(.9); opacity:.25; }
-          75%     { transform: translate(30px,20px) scale(1.06); opacity:.45; }
-        }
         @keyframes ebs-grad {
           0%   { background-position: 0% 50%; }
           50%  { background-position: 100% 50%; }
@@ -129,14 +104,12 @@ export default function LoginPage() {
 
         <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px' }}>
 
-          {/* Login card */}
           <div className="ebs-up" style={{ width:'100%', maxWidth:264, animationDelay:'.05s' }}>
             <div className="ebs-card-border">
               <div style={{ borderRadius:21, overflow:'hidden', background:'rgba(5,10,22,0.96)', backdropFilter:'blur(24px)', boxShadow:'0 24px 60px rgba(0,0,0,.7)' }}>
                 <div style={{ height:2, background:'linear-gradient(90deg,#2563eb,#0891b2,#10b981,#059669,#0284c7,#2563eb)', backgroundSize:'300% 100%', animation:'ebs-grad 4s ease infinite' }}/>
 
                 <div style={{ padding:'22px 24px 24px' }}>
-                  {/* Header */}
                   <div style={{ marginBottom:18 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
                       <div style={{ width:6, height:6, borderRadius:'50%', background:'#10b981', animation:'ebs-ping 2s ease infinite' }}/>
@@ -153,7 +126,6 @@ export default function LoginPage() {
                         <Mail size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,0.25)' }}/>
                         <input
                           type="email"
-                          name="email"
                           required
                           value={email}
                           onChange={e => setEmail(e.target.value)}
@@ -166,14 +138,11 @@ export default function LoginPage() {
                     </div>
 
                     <div>
-                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                        <label style={{ fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.35)', letterSpacing:'0.15em', textTransform:'uppercase' }}>Hasło</label>
-                      </div>
+                      <label style={{ display:'block', fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.35)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:6 }}>Hasło</label>
                       <div style={{ position:'relative' }}>
                         <Lock size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,0.25)' }}/>
                         <input
                           type="password"
-                          name="password"
                           required
                           value={password}
                           onChange={e => setPassword(e.target.value)}
@@ -186,7 +155,7 @@ export default function LoginPage() {
                     </div>
 
                     {error && (
-                      <div style={{ padding:'9px 12px', borderRadius:10, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'#fca5a5', background:'rgba(244,63,94,0.1)', border:'1.5px solid rgba(244,63,94,0.2)' }}>
+                      <div style={{ padding:'9px 12px', borderRadius:10, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'#fca5a5', background:'rgba(244,63,94,0.1)', border:'1.5px solid rgba(244,63,94,0.2)', animation:'ebs-up .3s ease both' }}>
                         <AlertCircle size={13} style={{ flexShrink:0 }}/>{error}
                       </div>
                     )}
@@ -198,7 +167,10 @@ export default function LoginPage() {
                       style={{ width:'100%', padding:'11px', borderRadius:12, fontSize:13, fontWeight:900, color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:2 }}
                     >
                       {(isPending || redirecting) ? (
-                        <><span className="ebs-spin" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block' }}/> {redirecting ? 'Przekierowanie...' : 'Autoryzacja...'}</>
+                        <>
+                          <span className="ebs-spin" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block' }}/>
+                          {redirecting ? 'Przekierowanie...' : 'Autoryzacja...'}
+                        </>
                       ) : (
                         <> Zaloguj się <ArrowRight size={14} strokeWidth={3}/> </>
                       )}
@@ -209,7 +181,6 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Stats below card */}
           <div className="ebs-up" style={{ animationDelay:'.15s', marginTop:24, textAlign:'center', maxWidth:320 }}>
             <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13, lineHeight:1.7, fontWeight:400 }}>
               Twoje <strong style={{ color:'rgba(255,255,255,0.75)', fontWeight:700 }}>benefity pracownicze</strong> w jednym miejscu. Vouchery, zdrowie, rozrywka i tysiące usług.
