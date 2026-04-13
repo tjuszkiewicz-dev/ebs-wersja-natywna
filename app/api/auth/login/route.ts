@@ -1,10 +1,11 @@
 // POST /api/auth/login
 // Autentykacja email/hasło przez Supabase.
-// Używa createServerClient z @supabase/ssr — ustawia ciasteczka sesji w nagłówkach Set-Cookie.
+// Używa cookies() z next/headers — identyczny wzorzec co logout/route.ts.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { DB_TO_ROLE } from '@/lib/roleMap';
 import type { DbRole } from '@/types/database';
 import type { Database } from '@/types/database';
@@ -22,17 +23,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Podaj email i hasło' }, { status: 400 });
   }
 
-  // Zbieramy ciasteczka które Supabase chce ustawić, żeby potem przypiąć je do odpowiedzi
-  const cookiesToSet: Array<{ name: string; value: string; options: Record<string, unknown> }> = [];
+  // cookies() z next/headers — Next.js 15 automatycznie zatwierdza je w odpowiedzi
+  const cookieStore = await cookies();
 
-  // createServerClient – potrafi zapisywać sesję przez nagłówki Set-Cookie
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => req.cookies.getAll(),
-        setAll: (cookies) => cookiesToSet.push(...cookies),
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
       },
     }
   );
@@ -46,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Nieprawidłowy email lub hasło' }, { status: 401 });
   }
 
-  // Pobierz profil z user_profiles przez service role (omija RLS)
+  // Pobierz profil przez service role (omija RLS)
   const supabaseAdmin = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -71,7 +77,7 @@ export async function POST(req: NextRequest) {
   const role = DB_TO_ROLE[dbRole] ?? DB_TO_ROLE['pracownik'];
   const displayName = profile.full_name || email.split('@')[0];
 
-  const res = NextResponse.json({
+  return NextResponse.json({
     id:           authData.user.id,
     email:        authData.user.email ?? email,
     role,
@@ -95,11 +101,4 @@ export async function POST(req: NextRequest) {
     finance:  { voucherBalance: 0, cashBalance: 0, totalEarned: 0 },
     address:  {},
   });
-
-  // Przypin sesji do odpowiedzi — przeglądarka otrzyma Set-Cookie i zapisze sesję
-  cookiesToSet.forEach(({ name, value, options }) => {
-    res.cookies.set(name, value, options as Parameters<typeof res.cookies.set>[2]);
-  });
-
-  return res;
 }
