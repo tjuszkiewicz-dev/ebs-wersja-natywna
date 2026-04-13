@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase';
 import { ROLE_DASHBOARD } from '@/lib/roleMap';
 import { Role } from '@/types';
@@ -9,7 +8,6 @@ import type { DbRole } from '@/types/database';
 import MagicRings from '@/components/ui/MagicRings';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [error, setError]       = useState<string | null>(null);
@@ -44,10 +42,11 @@ export default function LoginPage() {
 
     if (res.ok) {
       const userData = await res.json();
-      router.push(ROLE_DASHBOARD[userData.role as Role] ?? '/dashboard/employee');
+      // Pełne przeładowanie strony — serwer odczyta właśnie ustawione ciasteczka sesji
+      window.location.href = ROLE_DASHBOARD[userData.role as Role] ?? '/dashboard/employee';
     } else {
       // Fallback, np. gdy endpoint padnie, a logowanie przeszło przez SDK Supabase.
-      router.push('/dashboard/employee');
+      window.location.href = '/dashboard/employee';
     }
   }
 
