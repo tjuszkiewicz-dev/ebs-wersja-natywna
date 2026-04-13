@@ -18,35 +18,40 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const emailValue = email.trim().toLowerCase();
+    try {
+      const emailValue = email.trim().toLowerCase();
 
-    // 1. Zaloguj i ustaw ciasteczka przeglądarki!
-    const { data: authData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
-      email: emailValue,
-      password,
-    });
+      // 1. Zaloguj i ustaw ciasteczka przeglądarki!
+      const { data: authData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
+        email: emailValue,
+        password,
+      });
 
-    if (authError || !authData?.user) {
-      setError(authError?.message ?? 'Nieprawidłowy email lub hasło.');
+      if (authError || !authData?.user) {
+        setError(authError?.message ?? 'Nieprawidłowy email lub hasło.');
+        setLoading(false);
+        return;
+      }
+
+      // 2. Pobierz profil omijając RLS przez backendowy endpoint (service role)
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailValue, password }),
+      });
+
+      if (res.ok) {
+        const userData = await res.json();
+        // Pełne przeładowanie strony — serwer odczyta właśnie ustawione ciasteczka sesji
+        window.location.href = ROLE_DASHBOARD[userData.role as Role] ?? '/dashboard/employee';
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error ?? 'Błąd serwera. Spróbuj ponownie później.');
+        setLoading(false);
+      }
+    } catch {
+      setError('Wystąpił błąd połączenia. Sprawdź internet i spróbuj ponownie.');
       setLoading(false);
-      return;
-    }
-
-    // 2. Skoro mamy już sesję, pobierzmy profil omijając RLS poprzez nasz backendowy endpoint!
-    // Endpoint /api/auth/login zwraca gotowy zmapowany profil aplikacji (m.in. poprawną rolę).
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: emailValue, password }),
-    });
-
-    if (res.ok) {
-      const userData = await res.json();
-      // Pełne przeładowanie strony — serwer odczyta właśnie ustawione ciasteczka sesji
-      window.location.href = ROLE_DASHBOARD[userData.role as Role] ?? '/dashboard/employee';
-    } else {
-      // Fallback, np. gdy endpoint padnie, a logowanie przeszło przez SDK Supabase.
-      window.location.href = '/dashboard/employee';
     }
   }
 
