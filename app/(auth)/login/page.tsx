@@ -1,23 +1,72 @@
 'use client';
 
-import React, { useActionState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
-import { loginAction } from '@/app/actions/auth';
-import type { LoginResult } from '@/app/actions/auth';
+import { createBrowserClient } from '@supabase/ssr';
 import MagicRings from '@/components/ui/MagicRings';
 
 export default function LoginPage() {
-  const [state, formAction, isPending] = useActionState<LoginResult | null, FormData>(loginAction, null);
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [error,     setError]     = useState('');
+  const [isPending, setIsPending] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
-  // Pełny reload po sukcesie — gwarantuje że nowe ciasteczka sesji trafiają na serwer
-  useEffect(() => {
-    if (state?.ok === true) {
-      window.location.href = state.redirectUrl;
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setIsPending(true);
+
+    try {
+      // 1. Logowanie przez browser client — cookies sesji ustawiane są
+      //    automatycznie po stronie przeglądarki (SameSite=Lax, Secure na HTTPS).
+      //    To gwarantuje że middleware i server components widzą sesję.
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (authError) {
+        const msg = authError.message ?? '';
+        if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+          setError('Nieprawidłowy email lub hasło.');
+        } else if (msg.includes('Email not confirmed')) {
+          setError('Adres email nie został potwierdzony. Sprawdź skrzynkę pocztową lub poproś administratora.');
+        } else if (msg.includes('Too many requests')) {
+          setError('Zbyt wiele prób logowania. Odczekaj chwilę i spróbuj ponownie.');
+        } else {
+          setError(msg || 'Błąd logowania. Spróbuj ponownie.');
+        }
+        return;
+      }
+
+      // 2. Pobierz redirect URL (rola → dashboard) z serwera.
+      //    GET /api/auth/session czyta sesję z ciasteczek i zwraca redirectUrl.
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setError(json.error ?? 'Błąd pobierania profilu. Skontaktuj się z administratorem.');
+        return;
+      }
+
+      // 3. Pełny reload (nie router.push) — gwarantuje że serwer odczyta
+      //    świeże ciasteczka przy pierwszym żądaniu do dashboardu.
+      setRedirecting(true);
+      window.location.href = json.redirectUrl ?? '/dashboard/employee';
+
+    } catch (err) {
+      console.error('[login] unexpected error:', err);
+      setError('Nieoczekiwany błąd. Spróbuj odświeżyć stronę.');
+    } finally {
+      setIsPending(false);
     }
-  }, [state]);
-
-  const error = state?.ok === false ? state.message : null;
-  const redirecting = state?.ok === true;
+  };
 
   return (
     <>
@@ -97,7 +146,7 @@ export default function LoginPage() {
                     <p style={{ color:'rgba(255,255,255,0.35)', fontSize:12 }}>Zaloguj się, żeby sprawdzić swoje benefity.</p>
                   </div>
 
-                  <form action={formAction} style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:10 }}>
                     <div>
                       <label style={{ display:'block', fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.35)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:6 }}>Email służbowy</label>
                       <div style={{ position:'relative' }}>
@@ -106,9 +155,11 @@ export default function LoginPage() {
                           type="email"
                           name="email"
                           required
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
                           placeholder="jan.kowalski@firma.pl"
                           className="ebs-input"
-                          disabled={isPending}
+                          disabled={isPending || redirecting}
                           autoComplete="email"
                         />
                       </div>
@@ -124,16 +175,18 @@ export default function LoginPage() {
                           type="password"
                           name="password"
                           required
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
                           placeholder="••••••••••"
                           className="ebs-input"
-                          disabled={isPending}
+                          disabled={isPending || redirecting}
                           autoComplete="current-password"
                         />
                       </div>
                     </div>
 
                     {error && (
-                      <div className="ebs-up" style={{ padding:'9px 12px', borderRadius:10, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'#fca5a5', background:'rgba(244,63,94,0.1)', border:'1.5px solid rgba(244,63,94,0.2)' }}>
+                      <div style={{ padding:'9px 12px', borderRadius:10, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'#fca5a5', background:'rgba(244,63,94,0.1)', border:'1.5px solid rgba(244,63,94,0.2)' }}>
                         <AlertCircle size={13} style={{ flexShrink:0 }}/>{error}
                       </div>
                     )}
@@ -163,7 +216,7 @@ export default function LoginPage() {
             </p>
             <div style={{ width:40, height:1, background:'linear-gradient(90deg,transparent,rgba(37,99,235,.6),transparent)', margin:'14px auto' }}/>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-              {(['500+','Benefitów'],['98%','Satysfakcji'],['10k+','Użytkowników']) && [['500+','Benefitów'],['98%','Satysfakcji'],['10k+','Użytkowników']].map(([v,l],i)=>(
+              {[['500+','Benefitów'],['98%','Satysfakcji'],['10k+','Użytkowników']].map(([v,l],i)=>(
                 <div key={i} style={{ textAlign:'center', padding:'10px 6px', borderRadius:14, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
                   <div style={{ fontSize:17, fontWeight:900, color:'#fff', lineHeight:1.1 }}>{v}</div>
                   <div style={{ fontSize:10, color:'rgba(255,255,255,0.3)', fontWeight:600, marginTop:2 }}>{l}</div>
@@ -180,5 +233,3 @@ export default function LoginPage() {
     </>
   );
 }
-
-
