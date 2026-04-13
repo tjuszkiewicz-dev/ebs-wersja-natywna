@@ -8,9 +8,11 @@ import { PolicyTemplate } from './templates/PolicyTemplate';
 import { useStrattonSystem } from '../../context/StrattonContext';
 
 // Configuration for API Endpoint
-const API_BASE_URL = (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) 
-  ? process.env.REACT_APP_API_URL 
-  : 'http://localhost:3001';
+const API_BASE_URL = (typeof window !== 'undefined' && (window as any).__NEXT_PUBLIC_PDF_SERVER_URL__)
+  ? (window as any).__NEXT_PUBLIC_PDF_SERVER_URL__
+  : (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_PDF_SERVER_URL)
+  ? process.env.NEXT_PUBLIC_PDF_SERVER_URL
+  : '';  // Na Vercelu nie ma lokalnego PDF serwera — użyj fallbacku client-side
 
 interface DocumentDownloadButtonProps {
   docName: string;

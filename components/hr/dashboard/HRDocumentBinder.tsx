@@ -20,9 +20,9 @@ declare const JSZip: any;
 declare const saveAs: any;
 declare const html2pdf: any;
 
-const API_BASE_URL = (typeof process !== 'undefined' && process.env?.REACT_APP_API_URL) 
-  ? process.env.REACT_APP_API_URL 
-  : 'http://localhost:3001';
+const API_BASE_URL = (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_PDF_SERVER_URL)
+  ? process.env.NEXT_PUBLIC_PDF_SERVER_URL
+  : '';  // Na Vercelu nie ma lokalnego PDF serwera — użyj fallbacku client-side
 
 interface Props {
     orders: Order[];
