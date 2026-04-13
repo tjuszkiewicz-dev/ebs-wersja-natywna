@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { supabaseBrowser } from '@/lib/supabase';
 import { ROLE_DASHBOARD } from '@/lib/roleMap';
 import { Role } from '@/types';
-import type { DbRole } from '@/types/database';
 import MagicRings from '@/components/ui/MagicRings';
 
 export default function LoginPage() {
@@ -19,34 +17,20 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const emailValue = email.trim().toLowerCase();
-
-      // 1. Zaloguj i ustaw ciasteczka przeglądarki!
-      const { data: authData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
-        email: emailValue,
-        password,
-      });
-
-      if (authError || !authData?.user) {
-        setError(authError?.message ?? 'Nieprawidłowy email lub hasło.');
-        setLoading(false);
-        return;
-      }
-
-      // 2. Pobierz profil omijając RLS przez backendowy endpoint (service role)
+      // Jedno wywołanie API — serwer loguje, ustawia Set-Cookie i zwraca rolę
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailValue, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
       if (res.ok) {
         const userData = await res.json();
-        // Pełne przeładowanie strony — serwer odczyta właśnie ustawione ciasteczka sesji
+        // Pełne przeładowanie — przeglądarka już ma ciasteczka z Set-Cookie
         window.location.href = ROLE_DASHBOARD[userData.role as Role] ?? '/dashboard/employee';
       } else {
         const errData = await res.json().catch(() => ({}));
-        setError(errData.error ?? 'Błąd serwera. Spróbuj ponownie później.');
+        setError(errData.error ?? 'Nieprawidłowy email lub hasło.');
         setLoading(false);
       }
     } catch {

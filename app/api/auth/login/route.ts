@@ -1,11 +1,13 @@
 // POST /api/auth/login
-// Autentykacja email/hasło przez Supabase — zwraca dane profilu dla Vite app.
-// NIE ustawia sesji przeglądarkowej (używane przez lokalną aplikację Vite).
+// Autentykacja email/hasło przez Supabase.
+// Używa createServerClient z @supabase/ssr — ustawia ciasteczka sesji w nagłówkach Set-Cookie.
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { DB_TO_ROLE } from '@/lib/roleMap';
 import type { DbRole } from '@/types/database';
+import type { Database } from '@/types/database';
 
 export async function POST(req: NextRequest) {
   let body: { email?: string; password?: string };
@@ -20,11 +22,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Podaj email i hasło' }, { status: 400 });
   }
 
-  // Klient z anon key — logowanie przez signInWithPassword nie wymaga service role
-  const supabase = createClient(
+  // Zbieramy ciasteczka które Supabase chce ustawić, żeby potem przypiąć je do odpowiedzi
+  const cookiesToSet: Array<{ name: string; value: string; options: Record<string, unknown> }> = [];
+
+  // createServerClient – potrafi zapisywać sesję przez nagłówki Set-Cookie
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    {
+      cookies: {
+        getAll: () => req.cookies.getAll(),
+        setAll: (cookies) => cookiesToSet.push(...cookies),
+      },
+    }
   );
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -36,8 +46,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Nieprawidłowy email lub hasło' }, { status: 401 });
   }
 
-  // Pobierz profil z user_profiles (wymaga service role by ominąć RLS)
-  const supabaseAdmin = createClient(
+  // Pobierz profil z user_profiles przez service role (omija RLS)
+  const supabaseAdmin = createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
@@ -61,7 +71,7 @@ export async function POST(req: NextRequest) {
   const role = DB_TO_ROLE[dbRole] ?? DB_TO_ROLE['pracownik'];
   const displayName = profile.full_name || email.split('@')[0];
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     id:           authData.user.id,
     email:        authData.user.email ?? email,
     role,
@@ -85,4 +95,11 @@ export async function POST(req: NextRequest) {
     finance:  { voucherBalance: 0, cashBalance: 0, totalEarned: 0 },
     address:  {},
   });
+
+  // Przypin sesji do odpowiedzi — przeglądarka otrzyma Set-Cookie i zapisze sesję
+  cookiesToSet.forEach(({ name, value, options }) => {
+    res.cookies.set(name, value, options as Parameters<typeof res.cookies.set>[2]);
+  });
+
+  return res;
 }
