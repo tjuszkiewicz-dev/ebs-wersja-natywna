@@ -1,12 +1,23 @@
 'use client';
 
-import React, { useActionState } from 'react';
+import React, { useActionState, useEffect } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import { loginAction } from '@/app/actions/auth';
+import type { LoginResult } from '@/app/actions/auth';
 import MagicRings from '@/components/ui/MagicRings';
 
 export default function LoginPage() {
-  const [error, formAction, isPending] = useActionState(loginAction, null);
+  const [state, formAction, isPending] = useActionState<LoginResult | null, FormData>(loginAction, null);
+
+  // Pełny reload po sukcesie — gwarantuje że nowe ciasteczka sesji trafiają na serwer
+  useEffect(() => {
+    if (state?.ok === true) {
+      window.location.href = state.redirectUrl;
+    }
+  }, [state]);
+
+  const error = state?.ok === false ? state.message : null;
+  const redirecting = state?.ok === true;
 
   return (
     <>
@@ -129,12 +140,12 @@ export default function LoginPage() {
 
                     <button
                       type="submit"
-                      disabled={isPending}
+                      disabled={isPending || redirecting}
                       className="ebs-btn"
                       style={{ width:'100%', padding:'11px', borderRadius:12, fontSize:13, fontWeight:900, color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:2 }}
                     >
-                      {isPending ? (
-                        <><span className="ebs-spin" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block' }}/> Autoryzacja...</>
+                      {(isPending || redirecting) ? (
+                        <><span className="ebs-spin" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block' }}/> {redirecting ? 'Przekierowanie...' : 'Autoryzacja...'}</>
                       ) : (
                         <> Zaloguj się <ArrowRight size={14} strokeWidth={3}/> </>
                       )}
