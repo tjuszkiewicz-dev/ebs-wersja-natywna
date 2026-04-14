@@ -13,7 +13,7 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 import { NotificationHistoryModal } from '@/components/notifications/NotificationHistoryModal';
 import { useStrattonSystem } from '@/context/StrattonContext';
 import { supabaseBrowser } from '@/lib/supabase';
-import { Search, Settings, Wallet, Clock, X } from 'lucide-react';
+import { Search, Settings, Wallet, Clock, X, Menu } from 'lucide-react';
 
 function EmployeeLayout() {
   const { state, actions } = useStrattonSystem();
@@ -121,9 +121,18 @@ function EmployeeLayout() {
 
           {/* LEFT */}
           <div className="flex-1 flex items-center gap-4">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="md:hidden p-2 rounded-lg transition flex items-center justify-center hover:bg-white/10 text-white"
+              aria-label="Menu"
+            >
+              <Menu size={24} />
+            </button>
+            {/* EBS logo — desktop only */}
             <button
               onClick={() => setDesktopSidebarOpen(prev => !prev)}
-              className="self-stretch -ml-1 px-2 rounded-lg transition flex items-center justify-center overflow-visible hover:bg-white/10"
+              className="hidden md:flex self-stretch -ml-1 px-2 rounded-lg transition items-center justify-center overflow-visible hover:bg-white/10"
             >
               <img src="/ebs-black.svg" alt="EBS" style={{ height: 62, width: 'auto', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }}
               />
@@ -200,7 +209,7 @@ function EmployeeLayout() {
         </header>
 
         {/* MAIN */}
-        <main id="main-scroll-container" className="flex-1 overflow-y-auto relative scroll-smooth p-4 md:p-6" style={{ zoom: '0.9' }}>
+        <main id="main-scroll-container" className="flex-1 overflow-y-auto relative scroll-smooth p-4 md:p-6 main-zoom">
           <DashboardEmployee
             currentView={currentView}
             user={currentUser}
@@ -226,21 +235,21 @@ function EmployeeLayout() {
       {/* ORANGE POPUP AD */}
       {showOrangePopup && (
         <div
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
           onClick={closeOrangePopup}
         >
           <div
-            className="relative max-w-sm w-full rounded-2xl overflow-hidden shadow-2xl"
+            className="relative w-full sm:max-w-sm rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={closeOrangePopup}
-              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center transition"
-              style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+              className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full flex items-center justify-center transition"
+              style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
               aria-label="Zamknij"
             >
-              <X size={16} className="text-white" />
+              <X size={18} className="text-white" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img

@@ -12,8 +12,20 @@ body {
   color: #0f172a; /* slate-900 */
 }
 
-/* CUSTOM UTILITIES */
-/* Hide Scrollbar but keep functionality */
+/* Safe-area padding for mobile notch/home bar */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Main content zoom — only on md+ screens */
+.main-zoom {
+  zoom: 1;
+}
+@media (min-width: 768px) {
+  .main-zoom {
+    zoom: 0.9;
+  }
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
