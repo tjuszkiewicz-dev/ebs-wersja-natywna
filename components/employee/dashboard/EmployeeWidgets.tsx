@@ -26,7 +26,7 @@ export const AppIconCard: React.FC<{
     whileHover={{ y: -4, transition: { type: 'spring', stiffness: 400, damping: 20 } }}
     whileTap={{ scale: 0.97 }}
     onClick={onClick}
-    className="relative rounded-2xl p-5 cursor-pointer shadow-sm border border-white/20 overflow-hidden"
+    className="relative rounded-2xl p-5 cursor-pointer shadow-sm border border-white/20 overflow-hidden min-h-[220px]"
     style={{ background: gradient }}
   >
     {image && (

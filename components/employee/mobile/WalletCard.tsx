@@ -39,7 +39,7 @@ export const WalletCard: React.FC<WalletCardProps> = ({ user }) => {
 
 
       {/* Content overlay */}
-      <div className="absolute inset-0 p-6 flex flex-col justify-between" style={{ color: 'white' }}>
+      <div className="absolute inset-0 p-8 flex flex-col justify-between" style={{ color: 'white' }}>
 
         {/* TOP ROW */}
         <div className="flex justify-between items-start">
@@ -64,25 +64,25 @@ export const WalletCard: React.FC<WalletCardProps> = ({ user }) => {
 
         {/* MIDDLE: Balance */}
         <div>
-          <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.55)' }}>Dostępne środki</p>
+          <p className="text-[10px] uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.85)' }}>Dostępne środki</p>
           <div className="flex items-end gap-2">
             <span ref={balanceRef} className="font-black leading-none" style={{ fontSize: 44, letterSpacing: '-0.03em', textShadow: '0 2px 16px rgba(0,0,0,0.4)' }}>
               {user.voucherBalance ?? 0}
             </span>
-            <span className="mb-1.5 font-bold text-base" style={{ color: 'rgba(255,255,255,0.5)' }}>PKT</span>
+            <span className="mb-1.5 font-bold text-base" style={{ color: 'rgba(255,255,255,0.95)' }}>PKT</span>
           </div>
-          <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>1 punkt = 1 PLN · do wykorzystania na benefity</p>
+          <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>1 punkt = 1 PLN · do wykorzystania na benefity</p>
         </div>
 
         {/* BOTTOM ROW */}
         <div className="flex justify-between items-end pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
           <div>
-            <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Właściciel karty</p>
+            <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>Właściciel karty</p>
             <p className="font-semibold text-sm tracking-wide">{user.name}</p>
           </div>
           <div className="text-right">
-            <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>ID konta</p>
-            <p className="font-mono text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>•••• {user.id.slice(-6).toUpperCase()}</p>
+            <p className="text-[9px] uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.8)' }}>ID konta</p>
+            <p className="font-mono text-xs" style={{ color: 'rgba(255,255,255,0.95)' }}>•••• {user.id.slice(-6).toUpperCase()}</p>
           </div>
         </div>
 
