@@ -1,5 +1,5 @@
-// Excel utilities for HR panel — uses SheetJS loaded via CDN as window.XLSX
-declare const XLSX: any;
+// Excel utilities for HR panel — uses SheetJS (npm: xlsx)
+import * as XLSX from 'xlsx';
 
 export interface HrExcelRow {
   rowIndex: number;
@@ -23,10 +23,6 @@ function validatePesel(pesel: string): boolean {
 }
 
 export function generateExcelTemplate(): void {
-  if (typeof XLSX === 'undefined') {
-    alert('Biblioteka XLSX nie jest załadowana. Odśwież stronę.');
-    return;
-  }
   const ws = XLSX.utils.aoa_to_sheet([
     ['Imię', 'Nazwisko', 'PESEL', 'Zamówienie voucherów', 'Email (wymagany)'],
     ['Jan', 'Kowalski', '90051209876', 100, 'jan.kowalski@firma.pl'],
@@ -51,11 +47,6 @@ export interface ActiveEmployeeRow {
 }
 
 export function exportActiveEmployees(employees: ActiveEmployeeRow[], companyName: string): void {
-  if (typeof XLSX === 'undefined') {
-    alert('Biblioteka XLSX nie jest załadowana. Odśwież stronę.');
-    return;
-  }
-
   const header = ['Imię', 'Nazwisko', 'PESEL', 'Zamówienie voucherów', 'Email', 'Telefon', 'Dział', 'Stanowisko', 'Typ umowy', 'IBAN'];
   const rows = employees.map(e => [
     e.firstName,
@@ -97,11 +88,6 @@ export interface EmployeeCredentialRow {
 }
 
 export function exportEmployeeCredentials(employees: EmployeeCredentialRow[], companyName: string): void {
-  if (typeof XLSX === 'undefined') {
-    alert('Biblioteka XLSX nie jest załadowana. Odśwież stronę.');
-    return;
-  }
-
   const header = ['Imię i Nazwisko', 'Login (e-mail)', 'Hasło tymczasowe', 'PESEL', 'Dział', 'Stanowisko'];
   const rows = employees.map(e => [
     e.name,
@@ -129,9 +115,6 @@ export function exportEmployeeCredentials(employees: EmployeeCredentialRow[], co
 }
 
 export async function parseExcelFile(file: File): Promise<HrExcelRow[]> {
-  if (typeof XLSX === 'undefined') {
-    throw new Error('Biblioteka XLSX nie jest załadowana.');
-  }
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];

@@ -5,6 +5,7 @@ import { Order, OrderStatus } from '../../../types';
 import { Badge } from '../../ui/Badge';
 import { useStrattonSystem } from '../../../context/StrattonContext';
 import { Button } from '../../ui/Button';
+import * as XLSX from 'xlsx';
 
 interface PaymentReconcileProps {
   orders: Order[];
@@ -21,8 +22,6 @@ interface BankTransaction {
   matchStatus: 'FULL_MATCH' | 'PARTIAL_MATCH' | 'NO_MATCH';
   matchNote?: string;
 }
-
-declare const XLSX: any;
 
 export const PaymentReconcile: React.FC<PaymentReconcileProps> = ({ orders, onProcessPayments }) => {
   const { actions } = useStrattonSystem();

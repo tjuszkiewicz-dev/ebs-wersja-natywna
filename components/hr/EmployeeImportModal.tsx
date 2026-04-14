@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import { Upload, Download, FileSpreadsheet, UserPlus, FileDown, AlertTriangle, ArrowLeft, ArrowRight, User as UserIcon, Users, Save, Briefcase, Phone, CreditCard, Info, X } from 'lucide-react';
 import { ImportResult, ImportRow, User, ContractType } from '../../types';
 import { validatePesel, validatePLIBAN } from '../../services/payrollService';
@@ -132,10 +133,6 @@ export const EmployeeImportModal: React.FC<EmployeeImportModalProps> = ({
 
   // --- IMPORT HANDLERS (EXCEL) ---
   const handleDownloadTemplate = () => {
-    if (typeof XLSX === 'undefined') { 
-        actions.addToast("Błąd Biblioteki", "Moduł Excel nie został załadowany.", "ERROR"); 
-        return; 
-    }
     
     const headers = ["Imię", "Nazwisko", "E-mail (Login)", "Telefon", "PESEL", "Numer Konta (IBAN)", "Dział", "Stanowisko", "Umowa (UoP/UZ)"];
     const example = ["Janina", "Przykładowa", "janina@firma.pl", "500600700", "85010112345", "PL 12 1234 5678 0000 0000 0000 0000", "Księgowość", "Księgowa", "UoP"];
@@ -154,7 +151,6 @@ export const EmployeeImportModal: React.FC<EmployeeImportModalProps> = ({
     const reader = new FileReader();
     reader.onload = (evt) => {
         const bstr = evt.target?.result;
-        if (typeof XLSX === 'undefined') return;
         try {
             const wb = XLSX.read(bstr, { type: 'binary' });
             const wsname = wb.SheetNames[0];

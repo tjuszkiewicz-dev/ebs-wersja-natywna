@@ -60,12 +60,22 @@ export async function GET(req: NextRequest) {
     company = companyRow ?? null;
   }
 
+  // Pobierz aktualne saldo voucherów z ledgera
+  const { data: voucherAccount } = await admin
+    .from('voucher_accounts')
+    .select('balance')
+    .eq('user_id', user.id)
+    .single();
+
   return NextResponse.json({
     user: {
       id:       user.id,
       email:    user.email ?? '',
     },
-    profile,
+    profile: {
+      ...profile,
+      voucherBalance: voucherAccount?.balance ?? 0,
+    },
     company,
   });
 }
