@@ -12,8 +12,8 @@ import { supabaseServer } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') {
-    return NextResponse.json({ error: 'Wymagana rola superadmin' }, { status: 403 });
+  if (!auth || !['superadmin', 'pracodawca'].includes(auth.role)) {
+    return NextResponse.json({ error: 'Wymagana rola superadmin lub pracodawca' }, { status: 403 });
   }
 
   const { companyId } = await req.json();
