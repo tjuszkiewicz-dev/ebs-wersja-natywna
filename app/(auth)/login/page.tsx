@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import MagicRings from '@/components/ui/MagicRings';
+import { supabaseBrowser } from '@/lib/supabase';
 
 export default function LoginPage() {
   const [email,       setEmail]       = useState('');
@@ -10,39 +11,76 @@ export default function LoginPage() {
   const [error,       setError]       = useState('');
   const [isPending,   setIsPending]   = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [debugLogs,   setDebugLogs]   = useState<string[]>([]);
+
+  const addLog = (msg: string) => {
+    const ts = new Date().toISOString().slice(11, 23);
+    const line = `[${ts}] ${msg}`;
+    console.log('[EBS-LOGIN]', line);
+    setDebugLogs(prev => [...prev, line]);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
+    setDebugLogs([]);
     setIsPending(true);
 
+    addLog('START: handleSubmit wywołany');
+
     try {
-      // Wywołaj /api/auth/login-v2 — serwer ustawia ciasteczka sesji przez Set-Cookie
-      // (nagłówek HTTP), co gwarantuje że middleware i server components je odczytają.
-      const res = await fetch('/api/auth/login-v2', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email:    email.trim().toLowerCase(),
-          password,
-        }),
-        credentials: 'same-origin',
+      addLog(`STEP 1: signInWithPassword → email=${email.trim().toLowerCase()}`);
+
+      const { data: authData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
+        email:    email.trim().toLowerCase(),
+        password,
       });
 
-      const json = await res.json().catch(() => ({}));
+      if (authError) {
+        addLog(`STEP 1 ERROR: ${authError.message} (status=${authError.status})`);
+        const msg = authError.message ?? '';
+        if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
+          setError('Nieprawidłowy email lub hasło.');
+        } else if (msg.includes('Email not confirmed')) {
+          setError('Adres email nie został potwierdzony. Sprawdź skrzynkę pocztową.');
+        } else {
+          setError(msg || 'Błąd logowania. Spróbuj ponownie.');
+        }
+        return;
+      }
+
+      addLog(`STEP 1 OK: user.id=${authData?.user?.id ?? 'brak'} | session=${authData?.session ? 'TAK' : 'NIE'}`);
+
+      // Sprawdź czy ciasteczka są w document.cookie
+      const cookieNames = document.cookie
+        .split(';')
+        .map(c => c.trim().split('=')[0])
+        .filter(n => n.startsWith('sb-'));
+      addLog(`STEP 2: ciasteczka Supabase w dokumencie: [${cookieNames.join(', ') || 'BRAK'}]`);
+
+      addLog('STEP 3: GET /api/auth/role ...');
+      const res = await fetch('/api/auth/role', { credentials: 'same-origin' });
+      const responseText = await res.text();
+      addLog(`STEP 3 odpowiedź: status=${res.status} body=${responseText}`);
+
+      let json: { redirectUrl?: string; error?: string } = {};
+      try { json = JSON.parse(responseText); } catch { /* zostaw {} */ }
 
       if (!res.ok) {
+        addLog(`STEP 3 ERROR: ${json.error ?? 'nieznany błąd'}`);
         setError(json.error ?? 'Błąd logowania. Spróbuj ponownie.');
         return;
       }
 
-      // Ciasteczka sesji są już w przeglądarce (Set-Cookie z serwera).
-      // Pełny reload gwarantuje że serwer zobaczy je przy pierwszym żądaniu.
+      const target = json.redirectUrl ?? '/dashboard/employee';
+      addLog(`STEP 4: redirect → ${target}`);
       setRedirecting(true);
-      window.location.href = json.redirectUrl ?? '/dashboard/employee';
+      window.location.href = target;
 
     } catch (err) {
-      console.error('[login] fetch error:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      addLog(`WYJĄTEK: ${msg}`);
+      console.error('[login] error:', err);
       setError('Błąd sieci. Sprawdź połączenie i spróbuj ponownie.');
     } finally {
       setIsPending(false);
@@ -95,6 +133,14 @@ export default function LoginPage() {
           background-size: 300% 300%;
           animation: ebs-grad 5s ease infinite;
         }
+        .ebs-log {
+          font-family: monospace; font-size: 10px; line-height: 1.5;
+          color: #86efac; background: rgba(0,0,0,0.7);
+          border: 1px solid rgba(74,222,128,0.2);
+          border-radius: 10px; padding: 10px 12px;
+          max-height: 160px; overflow-y: auto;
+          white-space: pre-wrap; word-break: break-all;
+        }
       `}</style>
 
       <div style={{ height:'100vh', position:'relative', background:'#030712', overflow:'hidden' }}>
@@ -102,7 +148,7 @@ export default function LoginPage() {
           <MagicRings />
         </div>
 
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px' }}>
+        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px', overflowY:'auto' }}>
 
           <div className="ebs-up" style={{ width:'100%', maxWidth:264, animationDelay:'.05s' }}>
             <div className="ebs-card-border">
@@ -181,7 +227,21 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="ebs-up" style={{ animationDelay:'.15s', marginTop:24, textAlign:'center', maxWidth:320 }}>
+          {/* ── Panel diagnostyczny — widoczny po próbie logowania ── */}
+          {debugLogs.length > 0 && (
+            <div className="ebs-up" style={{ width:'100%', maxWidth:420, marginTop:16, animationDelay:'0s' }}>
+              <div className="ebs-log">
+                <div style={{ color:'rgba(134,239,172,0.5)', marginBottom:4, fontSize:9, letterSpacing:'0.15em', textTransform:'uppercase' }}>
+                  LOG DIAGNOSTYCZNY
+                </div>
+                {debugLogs.map((line, i) => (
+                  <div key={i}>{line}</div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="ebs-up" style={{ animationDelay:'.15s', marginTop:16, textAlign:'center', maxWidth:320 }}>
             <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13, lineHeight:1.7, fontWeight:400 }}>
               Twoje <strong style={{ color:'rgba(255,255,255,0.75)', fontWeight:700 }}>benefity pracownicze</strong> w jednym miejscu. Vouchery, zdrowie, rozrywka i tysiące usług.
             </p>

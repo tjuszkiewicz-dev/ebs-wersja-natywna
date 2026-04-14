@@ -2,23 +2,41 @@
 
 // ── DashboardBootstrap ────────────────────────────────────────────────────────
 // Mostuje Supabase session ↔ StrattonContext.
-// Pobiera profil Supabase po stronie klienta, wstrzykuje real User do kontekstu
-// i wywołuje login(). Istniejące dashboard komponenty działają bez zmian.
+// Pobiera profil przez /api/auth/me (service role, omija RLS),
+// wstrzykuje real User do kontekstu i wywołuje login().
 //
 // Renderuje spinner podczas ładowania.
 
 import React, { useEffect, useRef, useState } from 'react';
 import { StrattonProvider, useStrattonSystem } from '@/context/StrattonContext';
-import { supabaseBrowser } from '@/lib/supabase';
 import { supabaseProfileToUser } from '@/lib/supabaseToUser';
 
 interface Props {
   children: React.ReactNode;
 }
 
+// Typ odpowiedzi z /api/auth/me
+interface MeResponse {
+  user:    { id: string; email: string };
+  profile: {
+    id: string; role: string; full_name: string | null;
+    company_id: string | null; department: string | null;
+    position: string | null; hire_date: string | null;
+    contract_type: string | null; phone_number: string | null;
+    iban: string | null; status: string | null;
+  };
+  company: {
+    id: string; name: string | null; nip: string | null;
+    balance_pending: number | null; balance_active: number | null;
+    address_street: string | null; address_city: string | null;
+    address_zip: string | null; custom_voucher_validity_days: number | null;
+    custom_payment_terms_days: number | null;
+  } | null;
+}
+
 // Wewnętrzny sync — musi być wewnątrz StrattonProvider
 function SupabaseSync({ children }: Props) {
-  const { state, actions } = useStrattonSystem();
+  const { actions } = useStrattonSystem();
   const [ready, setReady] = useState(false);
   const synced = useRef(false);
 
@@ -27,27 +45,21 @@ function SupabaseSync({ children }: Props) {
     synced.current = true;
 
     (async () => {
-      const { data: { user: authUser } } = await supabaseBrowser.auth.getUser();
-      if (!authUser) {
+      // Pobierz profil + firmę przez API (service role, omija RLS)
+      const res = await fetch('/api/auth/me', { credentials: 'same-origin' });
+
+      if (!res.ok) {
+        console.error('[DashboardBootstrap] /api/auth/me →', res.status);
         window.location.href = '/login';
         return;
       }
 
-      // Pobierz profil z user_profiles (company_id dodane w migracji 004)
-      const { data: profile } = await supabaseBrowser
-        .from('user_profiles')
-        .select('id, role, full_name, company_id, department, position, hire_date, contract_type, phone_number, iban')
-        .eq('id', authUser.id)
-        .single();
-
-      if (!profile) {
-        window.location.href = '/login';
-        return;
-      }
+      const data: MeResponse = await res.json();
+      const { user: authUser, profile, company: companyRow } = data;
 
       const appUser = supabaseProfileToUser(
         profile,
-        authUser.email ?? '',
+        authUser.email,
         profile.company_id ?? undefined
       );
 
@@ -57,35 +69,27 @@ function SupabaseSync({ children }: Props) {
         return [...filtered, appUser];
       });
 
-      // Pobierz i wstrzyknij firmę użytkownika żeby panel nie wyświetlał domyślnej firmy
-      if (profile.company_id) {
-        const { data: companyRow } = await supabaseBrowser
-          .from('companies')
-          .select('id, name, nip, balance_pending, balance_active, address_street, address_city, address_zip, custom_voucher_validity_days, custom_payment_terms_days')
-          .eq('id', profile.company_id)
-          .single();
-
-        if (companyRow) {
-          actions.setCompanies(prev => {
-            const exists = prev.some(c => c.id === companyRow.id);
-            if (exists) return prev;
-            return [...prev, {
-              id:                      companyRow.id,
-              name:                    companyRow.name ?? '',
-              nip:                     companyRow.nip ?? '',
-              balancePending:          companyRow.balance_pending ?? 0,
-              balanceActive:           companyRow.balance_active ?? 0,
-              voucherValidityDays:     companyRow.custom_voucher_validity_days ?? 7,
-              customPaymentTermsDays:  companyRow.custom_payment_terms_days ?? undefined,
-              address:                 companyRow.address_city ? {
-                street:     companyRow.address_street ?? '',
-                city:       companyRow.address_city ?? '',
-                postalCode: companyRow.address_zip ?? '',
-                country:    'Polska',
-              } : undefined,
-            }];
-          });
-        }
+      // Wstrzyknij firmę jeśli dostępna
+      if (companyRow) {
+        actions.setCompanies(prev => {
+          const exists = prev.some(c => c.id === companyRow.id);
+          if (exists) return prev;
+          return [...prev, {
+            id:                     companyRow.id,
+            name:                   companyRow.name ?? '',
+            nip:                    companyRow.nip ?? '',
+            balancePending:         companyRow.balance_pending ?? 0,
+            balanceActive:          companyRow.balance_active ?? 0,
+            voucherValidityDays:    companyRow.custom_voucher_validity_days ?? 7,
+            customPaymentTermsDays: companyRow.custom_payment_terms_days ?? undefined,
+            address: companyRow.address_city ? {
+              street:     companyRow.address_street ?? '',
+              city:       companyRow.address_city ?? '',
+              postalCode: companyRow.address_zip ?? '',
+              country:    'Polska',
+            } : undefined,
+          }];
+        });
       }
 
       // Ustaw jako bieżący użytkownik

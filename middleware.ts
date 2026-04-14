@@ -28,35 +28,49 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // ── Diagnostyka ─────────────────────────────────────────────────
+  const allCookies = request.cookies.getAll();
+  const sbCookies  = allCookies.filter(c => c.name.startsWith('sb-'));
+  console.log(`[MW] ${pathname} | cookies total=${allCookies.length} sb-*=${sbCookies.length} | url_set=${!!supabaseUrl}`);
+  sbCookies.forEach(c => console.log(`[MW]   cookie: ${c.name} = ${c.value.slice(0, 60)}...`));
+  // ────────────────────────────────────────────────────────────────
+
+  if (!supabaseUrl || !supabaseAnon) {
+    console.error('[MW] BRAK ENV: NEXT_PUBLIC_SUPABASE_URL lub NEXT_PUBLIC_SUPABASE_ANON_KEY');
+    const loginUrl = new URL('/login', request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
 
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          response = NextResponse.next({
-            request: { headers: request.headers },
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
+  const supabase = createServerClient<Database>(supabaseUrl, supabaseAnon, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value)
+        );
+        response = NextResponse.next({
+          request: { headers: request.headers },
+        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        );
+      },
+    },
+  });
 
   // Odśwież sesję (wymaga await — mutuje cookies w response)
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+  console.log(`[MW] getUser result: user=${user?.id ?? 'null'} | error=${userError?.message ?? 'none'}`);
 
   if (!user) {
     // Brak sesji → redirect na login z zachowaniem docelowego URL
