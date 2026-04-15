@@ -53,33 +53,52 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!profiles || profiles.length === 0) return NextResponse.json([]);
 
-  // Pobierz emaile z auth.users (service_role)
+  // Pobierz emaile z auth.users + salda voucherów równolegle
   const userIds = profiles.map(p => p.id);
   let emailMap: Record<string, string> = {};
+  const balanceMap: Record<string, number> = {};
+
   try {
-    const { data: authList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-    if (authList?.users) {
-      for (const u of authList.users) {
+    const [authList, balancesResult] = await Promise.all([
+      supabase.auth.admin.listUsers({ perPage: 1000 }),
+      supabase.from('voucher_accounts').select('user_id, balance').in('user_id', userIds),
+    ]);
+
+    if (authList.data?.users) {
+      for (const u of authList.data.users) {
         if (userIds.includes(u.id)) emailMap[u.id] = u.email ?? '';
       }
+    }
+
+    for (const va of balancesResult.data ?? []) {
+      if (va.user_id) balanceMap[va.user_id] = va.balance ?? 0;
+    }
+
+    // Jeśli pracownik nie ma jeszcze konta voucherowego — utwórz je
+    const missingIds = userIds.filter(id => !(id in balanceMap));
+    if (missingIds.length > 0) {
+      await supabase.from('voucher_accounts').insert(
+        missingIds.map(uid => ({ user_id: uid, balance: 0 }))
+      );
     }
   } catch (_) {}
 
   const result = profiles.map(p => ({
-    id:            p.id,
-    full_name:     p.full_name,
-    email:         emailMap[p.id] ?? '',
-    pesel:         p.pesel,
-    phone_number:  p.phone_number,
-    department:    p.department,
-    position:      p.position,
-    contract_type: p.contract_type,
-    hire_date:     p.hire_date,
-    status:        (p.status ?? 'active') as 'active' | 'inactive' | 'anonymized',
-    iban:          p.iban,
-    iban_verified: p.iban_verified ?? false,
-    created_at:    p.created_at,
-    temp_password: p.temp_password ?? null,
+    id:             p.id,
+    full_name:      p.full_name,
+    email:          emailMap[p.id] ?? '',
+    pesel:          p.pesel,
+    phone_number:   p.phone_number,
+    department:     p.department,
+    position:       p.position,
+    contract_type:  p.contract_type,
+    hire_date:      p.hire_date,
+    status:         (p.status ?? 'active') as 'active' | 'inactive' | 'anonymized',
+    iban:           p.iban,
+    iban_verified:  p.iban_verified ?? false,
+    created_at:     p.created_at,
+    temp_password:  p.temp_password ?? null,
+    voucherBalance: balanceMap[p.id] ?? 0,
   }));
 
   return NextResponse.json(result);
