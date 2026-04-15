@@ -56,31 +56,57 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       : parseFloat((feeGross / (1 + VAT_RATE)).toFixed(2));
     const vatAmount = type === 'nota' ? 0 : parseFloat((feeGross - amountNet).toFixed(2));
 
-    const { data, error } = await supabase
+    // upsert przez partial unique index nie działa w Supabase JS —
+    // używamy SELECT + INSERT lub UPDATE
+    const { data: existing } = await supabase
       .from('financial_documents')
-      .upsert({
-        company_id:           params.id,
-        linked_order_id:      orderId,
-        type,
-        document_number:      type === 'nota' ? order.doc_voucher_id : order.doc_fee_id,
-        amount_net:           amountNet,
-        vat_amount:           vatAmount,
-        amount_gross:         parseFloat((amountNet + vatAmount).toFixed(2)),
-        status:               parsed.data.status,
-        issued_at:            order.created_at,
-        payment_confirmed_at: parsed.data.status === 'paid' ? now : null,
-        external_payment_ref: parsed.data.external_payment_ref ?? null,
-        updated_at:           now,
-      }, { onConflict: 'linked_order_id,type' })
-      .select()
-      .single();
+      .select('id')
+      .eq('linked_order_id', orderId)
+      .eq('type', type)
+      .maybeSingle();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    let docData: any;
+    if (existing) {
+      const { data: updated, error: updateErr } = await supabase
+        .from('financial_documents')
+        .update({
+          status:               parsed.data.status,
+          payment_confirmed_at: parsed.data.status === 'paid' ? now : null,
+          external_payment_ref: parsed.data.external_payment_ref ?? null,
+          updated_at:           now,
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+      docData = updated;
+    } else {
+      const { data: inserted, error: insertErr } = await supabase
+        .from('financial_documents')
+        .insert({
+          company_id:           params.id,
+          linked_order_id:      orderId,
+          type,
+          document_number:      type === 'nota' ? order.doc_voucher_id : order.doc_fee_id,
+          amount_net:           amountNet,
+          vat_amount:           vatAmount,
+          amount_gross:         parseFloat((amountNet + vatAmount).toFixed(2)),
+          status:               parsed.data.status,
+          issued_at:            order.created_at,
+          payment_confirmed_at: parsed.data.status === 'paid' ? now : null,
+          external_payment_ref: parsed.data.external_payment_ref ?? null,
+          updated_at:           now,
+        })
+        .select()
+        .single();
+      if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+      docData = inserted;
+    }
 
-    // Auto-aktualizuj status zamówienia
+    // Auto-aktualizuj status zamówienia + emituj vouchery jeśli opłacone
     await syncOrderStatus(supabase, orderId, parsed.data.status, now);
 
-    return NextResponse.json(data);
+    return NextResponse.json(docData);
   }
 
   // Istniejący rekord w financial_documents — zwykły UPDATE
@@ -108,36 +134,145 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return NextResponse.json(data);
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────────
-// Gdy dokument jest opłacony → zamówienie → 'paid'
-// Gdy dokument cofa się do pending → sprawdź czy wszystkie inne też pending → 'approved'
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+import { calculateAndSaveCommissions } from '@/lib/vouchers';
+
 async function syncOrderStatus(
   supabase: ReturnType<typeof import('@/lib/supabase').supabaseServer>,
   orderId: string,
   newDocStatus: 'paid' | 'pending',
   now: string,
 ) {
-  if (newDocStatus === 'paid') {
-    await supabase
-      .from('voucher_orders')
-      .update({ status: 'paid', updated_at: now })
-      .eq('id', orderId)
-      .in('status', ['approved', 'pending']);
+  if (newDocStatus !== 'paid') {
+    // Cofnięcie — sprawdź czy żaden inny dokument nie jest już opłacony
+    const { data: paidDocs } = await supabase
+      .from('financial_documents')
+      .select('id')
+      .eq('linked_order_id', orderId)
+      .eq('status', 'paid');
+
+    if (!paidDocs || paidDocs.length === 0) {
+      await supabase
+        .from('voucher_orders')
+        .update({ status: 'approved', updated_at: now })
+        .eq('id', orderId)
+        .eq('status', 'paid');
+    }
     return;
   }
 
-  // Cofnięcie — sprawdź czy żaden inny dokument nie jest już opłacony
-  const { data: paidDocs } = await supabase
+  // Sprawdź czy OBA dokumenty dla zamówienia są opłacone
+  const { data: allDocs } = await supabase
     .from('financial_documents')
-    .select('id')
-    .eq('linked_order_id', orderId)
-    .eq('status', 'paid');
+    .select('status')
+    .eq('linked_order_id', orderId);
 
-  if (!paidDocs || paidDocs.length === 0) {
+  const allPaid = allDocs && allDocs.length > 0 && allDocs.every(d => d.status === 'paid');
+
+  if (!allPaid) {
+    // Tylko jeden z dokumentów opłacony — nic nie rób z zamówieniem jeszcze
+    return;
+  }
+
+  // Pobierz zamówienie
+  const { data: order } = await supabase
+    .from('voucher_orders')
+    .select('*')
+    .eq('id', orderId)
+    .single();
+
+  if (!order) return;
+
+  // Oznacz zamówienie jako opłacone (jeśli jeszcze nie jest)
+  if (order.status !== 'paid') {
     await supabase
       .from('voucher_orders')
-      .update({ status: 'approved', updated_at: now })
-      .eq('id', orderId)
-      .eq('status', 'paid');
+      .update({ status: 'paid', updated_at: now })
+      .eq('id', orderId);
   }
+
+  // Emituj vouchery tylko raz (guard na status)
+  if (order.status === 'paid') return;  // już było
+
+  const { error: mintErr } = await supabase.rpc('mint_vouchers', {
+    p_order_id:     orderId,
+    p_company_id:   order.company_id,
+    p_owner_id:     order.hr_user_id,
+    p_quantity:     order.amount_vouchers,
+    p_valid_months: 12,
+  });
+
+  if (mintErr) return;
+
+  const planSource: any[] =
+    (order.payroll_snapshots as any[] | null) ??
+    (order.distribution_plan as any[] | null) ??
+    [];
+
+  let vouchersDistributed = 0;
+  const batchItems: { userId: string; userName: string; amount: number }[] = [];
+
+  for (const entry of planSource) {
+    const userId = entry.matched_user_id ?? entry.matchedUserId;
+    const amount = Math.floor(entry.final_netto_voucher ?? entry.voucherPartNet ?? entry.amount ?? 0);
+    if (!userId || amount <= 0) continue;
+
+    await (supabase.rpc as any)('distribute_to_employee', {
+      p_company_id:   order.company_id,
+      p_from_user_id: order.hr_user_id,
+      p_to_user_id:   userId,
+      p_amount:       amount,
+      p_order_id:     orderId,
+    });
+
+    vouchersDistributed += amount;
+
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('full_name')
+      .eq('id', userId)
+      .single();
+
+    batchItems.push({ userId, userName: profile?.full_name ?? userId, amount });
+
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      message: `Otrzymałeś ${amount} nowych voucherów od pracodawcy.`,
+      type:    'SUCCESS',
+    });
+  }
+
+  if (batchItems.length > 0) {
+    const batchId = `PROTOCOL-ADMIN-${now.slice(0, 10)}-${orderId.slice(-8).toUpperCase()}`;
+    const { error: batchErr } = await supabase
+      .from('distribution_batches')
+      .insert({
+        id:           batchId,
+        company_id:   order.company_id,
+        hr_user_id:   order.hr_user_id,
+        hr_name:      'System (Admin — po opłaceniu)',
+        total_amount: vouchersDistributed,
+        order_id:     orderId,
+        status:       'completed',
+      });
+
+    if (!batchErr) {
+      await supabase
+        .from('distribution_batch_items')
+        .insert(batchItems.map(item => ({
+          batch_id:  batchId,
+          user_id:   item.userId,
+          user_name: item.userName,
+          amount:    item.amount,
+        })));
+    }
+  }
+
+  await calculateAndSaveCommissions(
+    orderId,
+    Number(order.fee_pln ?? 0),
+    order.company_id,
+    order.is_first_invoice ?? false,
+  );
 }
