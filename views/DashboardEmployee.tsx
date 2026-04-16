@@ -271,14 +271,14 @@ export const DashboardEmployee: React.FC<Props> = ({
 
         <div id="catalog-anchor" className="flex items-center gap-4 py-4 w-full select-none mt-4">
           <div className="h-px flex-1 bg-white/20" />
-          <span className="text-sm font-bold text-white/50 uppercase tracking-widest">Katalog UsĹ‚ug</span>
+          <span className="text-sm font-bold text-white/50 uppercase tracking-widest">Katalog Usług</span>
           <div className="h-px flex-1 bg-white/20" />
         </div>
       </div>
 
       {/* Twoje Aplikacje */}
         <div id="sec-emp-twoje-aplikacje" className="!mt-4">
-        <SectionDivider title="Twoje Aplikacje" subtitle="ZarzÄ…dzane przez Eliton" accent="#7C3AED" />
+        <SectionDivider title="Twoje Aplikacje" subtitle="Zarządzane przez Eliton" accent="#7C3AED" />
         <ServiceCarousel>
           <AppIconCard
             icon={<Brain size={24} style={{ color: '#7C3AED' }} />}
@@ -294,7 +294,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<Scale size={24} style={{ color: '#b45309' }} />}
             image="/prawnik.png"
             name="AI Prawnik"
-            desc="Analiza umĂłw i porady prawne 24/7."
+            desc="Analiza umów i porady prawne 24/7."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={hasLegalAccess}
             price={150}
@@ -323,7 +323,7 @@ export const DashboardEmployee: React.FC<Props> = ({
         </ServiceCarousel>
       </div>
 
-      {/* Profitowi â€“ Ubezpieczenia i Zdrowie */}
+      {/* Profitowi – Ubezpieczenia i Zdrowie */}
       <div id="sec-emp-profitowi">
         <SectionDivider title="Profitowi" subtitle="Ubezpieczenia i Zdrowie" accent="#10B981" />
         <ServiceCarousel>
@@ -331,7 +331,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=800"
             name="Luxmed"
-            desc="Pakiet Optyka i Rehabilitacja. Szybki dostÄ™p do specjalistĂłw."
+            desc="Pakiet Optyka i Rehabilitacja. Szybki dostęp do specjalistów."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={0}
@@ -341,7 +341,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=800"
             name="PZU"
-            desc="Ubezpieczenie NNW Pracownicze. Ochrona caĹ‚Ä… dobÄ™."
+            desc="Ubezpieczenie NNW Pracownicze. Ochrona całą dobę."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={0}
@@ -351,17 +351,17 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800"
             name="Uniga"
-            desc="Szerokie ubezpieczenie na ĹĽycie dla rodziny."
+            desc="Szerokie ubezpieczenie na życie dla rodziny."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={0}
-            onClick={() => handlePartnerRequest('Uniga (Profitowi)', 'Ubezpieczenie na Ĺ»ycie')}
+            onClick={() => handlePartnerRequest('Uniga (Profitowi)', 'Ubezpieczenie na Życie')}
           />
           <AppIconCard
             icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800"
             name="Loyds"
-            desc="Ubezpieczenie od utraty dochodu dla menedĹĽerĂłw."
+            desc="Ubezpieczenie od utraty dochodu dla menedżerów."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={0}
@@ -370,7 +370,7 @@ export const DashboardEmployee: React.FC<Props> = ({
         </ServiceCarousel>
       </div>
 
-      {/* Multipolisa.pl â€“ Ubezpieczenia i zdrowie */}
+      {/* Multipolisa.pl – Ubezpieczenia i zdrowie */}
       <div id="sec-emp-multipolisa">
         <SectionDivider title="Multipolisa.pl" subtitle="Ubezpieczenia i zdrowie" accent="#F59E0B" />
         <ServiceCarousel>
@@ -378,7 +378,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800"
             name="Ergo Hestia"
-            desc="Pakiet Bezpieczny Dom od wszelkich zdarzeĹ„."
+            desc="Pakiet Bezpieczny Dom od wszelkich zdarzeń."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={0}
@@ -398,21 +398,21 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800"
             name="TU Zdrowie"
-            desc="Pakiet podstawowych badaĹ„ i przeglÄ…dowy dla aktywnych."
+            desc="Pakiet podstawowych badań i przeglądowy dla aktywnych."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={0}
-            onClick={() => handlePartnerRequest('TU Zdrowie (Multipolisa)', 'Pakiet BadaĹ„ Profilaktycznych')}
+            onClick={() => handlePartnerRequest('TU Zdrowie (Multipolisa)', 'Pakiet Badań Profilaktycznych')}
           />
           <AppIconCard
             icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1542382121-e9de4599fb4b?auto=format&fit=crop&q=80&w=800"
             name="Leadenhall"
-            desc="OC w ĹĽyciu prywatnym, chroni przed pomyĹ‚kami na codzieĹ„."
+            desc="OC w życiu prywatnym, chroni przed pomyłkami na codzień."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={0}
-            onClick={() => handlePartnerRequest('Leadenhall (Multipolisa)', 'Ubezpieczenie OC w Ĺ»yciu Prywatnym')}
+            onClick={() => handlePartnerRequest('Leadenhall (Multipolisa)', 'Ubezpieczenie OC w Życiu Prywatnym')}
           />
         </ServiceCarousel>
       </div>
@@ -425,7 +425,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
             image="https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&q=80&w=800"
             name="IKE"
-            desc="Indywidualne Konto Emerytalne z korzyĹ›ciami podatkowymi."
+            desc="Indywidualne Konto Emerytalne z korzyściami podatkowymi."
             gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
             hasAccess={false}
             price={0}
@@ -445,7 +445,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
             image=""
             name="Wolne miejsce"
-            desc="WkrĂłtce nowy produkt inwestycyjny."
+            desc="Wkrótce nowy produkt inwestycyjny."
             gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
             hasAccess={false}
             price={0}
@@ -455,7 +455,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
             image=""
             name="Wolne miejsce"
-            desc="WkrĂłtce nowy produkt inwestycyjny."
+            desc="Wkrótce nowy produkt inwestycyjny."
             gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
             hasAccess={false}
             price={0}
@@ -472,7 +472,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<Smartphone size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?auto=format&fit=crop&q=80&w=800"
             name="Cyfrowy detoks w 15 minut"
-            desc="ONE-TIME â€˘ Jak odzyskaÄ‡ spokĂłj bez wyrzucania telefonu."
+            desc="ONE-TIME • Jak odzyskać spokój bez wyrzucania telefonu."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={9}
@@ -481,52 +481,52 @@ export const DashboardEmployee: React.FC<Props> = ({
           <AppIconCard
             icon={<Heart size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800"
-            name="Trening odpornoĹ›ci (Resilience)"
-            desc="ONE-TIME â€˘ Techniki jednostek specjalnych dla korporacji."
+            name="Trening odporności (Resilience)"
+            desc="ONE-TIME • Techniki jednostek specjalnych dla korporacji."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={33}
-            onClick={() => handlePartnerRequest('Wellbeing', 'Trening odpornoĹ›ci na stres')}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Trening odporności na stres')}
           />
           <AppIconCard
             icon={<MessageSquare size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800"
-            name="Sztuka asertywnoĹ›ci na Teamsach"
-            desc="ONE-TIME â€˘ Jak mĂłwiÄ‡ nie, bez wyrzutĂłw sumienia."
+            name="Sztuka asertywności na Teamsach"
+            desc="ONE-TIME • Jak mówić nie, bez wyrzutów sumienia."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={21}
-            onClick={() => handlePartnerRequest('Wellbeing', 'Sztuka asertywnoĹ›ci na Teamsach')}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Sztuka asertywności na Teamsach')}
           />
           <AppIconCard
             icon={<Moon size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1511296933631-18b46797e652?auto=format&fit=crop&q=80&w=800"
-            name="Sen jako TwĂłj najlepszy projekt"
-            desc="ONE-TIME â€˘ Biohacking nocnej regeneracji."
+            name="Sen jako Twój najlepszy projekt"
+            desc="ONE-TIME • Biohacking nocnej regeneracji."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={44}
-            onClick={() => handlePartnerRequest('Wellbeing', 'Sen jako TwĂłj najlepszy projekt')}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Sen jako Twój najlepszy projekt')}
           />
           <AppIconCard
             icon={<Users size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1593642532973-d31b6557fa68?auto=format&fit=crop&q=80&w=800"
-            name="Praca z domu i samotnoĹ›Ä‡"
-            desc="ONE-TIME â€˘ Jak budowaÄ‡ relacje w trybie remote."
+            name="Praca z domu i samotność"
+            desc="ONE-TIME • Jak budować relacje w trybie remote."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={15}
-            onClick={() => handlePartnerRequest('Wellbeing', 'Praca z domu i samotnoĹ›Ä‡')}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Praca z domu i samotność')}
           />
           <AppIconCard
             icon={<Shield size={24} style={{ color: '#10B981' }} />}
             image="https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800"
-            name="Inwestowanie dla ostroĹĽnych"
-            desc="ONE-TIME â€˘ Podstawy budowania poduszki."
+            name="Inwestowanie dla ostrożnych"
+            desc="ONE-TIME • Podstawy budowania poduszki."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
             hasAccess={false}
             price={28}
-            onClick={() => handlePartnerRequest('Wellbeing', 'Inwestowanie dla ostroĹĽnych')}
+            onClick={() => handlePartnerRequest('Wellbeing', 'Inwestowanie dla ostrożnych')}
           />
         </ServiceCarousel>
       </div>
@@ -534,43 +534,43 @@ export const DashboardEmployee: React.FC<Props> = ({
 
       {/* Poradniki */}
       <div id="sec-emp-poradniki">
-        <SectionDivider title="Poradniki" subtitle="Dowiedz siÄ™ wiÄ™cej" accent="#F59E0B" />
+        <SectionDivider title="Poradniki" subtitle="Dowiedz się więcej" accent="#F59E0B" />
         <ServiceCarousel>
           <AppIconCard
             icon={<ShoppingCart size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800"
-            name="Psychologia zakupĂłw online"
-            desc="ONE-TIME â€˘ Jak nie daÄ‡ siÄ™ zmanipulowaÄ‡ algorytmom."
+            name="Psychologia zakupów online"
+            desc="ONE-TIME • Jak nie dać się zmanipulować algorytmom."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={7}
-            onClick={() => handlePartnerRequest('Poradniki', 'Psychologia zakupĂłw online')}
+            onClick={() => handlePartnerRequest('Poradniki', 'Psychologia zakupów online')}
           />
           <AppIconCard
             icon={<TrendingUp size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800"
-            name="Negocjacje podwyĹĽki w 2026"
-            desc="ONE-TIME â€˘ Nowoczesne argumenty oparte na danych."
+            name="Negocjacje podwyżki w 2026"
+            desc="ONE-TIME • Nowoczesne argumenty oparte na danych."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={42}
-            onClick={() => handlePartnerRequest('Poradniki', 'Negocjacje podwyĹĽki w 2026')}
+            onClick={() => handlePartnerRequest('Poradniki', 'Negocjacje podwyżki w 2026')}
           />
           <AppIconCard
             icon={<UserCheck size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?auto=format&fit=crop&q=80&w=800"
-            name="Personal Branding wewnÄ…trz firmy"
-            desc="ONE-TIME â€˘ Jak byÄ‡ widocznym, nie bÄ™dÄ…c nachalnym."
+            name="Personal Branding wewnątrz firmy"
+            desc="ONE-TIME • Jak być widocznym, nie będąc nachalnym."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={19}
-            onClick={() => handlePartnerRequest('Poradniki', 'Personal Branding wewnÄ…trz firmy')}
+            onClick={() => handlePartnerRequest('Poradniki', 'Personal Branding wewnątrz firmy')}
           />
           <AppIconCard
             icon={<Landmark size={24} style={{ color: '#F59E0B' }} />}
             image="https://images.unsplash.com/photo-1565514020176-6c2235b8b3a9?auto=format&fit=crop&q=80&w=800"
             name="Emerytura 2.0"
-            desc="ONE-TIME â€˘ ZrozumieÄ‡ PPK, IKE i IKZE bez bĂłlu gĹ‚owy."
+            desc="ONE-TIME • Zrozumieć PPK, IKE i IKZE bez bólu głowy."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
             hasAccess={false}
             price={36}
@@ -586,8 +586,8 @@ export const DashboardEmployee: React.FC<Props> = ({
           <AppIconCard
             icon={<Baby size={24} style={{ color: '#EC4899' }} />}
             image="https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=800"
-            name="Bajka na dobranoc: Robot, ktĂłry chciaĹ‚ mieÄ‡ sny"
-            desc="ONE-TIME â€˘ Audio dla dzieci pracownikĂłw."
+            name="Bajka na dobranoc: Robot, który chciał mieć sny"
+            desc="ONE-TIME • Audio dla dzieci pracowników."
             gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
             hasAccess={false}
             price={11}
@@ -597,7 +597,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<Utensils size={24} style={{ color: '#EC4899' }} />}
             image="https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800"
             name="Kuchnia w 15 minut"
-            desc="ONE-TIME â€˘ Meal-prep dla zapracowanych."
+            desc="ONE-TIME • Meal-prep dla zapracowanych."
             gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
             hasAccess={false}
             price={24}
@@ -607,7 +607,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             icon={<Compass size={24} style={{ color: '#EC4899' }} />}
             image="https://images.unsplash.com/photo-1455355675860-e883e35ab3a7?auto=format&fit=crop&q=80&w=800"
             name="Hobby zamiast scrollowania"
-            desc="ONE-TIME â€˘ Jak znaleĹşÄ‡ pasjÄ™, ktĂłra nie wymaga ekranu."
+            desc="ONE-TIME • Jak znaleĹşć pasję, która nie wymaga ekranu."
             gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
             hasAccess={false}
             price={17}
@@ -616,22 +616,22 @@ export const DashboardEmployee: React.FC<Props> = ({
           <AppIconCard
             icon={<Plane size={24} style={{ color: '#EC4899' }} />}
             image="https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=800"
-            name="PodrĂłĹĽe z nielimitowanym urlopem"
-            desc="ONE-TIME â€˘ Jak planowaÄ‡ workation."
+            name="Podróże z nielimitowanym urlopem"
+            desc="ONE-TIME • Jak planować workation."
             gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
             hasAccess={false}
             price={48}
-            onClick={() => handlePartnerRequest('E-booki', 'PodrĂłĹĽe z nielimitowanym urlopem')}
+            onClick={() => handlePartnerRequest('E-booki', 'Podróże z nielimitowanym urlopem')}
           />
           <AppIconCard
             icon={<Users size={24} style={{ color: '#EC4899' }} />}
             image="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=800"
-            name="Komunikacja miÄ™dzy pokoleniami"
-            desc="ONE-TIME â€˘ Jak dogadaÄ‡ siÄ™ z Gen Z i Boomerami."
+            name="Komunikacja między pokoleniami"
+            desc="ONE-TIME • Jak dogadać się z Gen Z i Boomerami."
             gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
             hasAccess={false}
             price={39}
-            onClick={() => handlePartnerRequest('E-booki', 'Komunikacja miÄ™dzy pokoleniami')}
+            onClick={() => handlePartnerRequest('E-booki', 'Komunikacja między pokoleniami')}
           />
         </ServiceCarousel>
       </div>
