@@ -8,7 +8,7 @@ const FinanceSchema = z.object({
     iban_verified: z.boolean().optional(),
 });
 
-// PATCH /api/users/[id]/finance — zaktualizuj dane bankowe (tylko superadmin)
+// PATCH /api/users/[id]/finance — zaktualizuj dane bankowe (superadmin + pracodawca)
 export async function PATCH(
     req: NextRequest,
     { params }: { params: { id: string } }
@@ -16,8 +16,20 @@ export async function PATCH(
     const auth = await getAuthUserWithRole();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    if (auth.role !== 'superadmin') {
-        return NextResponse.json({ error: 'Forbidden — only superadmin' }, { status: 403 });
+    if (!['superadmin', 'pracodawca'].includes(auth.role)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Pracodawca może edytować IBAN tylko pracownikom swojej firmy
+    if (auth.role === 'pracodawca') {
+        const supabase = supabaseServer();
+        const [{ data: target }, { data: hr }] = await Promise.all([
+            supabase.from('user_profiles').select('company_id').eq('id', params.id).single(),
+            supabase.from('user_profiles').select('company_id').eq('id', auth.id).single(),
+        ]);
+        if (!target || target.company_id !== hr?.company_id) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
     }
 
     const body = await req.json();
@@ -26,7 +38,7 @@ export async function PATCH(
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const supabase = supabaseServer();
+    const supabase2 = supabaseServer();
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (parsed.data.iban !== undefined) update.iban = parsed.data.iban;
     if (parsed.data.iban_verified !== undefined) {
@@ -34,7 +46,7 @@ export async function PATCH(
         if (parsed.data.iban_verified) update.iban_verified_at = new Date().toISOString();
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await supabase2
         .from('user_profiles')
         .update(update)
         .eq('id', params.id)

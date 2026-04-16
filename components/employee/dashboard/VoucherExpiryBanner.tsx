@@ -15,16 +15,19 @@ interface CountdownState {
   seconds: number;
 }
 
-interface ExpiryConfig {
-  day: number;
-  hour: number;
-  minute: number;
-}
 
 /** Returns THIS month's expiry datetime using the company's configured hour:minute. */
 function thisMonthExpiryDate(day: number, hour: number, minute: number): Date {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), day, hour, minute, 0, 0);
+}
+
+/** Formats a Date as "15 maja 2026 o 00:05" */
+function formatFullDate(d: Date): string {
+  const dateStr = d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${dateStr} o ${hh}:${mm}`;
 }
 
 function calcCountdown(target: Date): CountdownState {
@@ -83,6 +86,18 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
     return () => clearInterval(id);
   }, [expiryDay, expiryHour, expiryMinute, hasBalance]);
 
+  // Pełna data ważności do wyświetlenia
+  const expiryDateObj = expiryDay !== null
+    ? thisMonthExpiryDate(expiryDay, expiryHour, expiryMinute)
+    : null;
+  const expiryDateLabel = expiryDateObj ? formatFullDate(expiryDateObj) : '';
+
+  // Następna data ważności (jeśli bieżąca już minęła — pokaż przyszły miesiąc)
+  const nextExpiryDateObj = (expiryDay !== null && expiryDateObj && expiryDateObj.getTime() <= Date.now())
+    ? new Date(expiryDateObj.getFullYear(), expiryDateObj.getMonth() + 1, expiryDay, expiryHour, expiryMinute, 0, 0)
+    : expiryDateObj;
+  const nextExpiryDateLabel = nextExpiryDateObj ? formatFullDate(nextExpiryDateObj) : '';
+
   const handleActivate = useCallback(async () => {
     setActivating(true);
     setActivateErr(null);
@@ -112,7 +127,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-green-700">Vouchery zostały aktywowane!</p>
-          <p className="text-xs text-green-500">Możesz korzystać z benefitów. Następne wygaśnięcie: {expiryDay}. dnia przyszłego miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}.</p>
+          <p className="text-xs text-green-500">Możesz korzystać z benefitów. Następne wygaśnięcie: {nextExpiryDateLabel}.</p>
         </div>
         <button onClick={() => setDismissed(true)} className="flex-shrink-0 p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition" aria-label="Zamknij"><X size={16} /></button>
       </div>
@@ -130,7 +145,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
           <p className="text-sm font-bold text-orange-700">Vouchery wygasły</p>
           {activateErr
             ? <p className="text-xs text-red-500 mt-0.5">{activateErr}</p>
-            : <p className="text-xs text-orange-500">Wygasły {expiryDay}. dnia miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}. Aktywuj je, aby korzystać z benefitów.</p>
+            : <p className="text-xs text-orange-500">Wygasły {expiryDateLabel}. Aktywuj je, aby korzystać z benefitów.</p>
           }
         </div>
         <button
@@ -158,7 +173,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
           <Clock size={20} className="text-amber-600" />
         </div>
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setShowModal(true)}>
-          <p className="text-sm font-bold text-amber-700">Vouchery wygasną {expiryDay}. dnia miesiąca o {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}</p>
+          <p className="text-sm font-bold text-amber-700">Vouchery wygasną {nextExpiryDateLabel}</p>
           <p className="text-xs text-amber-500">
             Pozostało: {countdown.days}d {pad(countdown.hours)}:{pad(countdown.minutes)}:{pad(countdown.seconds)}
           </p>
@@ -183,7 +198,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
 
             <h2 className="text-xl font-black text-slate-900 text-center mb-1">Zbliża się wygaśnięcie</h2>
             <p className="text-sm text-slate-500 text-center mb-6">
-              Twoje vouchery wygasą {expiryDay}. dnia bieżącego miesiąca o godz. {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')}.
+              Twoje vouchery wygasną <strong className="text-amber-700">{nextExpiryDateLabel}</strong>.
               Po wygaśnięciu użyj przycisku „Aktywuj vouchery", aby je przywrócić.
             </p>
 
@@ -201,7 +216,7 @@ export const VoucherExpiryBanner: React.FC<Props> = ({ companyId, balance, vouch
                 ))}
               </div>
               <p className="text-xs mt-2 text-amber-400">
-                Do wygaśnięcia ({expiryDay}. dnia miesiąca, godz. {String(expiryHour).padStart(2,'0')}:{String(expiryMinute).padStart(2,'0')})
+                Do wygaśnięcia: {nextExpiryDateLabel}
               </p>
             </div>
 

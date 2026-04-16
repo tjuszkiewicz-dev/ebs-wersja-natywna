@@ -7,6 +7,7 @@ import { validatePesel, validatePLIBAN } from '../../services/payrollService';
 import { useStrattonSystem } from '../../context/StrattonContext';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { PhoneInput } from '../ui/PhoneInput';
 import { Select } from '../ui/Select';
 
 interface EmployeeImportModalProps {
@@ -79,6 +80,12 @@ export const EmployeeImportModal: React.FC<EmployeeImportModalProps> = ({
 
       if (!validateEmail(manualForm.email)) {
           actions.addToast("Błąd Walidacji", "Podano nieprawidłowy format adresu email.", "ERROR");
+          return;
+      }
+
+      const phoneDigits = manualForm.phone.replace(/^\+?48\s*/, '').replace(/\D/g, '');
+      if (phoneDigits.length > 0 && phoneDigits.length !== 9) {
+          actions.addToast("Błąd Walidacji", "Numer telefonu musi zawierać 9 cyfr (format +48 XXX XXX XXX).", "ERROR");
           return;
       }
 
@@ -317,7 +324,7 @@ export const EmployeeImportModal: React.FC<EmployeeImportModalProps> = ({
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <Input label="Email Służbowy *" type="email" value={manualForm.email} onChange={e => setManualForm({...manualForm, email: e.target.value})} required placeholder="anna.nowak@firma.pl" />
-                              <Input label="Telefon *" type="tel" value={manualForm.phone} onChange={e => setManualForm({...manualForm, phone: e.target.value})} placeholder="500 600 700" icon={<Phone size={14}/>} />
+                              <PhoneInput label="Telefon *" required value={manualForm.phone} onChange={v => setManualForm({...manualForm, phone: v})} />
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

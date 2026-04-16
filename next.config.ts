@@ -26,6 +26,9 @@ if (process.env.VERCEL_BRANCH_URL) {
 }
 
 const nextConfig: NextConfig = {
+  // xlsx jest biblioteką CJS — bez transpilePackages webpack 5 zgłasza
+  // "__webpack_modules__[moduleId] is not a function" w runtime przeglądarki
+  transpilePackages: ['xlsx'],
   typescript: {
     ignoreBuildErrors: true,
   },

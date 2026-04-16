@@ -4,6 +4,7 @@ import { X, Save, User as UserIcon, Building2, CreditCard, Phone, AlertCircle, S
 import { User, ContractType, UserStatus } from '../../../types';
 import { validatePLIBAN } from '../../../services/payrollService';
 import { Input } from '../../ui/Input';
+import { PhoneInput } from '../../ui/PhoneInput';
 import { Select } from '../../ui/Select';
 import { Button } from '../../ui/Button';
 import { Card } from '../../ui/Card';
@@ -137,6 +138,12 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
       e.preventDefault();
       
+      const phoneDigits = phone.replace(/^\+?48\s*/, '').replace(/\D/g, '');
+      if (phoneDigits.length > 0 && phoneDigits.length !== 9) {
+          setIbanError('Numer telefonu musi zawierać 9 cyfr (format +48 XXX XXX XXX)');
+          return;
+      }
+
       const cleanIban = iban.replace(/\s+/g, '').toUpperCase();
       if (cleanIban && !validatePLIBAN(cleanIban)) {
           setIbanError("Nieprawidłowy format IBAN (PL + 26 cyfr)");
@@ -213,7 +220,7 @@ export const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                                 <Input label="PESEL" value={pesel} onChange={e => setPesel(e.target.value)} className="font-mono"/>
                                 <Input label="Email Służbowy *" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
                                 <Input label="Email Prywatny" type="email" value={privateEmail} onChange={e => setPrivateEmail(e.target.value)} />
-                                <Input label="Telefon" type="tel" value={phone} onChange={e => setPhone(e.target.value)} icon={<Phone size={16}/>} />
+                                <PhoneInput label="Telefon" value={phone} onChange={setPhone} />
                             </div>
                         </Card>
 

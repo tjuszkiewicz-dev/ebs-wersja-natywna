@@ -47,12 +47,12 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
-  // Atomiczny transfer voucherów
-  const { error: transferError } = await supabase.rpc('transfer_vouchers', {
+  // Przesuń fizyczne rekordy voucherów do pracownika (aktualizuje current_owner_id + saldo)
+  const { error: transferError } = await supabase.rpc('distribute_to_employee', {
+    p_company_id:   companyId ?? auth.id,
     p_from_user_id: auth.id,
     p_to_user_id:   employeeId,
     p_amount:       amount,
-    p_type:         'przekazanie',
     p_order_id:     null,
   });
 

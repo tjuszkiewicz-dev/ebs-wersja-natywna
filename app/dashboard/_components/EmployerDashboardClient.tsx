@@ -47,9 +47,35 @@ function HRLayout() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  if (!currentUser) return null;
+  // ── WSZYSTKIE HOOKI PRZED WCZESNYMI RETURNAMI (React Rules of Hooks) ─────
+  const company = useMemo(
+    () => currentUser ? (companies.find(c => c.id === currentUser.companyId) ?? null) : null,
+    [currentUser, companies]
+  );
 
-  const company = companies.find(c => c.id === currentUser.companyId);
+  const myNotifications = useMemo(
+    () => currentUser ? notifications.filter(n => n.userId === currentUser.id) : [],
+    [notifications, currentUser]
+  );
+
+  const unreadCount = useMemo(
+    () => myNotifications.filter(n => !n.read).length,
+    [myNotifications]
+  );
+
+  const handleLogout = useCallback(async () => {
+    await supabaseBrowser.auth.signOut();
+    actions.logout();
+    window.location.href = '/login';
+  }, [actions]);
+
+  const handleNotificationClick = useCallback((n: Notification) => {
+    if (!n.read) actions.handleMarkSingleNotificationRead(n.id);
+    if (n.targetEntityType === 'ORDER') setCurrentView('hr-history');
+  }, [actions]);
+
+  // ── Wczesne returny dopiero po wszystkich hookach ─────────────────────────
+  if (!currentUser) return null;
 
   if (!company) {
     return (
@@ -59,34 +85,12 @@ function HRLayout() {
     );
   }
 
-  // ── Dane dla dashboardu ────────────────────────────────────────────────────
+  // ── Dane dla dashboardu (nie-hooki, mogą być po strażnikach) ─────────────
   const myEmployees = users.filter(
     u => u.companyId === company.id && u.role === Role.EMPLOYEE
   );
   const myOrders   = orders.filter(o => o.companyId === company.id);
   const myVouchers = vouchers.filter(v => v.companyId === company.id);
-
-  // ── Powiadomienia ─────────────────────────────────────────────────────────
-  const myNotifications = useMemo(
-    () => notifications.filter(n => n.userId === currentUser.id),
-    [notifications, currentUser.id]
-  );
-  const unreadCount = useMemo(
-    () => myNotifications.filter(n => !n.read).length,
-    [myNotifications]
-  );
-
-  // ── Handlery ──────────────────────────────────────────────────────────────
-  const handleLogout = async () => {
-    await supabaseBrowser.auth.signOut();
-    actions.logout();
-    window.location.href = '/login';
-  };
-
-  const handleNotificationClick = useCallback((n: Notification) => {
-    if (!n.read) actions.handleMarkSingleNotificationRead(n.id);
-    if (n.targetEntityType === 'ORDER') setCurrentView('hr-history');
-  }, [actions]);
 
   // ── Render (identyczny layout jak App.tsx) ────────────────────────────────
   return (

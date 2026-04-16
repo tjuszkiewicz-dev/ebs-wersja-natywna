@@ -34,20 +34,19 @@ export async function GET(req: NextRequest) {
   const supabase = supabaseServer();
 
   const [
-    ordersResult,
+    vouchersTotalResult,
     commissionsResult,
     companiesResult,
     orderedChartResult,
     redeemedChartResult,
     buybackChartResult,
   ] = await Promise.all([
-    // Wyemitowane vouchery z zamówień w okresie
+    // Łączna liczba aktywnych voucherów we wszystkich firmach (niezależnie od okresu)
     supabase
-      .from('voucher_orders')
-      .select('amount_vouchers')
-      .in('status', ['approved', 'paid'])
-      .gte('created_at', fromISO)
-      .lte('created_at', toISO),
+      .from('vouchers')
+      .select('*', { count: 'exact', head: true })
+      .not('status', 'in', '(consumed,expired,buyback_complete)'),
+
 
     // Prowizje naliczone w okresie
     supabase
@@ -80,14 +79,12 @@ export async function GET(req: NextRequest) {
     // Odkup voucherów per dzień
     supabase
       .from('buyback_agreements')
-      .select('created_at, total_value')
+      .select('created_at, total_value_pln')
       .gte('created_at', fromISO)
       .lte('created_at', toISO),
   ]);
 
-  const vouchersIssued = (ordersResult.data ?? []).reduce(
-    (sum, o) => sum + (Number(o.amount_vouchers) || 0), 0
-  );
+  const vouchersIssued = vouchersTotalResult.count ?? 0;
   const commissionsTotal = (commissionsResult.data ?? []).reduce(
     (sum, c) => sum + (Number(c.amount_pln) || 0), 0
   );
@@ -108,7 +105,7 @@ export async function GET(req: NextRequest) {
     ensureDay(getDay(r.created_at)).redeemed += Number(r.amount) || 0;
   }
   for (const b of buybackChartResult.data ?? []) {
-    ensureDay(getDay(b.created_at)).buybacks += Number(b.total_value) || 0;
+    ensureDay(getDay(b.created_at)).buybacks += Number(b.total_value_pln) || 0;
   }
 
   const chart = Array.from(chartMap.entries())

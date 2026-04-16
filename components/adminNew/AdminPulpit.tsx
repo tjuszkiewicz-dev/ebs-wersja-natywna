@@ -172,7 +172,7 @@ export const AdminPulpit: React.FC = () => {
       {/* Karty statystyk */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Wyemitowane vouchery"
+          label="Aktywne vouchery (wszystkie firmy)"
           value={loading ? '' : `${(stats?.vouchersIssued ?? 0).toLocaleString('pl-PL')} szt.`}
           icon={<Coins size={22} />}
           color="bg-blue-600"

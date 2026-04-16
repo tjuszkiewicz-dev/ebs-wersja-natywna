@@ -8,6 +8,7 @@ import { generateExcelTemplate, parseExcelFile, exportActiveEmployees, exportEmp
 import { supabaseProfileToUser } from '../lib/supabaseToUser';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { HrOrder, HRTab, STATUS_MAP, formatPeriod, buildOrderReportHtml } from '../utils/hrUtils';
+import { formatPhoneDigits, digitsFromPhone } from '../components/ui/PhoneInput';
 import { EmpDetailRow } from '../components/hr/dashboard/EmployeeCard';
 import { HROrderPickerModal } from '../components/hr/modals/HROrderPickerModal';
 import { HROrderHistoryModal } from '../components/hr/modals/HROrderHistoryModal';
@@ -17,7 +18,7 @@ import {
   Search, X, CheckCircle2, AlertCircle, AlertTriangle, Clock, ChevronRight,
   ChevronDown, ChevronUp, Eye, EyeOff, UserX, UserPlus, Building2, Phone, Mail, MapPin,
   Calendar, Plus, RefreshCw, Loader2, Info, TrendingUp, Wallet, Filter,
-  ArrowLeft, LogOut, Save, History, Printer, KeyRound, Copy, Check, Trash2
+  ArrowLeft, LogOut, Save, History, Printer, KeyRound, Copy, Check, Trash2, Pencil
 } from 'lucide-react';
 
 // ─── Props ───────────────────────────────────────────────────────────────────
@@ -92,7 +93,33 @@ export const DashboardNewHR: React.FC<Props> = ({
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+  // ─── Live suma voucherów pracowniczych ───────────────────────────────────
+  const [liveEmployeeTotal, setLiveEmployeeTotal] = useState<number | null>(null);
+  useEffect(() => {
+    fetch(`/api/employees?companyId=${company.id}`)
+      .then(r => r.ok ? r.json() : [])
+      .then((emps: any[]) => {
+        if (!Array.isArray(emps)) return;
+        const sum = emps.reduce((s, e) => s + (e.voucherBalance ?? 0), 0);
+        setLiveEmployeeTotal(sum);
+      })
+      .catch(() => {});
+  }, [company.id]);
+
+  // ─── Auto-refresh pracowników przy wejściu na tab EMPLOYEES ─────────────
+  const [empRefreshing, setEmpRefreshing] = useState(false);
+  const refreshEmployees = useCallback(async () => {
+    setEmpRefreshing(true);
+    try { await actions.fetchUsersFromApi(); } finally { setEmpRefreshing(false); }
+  }, [actions]);
+
   const [activeTab, setActiveTab] = useState<HRTab>('ORDER');
+
+  // Auto-refresh employees when switching to EMPLOYEES tab
+  useEffect(() => {
+    if (activeTab === 'EMPLOYEES') refreshEmployees();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Sync tab from sidebar
   useEffect(() => {
@@ -234,23 +261,53 @@ export const DashboardNewHR: React.FC<Props> = ({
   const [hrConfirmState, setHrConfirmState] = useState<Record<string, { checked: boolean; loading: boolean; done: boolean; error: string | null }>>({});
   const [deletingOrderId, setDeletingOrderId] = useState<string | null>(null);
 
-  const handleDeleteOrder = async (orderId: string) => {
-    setDeletingOrderId(orderId);
+  // ─── Delete order modal state ────────────────────────────────────────────
+  type DeleteOrderInfo = {
+    id: string;
+    status: string;
+    amount_vouchers: number;
+    total_pln: number;
+    voucherCount: number;
+    consumedCount: number;
+    documentsCount: number;
+  };
+  const [deleteModal, setDeleteModal] = useState<{ order: HrOrder; info: DeleteOrderInfo } | null>(null);
+  const [deleteModalLoading, setDeleteModalLoading] = useState(false);
+  const [deleteModalFetching, setDeleteModalFetching] = useState(false);
+  const [deleteConfirmTyped, setDeleteConfirmTyped] = useState('');
+
+  const openDeleteModal = async (order: HrOrder) => {
+    setDeleteModalFetching(true);
+    setDeleteConfirmTyped('');
     try {
       const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      if (UUID_RE.test(orderId)) {
-        const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          alert(body.error ?? 'Nie udało się usunąć zamówienia');
-          return;
-        }
-      }
-      // Usuń z DB, odśwież stan
-      await fetchOrders();
-      if (expandedOrderId === orderId) setExpandedOrderId(null);
+      if (!UUID_RE.test(order.id)) return;
+      const res = await fetch(`/api/orders/${order.id}`);
+      if (!res.ok) return;
+      const info: DeleteOrderInfo = await res.json();
+      setDeleteModal({ order, info });
     } finally {
-      setDeletingOrderId(null);
+      setDeleteModalFetching(false);
+    }
+  };
+
+  const confirmDeleteOrder = async () => {
+    if (!deleteModal) return;
+    setDeleteModalLoading(true);
+    try {
+      const res = await fetch(`/api/orders/${deleteModal.order.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        alert(body.error ?? 'Nie udało się usunąć zamówienia');
+        return;
+      }
+      setDeleteModal(null);
+      setDeleteConfirmTyped('');
+      await fetchOrders();
+      await fetchFinancialDocs();
+      if (expandedOrderId === deleteModal.order.id) setExpandedOrderId(null);
+    } finally {
+      setDeleteModalLoading(false);
     }
   };
   // ─── Computed values ─────────────────────────────────────────────────────
@@ -269,6 +326,25 @@ export const DashboardNewHR: React.FC<Props> = ({
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), day, hour, minute, 0, 0);
   }, [company.voucherExpiryDay, company.voucherExpiryHour, company.voucherExpiryMinute]);
+
+  // Następna data ważności voucherów (dla wyświetlenia w kartotece)
+  const nextExpiryDate = useMemo(() => {
+    const day  = company.voucherExpiryDay    ?? null;
+    const hour = company.voucherExpiryHour   ?? 0;
+    const min  = company.voucherExpiryMinute ?? 5;
+    if (!day) return null;
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), day, hour, min, 0, 0);
+    // Jeśli termin w tym miesiącu jeszcze nie minął — pokaż ten miesiąc, inaczej następny
+    if (thisMonth.getTime() > now.getTime()) return thisMonth;
+    return new Date(now.getFullYear(), now.getMonth() + 1, day, hour, min, 0, 0);
+  }, [company.voucherExpiryDay, company.voucherExpiryHour, company.voucherExpiryMinute]);
+
+  const formatExpiryDate = useCallback((d: Date | null): string => {
+    if (!d) return '—';
+    return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }) +
+      ` o ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }, []);
 
   const deadlinePassed = useMemo(
     () => !!companyExpiryDeadline && companyExpiryDeadline.getTime() <= Date.now(),
@@ -343,10 +419,8 @@ export const DashboardNewHR: React.FC<Props> = ({
     return map;
   }, [myEmployees]);
 
-  const totalPool = useMemo(
-    () => vouchers.filter(v => v.companyId === company.id && (v.status === VoucherStatus.ACTIVE || v.status === VoucherStatus.DISTRIBUTED)).length,
-    [vouchers, company.id]
-  );
+  const totalPool = liveEmployeeTotal
+    ?? vouchers.filter(v => v.companyId === company.id && (v.status === VoucherStatus.ACTIVE || v.status === VoucherStatus.DISTRIBUTED)).length;
 
   const unpaidOrders = useMemo(
     () => hrOrders.filter(o => o.companyId === company.id && o.status === 'APPROVED'),
@@ -555,6 +629,122 @@ export const DashboardNewHR: React.FC<Props> = ({
       u.id === userId ? { ...u, status: 'ACTIVE' } : u
     ));
   }, [actions]);
+
+  // ─── Inline employee edit state ───────────────────────────────────────────
+  const [activeEdit, setActiveEdit] = useState<{
+    empId: string;
+    section: 'kontakt' | 'adres' | 'iban' | 'zatrudnienie' | 'dostep';
+    values: Record<string, string>;
+  } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  function validateIBAN(raw: string): boolean {
+    const s = raw.replace(/\s+/g, '').toUpperCase();
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(s)) return false;
+    const moved = s.slice(4) + s.slice(0, 4);
+    const digits = moved.split('').map(c => c >= 'A' ? String(c.charCodeAt(0) - 55) : c).join('');
+    let rem = 0;
+    for (const ch of digits) { rem = (rem * 10 + parseInt(ch, 10)) % 97; }
+    return rem === 1;
+  }
+
+  const openEdit = (emp: User, section: 'kontakt' | 'adres' | 'iban' | 'zatrudnienie' | 'dostep') => {
+    setEditError(null);
+    let values: Record<string, string> = {};
+    if (section === 'kontakt') {
+      values = { email: emp.email ?? '', phone: emp.identity?.phoneNumber ?? '', _origEmail: emp.email ?? '' };
+    } else if (section === 'adres') {
+      values = { street: emp.address?.street ?? '', zip: emp.address?.zipCode ?? '', city: emp.address?.city ?? '' };
+    } else if (section === 'iban') {
+      values = { iban: emp.finance?.payoutAccount?.iban ?? '' };
+    } else if (section === 'zatrudnienie') {
+      values = { contract_type: emp.contract?.type ?? 'UOP', hire_date: (emp.contract as any)?.contractDateStart ?? (emp.contract as any)?.startDate ?? '', department: emp.organization?.department ?? '', position: emp.organization?.position ?? '' };
+    } else if (section === 'dostep') {
+      values = { email: emp.email ?? '', _origEmail: emp.email ?? '' };
+    }
+    setActiveEdit({ empId: emp.id, section, values });
+  };
+
+  const saveEdit = async () => {
+    if (!activeEdit || editSaving) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const { empId, section, values } = activeEdit;
+
+      if (section === 'kontakt') {
+        const phoneDigits = digitsFromPhone(values.phone || '');
+        if (phoneDigits.length > 0 && phoneDigits.length !== 9) {
+          setEditError('Numer telefonu musi zawierać 9 cyfr (format +48 XXX XXX XXX)');
+          return;
+        }
+        const patchRes = await fetch(`/api/users/${empId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone_number: values.phone }),
+        });
+        if (!patchRes.ok) { const b = await patchRes.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu telefonu'); return; }
+        if (values.email.trim() && values.email.trim() !== values._origEmail) {
+          const emailRes = await fetch(`/api/users/${empId}/email`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: values.email.trim() }),
+          });
+          if (!emailRes.ok) { const b = await emailRes.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zmiany e-maila'); return; }
+        }
+        actions.setUsers(prev => prev.map(u => u.id === empId ? {
+          ...u,
+          email: values.email.trim() || u.email,
+          identity: { firstName: u.identity?.firstName ?? '', lastName: u.identity?.lastName ?? '', pesel: u.identity?.pesel ?? '', email: values.email.trim() || u.email, phoneNumber: values.phone },
+        } : u));
+
+      } else if (section === 'adres') {
+        const res = await fetch(`/api/users/${empId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address_street: values.street, address_zip: values.zip, address_city: values.city }),
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu adresu'); return; }
+        actions.setUsers(prev => prev.map(u => u.id === empId ? { ...u, address: { street: values.street, city: values.city, zipCode: values.zip } } : u));
+
+      } else if (section === 'iban') {
+        const ibanVal = values.iban.replace(/\s+/g, '').toUpperCase();
+        if (ibanVal && !validateIBAN(ibanVal)) { setEditError('Nieprawidłowy numer IBAN (weryfikacja mod97)'); return; }
+        const res = await fetch(`/api/users/${empId}/finance`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ iban: ibanVal, iban_verified: false }),
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu IBAN'); return; }
+        actions.setUsers(prev => prev.map(u => u.id === empId ? {
+          ...u, finance: { ...(u.finance as any), payoutAccount: { iban: ibanVal, country: 'PL', isVerified: false } },
+        } : u));
+
+      } else if (section === 'zatrudnienie') {
+        const res = await fetch(`/api/users/${empId}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contract_type: values.contract_type, hire_date: values.hire_date || undefined, department: values.department.trim() || undefined, position: values.position.trim() || undefined }),
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu zatrudnienia'); return; }
+        actions.setUsers(prev => prev.map(u => u.id === empId ? {
+          ...u,
+          contract: { ...(u.contract ?? {}), type: values.contract_type as any, contractDateStart: values.hire_date },
+          organization: { ...(u.organization ?? {}), department: values.department.trim(), position: values.position.trim() },
+        } : u));
+
+      } else if (section === 'dostep') {
+        if (!values.email.trim()) { setEditError('Podaj adres e-mail'); return; }
+        if (values.email.trim() === values._origEmail) { setActiveEdit(null); return; }
+        const res = await fetch(`/api/users/${empId}/email`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: values.email.trim() }),
+        });
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zmiany loginu'); return; }
+        actions.setUsers(prev => prev.map(u => u.id === empId ? { ...u, email: values.email.trim() } : u));
+      }
+
+      setActiveEdit(null);
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const filteredEmployees = useMemo(() => {
     let list = myEmployees;
@@ -1028,18 +1218,6 @@ export const DashboardNewHR: React.FC<Props> = ({
                             <FileText size={12}/> Umowa
                           </a>
                         )}
-                        {order.status === 'PENDING' && (
-                          <button
-                            onClick={e => { e.stopPropagation(); handleDeleteOrder(order.id); }}
-                            disabled={deletingOrderId === order.id}
-                            title="Usuń zamówienie"
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors disabled:opacity-40"
-                          >
-                            {deletingOrderId === order.id
-                              ? <Loader2 size={15} className="animate-spin"/>
-                              : <Trash2 size={15}/>}
-                          </button>
-                        )}
                         <div className="text-gray-400">
                           {expanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
                         </div>
@@ -1047,7 +1225,18 @@ export const DashboardNewHR: React.FC<Props> = ({
 
                       {expanded && (
                         <div className="border-t border-gray-100 bg-gray-50 px-5 py-3">
-                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Podział zamówienia</p>
+                          {/* Nagłówek sekcji + przycisk usuń */}
+                          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'8px'}}>
+                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Podział zamówienia</p>
+                            <button
+                              onClick={() => openDeleteModal(order)}
+                              disabled={deleteModalFetching}
+                              style={{display:'flex', alignItems:'center', gap:'6px', padding:'4px 10px', fontSize:'12px', fontWeight:600, color:'#dc2626', border:'1px solid #fecaca', borderRadius:'8px', background:'white', cursor:'pointer', opacity: deleteModalFetching ? 0.4 : 1}}
+                            >
+                              {deleteModalFetching ? <Loader2 size={13} className="animate-spin"/> : <Trash2 size={13}/>}
+                              Usuń zamówienie
+                            </button>
+                          </div>
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="text-xs text-gray-400">
@@ -1153,8 +1342,17 @@ export const DashboardNewHR: React.FC<Props> = ({
                   );
                 })}
               </div>
+              <button
+                onClick={refreshEmployees}
+                disabled={empRefreshing}
+                title="Odśwież salda voucherów"
+                className="ml-auto flex items-center gap-2 bg-white border border-gray-200 text-gray-600 text-sm font-medium px-3 py-2 rounded hover:bg-gray-50 transition-colors shrink-0 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={empRefreshing ? 'animate-spin' : ''}/>
+                {empRefreshing ? 'Odświeżam…' : 'Odśwież salda'}
+              </button>
               <button onClick={() => setShowAddModal(true)}
-                className="ml-auto flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded hover:bg-blue-700 transition-colors shrink-0">
+                className="flex items-center gap-2 bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded hover:bg-blue-700 transition-colors shrink-0">
                 <UserPlus size={15}/> Dodaj pracownika
               </button>
               <button
@@ -1236,7 +1434,14 @@ export const DashboardNewHR: React.FC<Props> = ({
                               <td style={cell({ color: '#6b7280' })}>{dept || '—'}</td>
                               <td style={cell({ color: '#6b7280' })}>{pos || '—'}</td>
                               <td style={cell({ color: '#6b7280', fontSize: 11, whiteSpace: 'nowrap' })}>{contract}</td>
-                              <td style={cell({ textAlign: 'right', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' })}>{formatCurrency(balance)}</td>
+                              <td style={cell({ textAlign: 'right', whiteSpace: 'nowrap' })}>
+                                <span style={{ fontWeight: 700, color: '#111827' }}>{formatCurrency(balance)}</span>
+                                {balance > 0 && nextExpiryDate && (
+                                  <span style={{ display: 'block', fontSize: 10, color: '#f59e0b', fontWeight: 500 }} title={`Termin ważności: ${formatExpiryDate(nextExpiryDate)}`}>
+                                    Wygasa {nextExpiryDate.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
+                              </td>
                               <td style={cell({ textAlign: 'center' })}>
                                 <span style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -1256,91 +1461,219 @@ export const DashboardNewHR: React.FC<Props> = ({
                               <tr>
                                 <td colSpan={12} style={{ padding: 0, background: '#eff6ff', borderBottom: '1px solid #e5e7eb' }}>
                                   <div className="px-5 py-4">
+
+                                    {/* Saldo voucherów + termin ważności */}
+                                    <div className={`flex items-center gap-4 rounded-lg px-4 py-3 mb-3 ${balance > 0 ? 'bg-emerald-50 border border-emerald-200' : 'bg-gray-50 border border-gray-200'}`}>
+                                      <Wallet size={18} className={balance > 0 ? 'text-emerald-600' : 'text-gray-400'} />
+                                      <div className="flex-1">
+                                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Saldo voucherów</p>
+                                        <p className={`text-xl font-black mt-0.5 ${balance > 0 ? 'text-emerald-700' : 'text-gray-400'}`}>
+                                          {formatCurrency(balance)}
+                                        </p>
+                                      </div>
+                                      {nextExpiryDate && (
+                                        <div className="text-right">
+                                          <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide flex items-center gap-1 justify-end">
+                                            <Clock size={11}/> Termin ważności
+                                          </p>
+                                          <p className="text-sm font-bold text-amber-700 mt-0.5">
+                                            {formatExpiryDate(nextExpiryDate)}
+                                          </p>
+                                          {balance > 0 && (
+                                            <p className="text-xs text-amber-500 mt-0.5">
+                                              Vouchery wygasają — pracownik musi je wykorzystać przed tą datą
+                                            </p>
+                                          )}
+                                        </div>
+                                      )}
+                                      {!nextExpiryDate && (
+                                        <p className="text-xs text-gray-400 italic">Brak skonfigurowanego terminu ważności</p>
+                                      )}
+                                    </div>
+
                                     <div className="grid grid-cols-5 gap-3 mb-3">
 
-                                      {/* Dane kontaktowe */}
-                                      <div className="bg-white border border-blue-100 rounded-lg p-3">
-                                        <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide mb-2.5">
-                                          <Mail size={11}/> Kontakt
-                                        </p>
-                                        <EmpDetailRow label="E-mail" value={emp.email}/>
-                                        <EmpDetailRow label="Telefon" value={emp.identity?.phoneNumber}/>
-                                      </div>
-
-                                      {/* Adres */}
-                                      <div className="bg-white border border-blue-100 rounded-lg p-3">
-                                        <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide mb-2.5">
-                                          <MapPin size={11}/> Adres
-                                        </p>
-                                        <EmpDetailRow label="Ulica" value={emp.address?.street}/>
-                                        <EmpDetailRow label="Kod poczt." value={(emp.address as any)?.zipCode}/>
-                                        <EmpDetailRow label="Miasto" value={emp.address?.city}/>
-                                      </div>
-
-                                      {/* Konto bankowe */}
-                                      <div className="bg-white border border-blue-100 rounded-lg p-3">
-                                        <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide mb-2.5">
-                                          <CreditCard size={11}/> Konto bankowe
-                                        </p>
-                                        <EmpDetailRow label="IBAN" value={emp.finance?.payoutAccount?.iban} mono/>
-                                        <EmpDetailRow label="Status" value={
-                                          emp.finance?.payoutAccount?.iban
-                                            ? (emp.finance.payoutAccount.isVerified ? 'Zweryfikowane ✓' : 'Niezweryfikowane')
-                                            : undefined
-                                        }/>
-                                      </div>
-
-                                      {/* Dane logowania */}
-                                      <div className="bg-white border border-amber-200 rounded-lg p-3">
-                                        <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700 uppercase tracking-wide mb-2.5">
-                                          <KeyRound size={11}/> Dostęp do platformy
-                                        </p>
-                                        <div className="space-y-1.5">
-                                          <div>
-                                            <span className="text-[10px] text-slate-400 block">Login</span>
-                                            <span className="font-mono text-xs text-slate-700 break-all">{emp.email}</span>
+                                      {/* KONTAKT */}
+                                      {(() => {
+                                        const sec = 'kontakt' as const;
+                                        const editing = activeEdit?.empId === emp.id && activeEdit?.section === sec;
+                                        const btnBase: React.CSSProperties = { display:'inline-flex', alignItems:'center', gap:2, fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4, background:'white', cursor:'pointer' };
+                                        const inp: React.CSSProperties = { width:'100%', fontSize:11, padding:'3px 5px', border:'1px solid #93c5fd', borderRadius:4, outline:'none' };
+                                        return (
+                                          <div className="bg-white border border-blue-100 rounded-lg p-3">
+                                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                                              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide"><Mail size={11}/> Kontakt</p>
+                                              {editing ? (
+                                                <div style={{display:'flex',gap:3}}>
+                                                  <button onClick={e=>{e.stopPropagation();saveEdit();}} disabled={editSaving} style={{...btnBase,border:'1px solid #bbf7d0',color:'#16a34a',opacity:editSaving?0.5:1}}>{editSaving?<Loader2 size={9} className="animate-spin"/>:<Check size={9}/>} Zapisz</button>
+                                                  <button onClick={e=>{e.stopPropagation();setActiveEdit(null);setEditError(null);}} style={{...btnBase,border:'1px solid #e5e7eb',color:'#6b7280'}}><X size={9}/> Anuluj</button>
+                                                </div>
+                                              ) : (
+                                                <button onClick={e=>{e.stopPropagation();openEdit(emp,sec);}} style={{...btnBase,border:'1px solid #bfdbfe',color:'#3b82f6'}}><Pencil size={9}/> Edytuj</button>
+                                              )}
+                                            </div>
+                                            {editing ? (
+                                              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>E-mail</label><input type="email" value={activeEdit.values.email||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,email:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp}/></div>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Telefon</label><div style={{...inp,display:'flex',alignItems:'center',padding:0,overflow:'hidden'}}><span style={{fontSize:11,color:'#9ca3af',paddingLeft:5,paddingRight:2,userSelect:'none' as const,fontFamily:'monospace',whiteSpace:'nowrap' as const}}>+48</span><input type="tel" inputMode="numeric" value={formatPhoneDigits(digitsFromPhone(activeEdit.values.phone||''))} onChange={e=>{const c=e.target.value.replace(/^\+?48\s*/,'').replace(/\D/g,'').slice(0,9);setActiveEdit(p=>p?{...p,values:{...p.values,phone:c.length===0?'':'+48 '+formatPhoneDigits(c)}}:null);}} onClick={e=>e.stopPropagation()} placeholder="--- --- ---" style={{flex:1,fontSize:11,padding:'3px 5px 3px 2px',border:'none',outline:'none',fontFamily:'monospace',minWidth:0}}/></div></div>
+                                                {editError && <p style={{fontSize:10,color:'#ef4444'}}>{editError}</p>}
+                                              </div>
+                                            ) : (<><EmpDetailRow label="E-mail" value={emp.email}/><EmpDetailRow label="Telefon" value={emp.identity?.phoneNumber}/></>)}
                                           </div>
-                                          <div>
-                                            <span className="text-[10px] text-slate-400 block">Hasło dostępowe</span>
-                                            {(emp as any).tempPassword ? (
-                                              <div className="flex items-center gap-1">
-                                                <span className="font-mono text-xs text-slate-700 flex-1">
-                                                  {credState[emp.id]?.show ? (emp as any).tempPassword : '••••••••'}
-                                                </span>
-                                                <button type="button" onClick={e => { e.stopPropagation(); setCredField(emp.id, 'show', !credState[emp.id]?.show); }} className="text-slate-400 hover:text-slate-700">
-                                                  {credState[emp.id]?.show ? <EyeOff size={11}/> : <Eye size={11}/>}
-                                                </button>
-                                                <button type="button" onClick={e => { e.stopPropagation(); handleCopyEmpCredentials(emp); }} className="text-slate-400 hover:text-amber-600">
-                                                  {credState[emp.id]?.copied ? <Check size={11} className="text-emerald-500"/> : <Copy size={11}/>}
-                                                </button>
+                                        );
+                                      })()}
+
+                                      {/* ADRES */}
+                                      {(() => {
+                                        const sec = 'adres' as const;
+                                        const editing = activeEdit?.empId === emp.id && activeEdit?.section === sec;
+                                        const btnBase: React.CSSProperties = { display:'inline-flex', alignItems:'center', gap:2, fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4, background:'white', cursor:'pointer' };
+                                        const inp: React.CSSProperties = { width:'100%', fontSize:11, padding:'3px 5px', border:'1px solid #93c5fd', borderRadius:4, outline:'none' };
+                                        return (
+                                          <div className="bg-white border border-blue-100 rounded-lg p-3">
+                                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                                              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide"><MapPin size={11}/> Adres</p>
+                                              {editing ? (
+                                                <div style={{display:'flex',gap:3}}>
+                                                  <button onClick={e=>{e.stopPropagation();saveEdit();}} disabled={editSaving} style={{...btnBase,border:'1px solid #bbf7d0',color:'#16a34a',opacity:editSaving?0.5:1}}>{editSaving?<Loader2 size={9} className="animate-spin"/>:<Check size={9}/>} Zapisz</button>
+                                                  <button onClick={e=>{e.stopPropagation();setActiveEdit(null);setEditError(null);}} style={{...btnBase,border:'1px solid #e5e7eb',color:'#6b7280'}}><X size={9}/> Anuluj</button>
+                                                </div>
+                                              ) : (
+                                                <button onClick={e=>{e.stopPropagation();openEdit(emp,sec);}} style={{...btnBase,border:'1px solid #bfdbfe',color:'#3b82f6'}}><Pencil size={9}/> Edytuj</button>
+                                              )}
+                                            </div>
+                                            {editing ? (
+                                              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Ulica</label><input value={activeEdit.values.street||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,street:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp}/></div>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Kod poczt.</label><input value={activeEdit.values.zip||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,zip:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp}/></div>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Miasto</label><input value={activeEdit.values.city||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,city:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp}/></div>
+                                                {editError && <p style={{fontSize:10,color:'#ef4444'}}>{editError}</p>}
+                                              </div>
+                                            ) : (<><EmpDetailRow label="Ulica" value={emp.address?.street}/><EmpDetailRow label="Kod poczt." value={emp.address?.zipCode}/><EmpDetailRow label="Miasto" value={emp.address?.city}/></>)}
+                                          </div>
+                                        );
+                                      })()}
+
+                                      {/* KONTO BANKOWE */}
+                                      {(() => {
+                                        const sec = 'iban' as const;
+                                        const editing = activeEdit?.empId === emp.id && activeEdit?.section === sec;
+                                        const btnBase: React.CSSProperties = { display:'inline-flex', alignItems:'center', gap:2, fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4, background:'white', cursor:'pointer' };
+                                        return (
+                                          <div className="bg-white border border-blue-100 rounded-lg p-3">
+                                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                                              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide"><CreditCard size={11}/> Konto bankowe</p>
+                                              {editing ? (
+                                                <div style={{display:'flex',gap:3}}>
+                                                  <button onClick={e=>{e.stopPropagation();saveEdit();}} disabled={editSaving} style={{...btnBase,border:'1px solid #bbf7d0',color:'#16a34a',opacity:editSaving?0.5:1}}>{editSaving?<Loader2 size={9} className="animate-spin"/>:<Check size={9}/>} Zapisz</button>
+                                                  <button onClick={e=>{e.stopPropagation();setActiveEdit(null);setEditError(null);}} style={{...btnBase,border:'1px solid #e5e7eb',color:'#6b7280'}}><X size={9}/> Anuluj</button>
+                                                </div>
+                                              ) : (
+                                                <button onClick={e=>{e.stopPropagation();openEdit(emp,sec);}} style={{...btnBase,border:'1px solid #bfdbfe',color:'#3b82f6'}}><Pencil size={9}/> Edytuj</button>
+                                              )}
+                                            </div>
+                                            {editing ? (
+                                              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                                                <div>
+                                                  <label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>IBAN</label>
+                                                  <input value={activeEdit.values.iban||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,iban:e.target.value.toUpperCase()}}:null)} onClick={e=>e.stopPropagation()} placeholder="PL00 0000 0000 0000 0000 0000 0000" style={{width:'100%',fontSize:10,padding:'3px 5px',border:'1px solid #93c5fd',borderRadius:4,outline:'none',fontFamily:'monospace'}}/>
+                                                  <span style={{fontSize:9,color:'#9ca3af'}}>Walidacja algorytmem IBAN mod97</span>
+                                                </div>
+                                                {editError && <p style={{fontSize:10,color:'#ef4444'}}>{editError}</p>}
+                                              </div>
+                                            ) : (<><EmpDetailRow label="IBAN" value={emp.finance?.payoutAccount?.iban} mono/><EmpDetailRow label="Status" value={emp.finance?.payoutAccount?.iban?(emp.finance.payoutAccount.isVerified?'Zweryfikowane ✓':'Niezweryfikowane'):undefined}/></>)}
+                                          </div>
+                                        );
+                                      })()}
+
+                                      {/* DOSTĘP DO PLATFORMY */}
+                                      {(() => {
+                                        const sec = 'dostep' as const;
+                                        const editing = activeEdit?.empId === emp.id && activeEdit?.section === sec;
+                                        const btnBase: React.CSSProperties = { display:'inline-flex', alignItems:'center', gap:2, fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4, background:'white', cursor:'pointer' };
+                                        return (
+                                          <div className="bg-white border border-amber-200 rounded-lg p-3">
+                                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                                              <p className="flex items-center gap-1.5 text-xs font-bold text-amber-700 uppercase tracking-wide"><KeyRound size={11}/> Dostęp do platformy</p>
+                                              {editing ? (
+                                                <div style={{display:'flex',gap:3}}>
+                                                  <button onClick={e=>{e.stopPropagation();saveEdit();}} disabled={editSaving} style={{...btnBase,border:'1px solid #bbf7d0',color:'#16a34a',opacity:editSaving?0.5:1}}>{editSaving?<Loader2 size={9} className="animate-spin"/>:<Check size={9}/>} Zapisz</button>
+                                                  <button onClick={e=>{e.stopPropagation();setActiveEdit(null);setEditError(null);}} style={{...btnBase,border:'1px solid #e5e7eb',color:'#6b7280'}}><X size={9}/> Anuluj</button>
+                                                </div>
+                                              ) : (
+                                                <button onClick={e=>{e.stopPropagation();openEdit(emp,sec);}} style={{...btnBase,border:'1px solid #fde68a',color:'#b45309'}}><Pencil size={9}/> Edytuj</button>
+                                              )}
+                                            </div>
+                                            {editing ? (
+                                              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                                                <div>
+                                                  <label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Login (e-mail)</label>
+                                                  <input type="email" value={activeEdit.values.email||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,email:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={{width:'100%',fontSize:11,padding:'3px 5px',border:'1px solid #fbbf24',borderRadius:4,outline:'none',fontFamily:'monospace'}}/>
+                                                  <span style={{fontSize:9,color:'#d97706'}}>⚠ Zmiana loginu wymaga ponownego zalogowania</span>
+                                                </div>
+                                                {editError && <p style={{fontSize:10,color:'#ef4444'}}>{editError}</p>}
                                               </div>
                                             ) : (
-                                              <span className="text-[10px] text-slate-400 italic">Brak zapisanego hasła</span>
+                                              <div className="space-y-1.5">
+                                                <div><span className="text-[10px] text-slate-400 block">Login</span><span className="font-mono text-xs text-slate-700 break-all">{emp.email}</span></div>
+                                                <div>
+                                                  <span className="text-[10px] text-slate-400 block">Hasło dostępowe</span>
+                                                  {(emp as any).tempPassword ? (
+                                                    <div className="flex items-center gap-1">
+                                                      <span className="font-mono text-xs text-slate-700 flex-1">{credState[emp.id]?.show ? (emp as any).tempPassword : '••••••••'}</span>
+                                                      <button type="button" onClick={e=>{e.stopPropagation();setCredField(emp.id,'show',!credState[emp.id]?.show);}} className="text-slate-400 hover:text-slate-700">{credState[emp.id]?.show ? <EyeOff size={11}/> : <Eye size={11}/>}</button>
+                                                      <button type="button" onClick={e=>{e.stopPropagation();handleCopyEmpCredentials(emp);}} className="text-slate-400 hover:text-amber-600">{credState[emp.id]?.copied ? <Check size={11} className="text-emerald-500"/> : <Copy size={11}/>}</button>
+                                                    </div>
+                                                  ) : (<span className="text-[10px] text-slate-400 italic">Brak zapisanego hasła</span>)}
+                                                </div>
+                                              </div>
+                                            )}
+                                            {!editing && (
+                                              <button type="button" onClick={e=>{e.stopPropagation();handleResetEmployeePassword(emp);}} disabled={credState[emp.id]?.resetting} className="mt-2 w-full flex items-center justify-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 hover:bg-amber-100 disabled:opacity-50 transition">
+                                                {credState[emp.id]?.resetting ? <><RefreshCw size={10} className="animate-spin"/> Generowanie...</> : <><RefreshCw size={10}/> Generuj nowe hasło</>}
+                                              </button>
                                             )}
                                           </div>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={e => { e.stopPropagation(); handleResetEmployeePassword(emp); }}
-                                          disabled={credState[emp.id]?.resetting}
-                                          className="mt-2 w-full flex items-center justify-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 hover:bg-amber-100 disabled:opacity-50 transition"
-                                        >
-                                          {credState[emp.id]?.resetting
-                                            ? <><RefreshCw size={10} className="animate-spin"/> Generowanie...</>
-                                            : <><RefreshCw size={10}/> Generuj nowe hasło</>
-                                          }
-                                        </button>
-                                      </div>
+                                        );
+                                      })()}
 
-                                      {/* Zatrudnienie */}
-                                      <div className="bg-white border border-blue-100 rounded-lg p-3">
-                                        <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide mb-2.5">
-                                          <FileText size={11}/> Zatrudnienie
-                                        </p>
-                                        <EmpDetailRow label="Typ umowy" value={contract}/>
-                                        <EmpDetailRow label="Od kiedy" value={emp.contract?.contractDateStart ? formatDate(emp.contract.contractDateStart) : undefined}/>
-                                        <EmpDetailRow label="ID konta" value={emp.id} mono small/>
-                                      </div>
+                                      {/* ZATRUDNIENIE */}
+                                      {(() => {
+                                        const sec = 'zatrudnienie' as const;
+                                        const editing = activeEdit?.empId === emp.id && activeEdit?.section === sec;
+                                        const btnBase: React.CSSProperties = { display:'inline-flex', alignItems:'center', gap:2, fontSize:10, fontWeight:600, padding:'2px 6px', borderRadius:4, background:'white', cursor:'pointer' };
+                                        const inp: React.CSSProperties = { width:'100%', fontSize:11, padding:'3px 5px', border:'1px solid #93c5fd', borderRadius:4, outline:'none' };
+                                        return (
+                                          <div className="bg-white border border-blue-100 rounded-lg p-3">
+                                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                                              <p className="flex items-center gap-1.5 text-xs font-bold text-blue-700 uppercase tracking-wide"><FileText size={11}/> Zatrudnienie</p>
+                                              {editing ? (
+                                                <div style={{display:'flex',gap:3}}>
+                                                  <button onClick={e=>{e.stopPropagation();saveEdit();}} disabled={editSaving} style={{...btnBase,border:'1px solid #bbf7d0',color:'#16a34a',opacity:editSaving?0.5:1}}>{editSaving?<Loader2 size={9} className="animate-spin"/>:<Check size={9}/>} Zapisz</button>
+                                                  <button onClick={e=>{e.stopPropagation();setActiveEdit(null);setEditError(null);}} style={{...btnBase,border:'1px solid #e5e7eb',color:'#6b7280'}}><X size={9}/> Anuluj</button>
+                                                </div>
+                                              ) : (
+                                                <button onClick={e=>{e.stopPropagation();openEdit(emp,sec);}} style={{...btnBase,border:'1px solid #bfdbfe',color:'#3b82f6'}}><Pencil size={9}/> Edytuj</button>
+                                              )}
+                                            </div>
+                                            {editing ? (
+                                              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                                                <div>
+                                                  <label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Typ umowy</label>
+                                                  <select value={activeEdit.values.contract_type||'UOP'} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,contract_type:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp}>
+                                                    <option value="UOP">Umowa o Pracę</option>
+                                                    <option value="UZ">Umowa Zlecenie</option>
+                                                  </select>
+                                                </div>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Data zatrudnienia</label><input type="date" value={activeEdit.values.hire_date||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,hire_date:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp}/></div>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Dział</label><input value={activeEdit.values.department||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,department:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp} placeholder="np. IT"/></div>
+                                                <div><label style={{fontSize:9,color:'#9ca3af',display:'block',marginBottom:2}}>Stanowisko</label><input value={activeEdit.values.position||''} onChange={e=>setActiveEdit(p=>p?{...p,values:{...p.values,position:e.target.value}}:null)} onClick={e=>e.stopPropagation()} style={inp} placeholder="np. Programista"/></div>
+                                                {editError && <p style={{fontSize:10,color:'#ef4444'}}>{editError}</p>}
+                                              </div>
+                                            ) : (<><EmpDetailRow label="Typ umowy" value={contract}/><EmpDetailRow label="Od kiedy" value={emp.contract?.contractDateStart ? formatDate(emp.contract.contractDateStart) : undefined}/><EmpDetailRow label="Dział" value={emp.organization?.department}/><EmpDetailRow label="Stanowisko" value={emp.organization?.position}/><EmpDetailRow label="ID konta" value={emp.id} mono small/></>)}
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
 
                                     {/* Actions */}
@@ -1935,6 +2268,116 @@ export const DashboardNewHR: React.FC<Props> = ({
           }}
         />
       )}
+
+      {/* ── Delete Order Modal ───────────────────────────────────────── */}
+      {deleteModal && (() => {
+        const { order, info } = deleteModal;
+        const st = STATUS_MAP[order.status];
+        const isPaid = ['paid', 'approved'].includes(info.status);
+        const hasActive = info.voucherCount - info.consumedCount > 0;
+        const confirmWord = 'USUŃ';
+        const canConfirm = !isPaid || deleteConfirmTyped === confirmWord;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+              {/* Header */}
+              <div className={`px-6 py-4 flex items-center gap-3 ${isPaid ? 'bg-red-600' : 'bg-orange-500'}`}>
+                <Trash2 size={20} className="text-white" />
+                <div>
+                  <h2 className="text-white font-bold text-base">Usuń zamówienie</h2>
+                  <p className="text-white/70 text-xs font-mono mt-0.5">{order.id}</p>
+                </div>
+                <button onClick={() => { setDeleteModal(null); setDeleteConfirmTyped(''); }} className="ml-auto text-white/70 hover:text-white transition">
+                  <X size={18}/>
+                </button>
+              </div>
+
+              <div className="px-6 py-5 space-y-4">
+                {/* Status info */}
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border ${st.color}`}>
+                    {st.icon} {st.label}
+                  </span>
+                  <span className="text-sm text-gray-500">{formatCurrency(order.totalAmount)}</span>
+                  <span className="text-sm text-gray-500">·</span>
+                  <span className="text-sm text-gray-500">{formatPeriod(order.period)}</span>
+                </div>
+
+                {/* Effects list */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Skutki usunięcia</p>
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="mt-0.5 w-5 h-5 rounded-full bg-red-100 text-red-600 text-[10px] flex items-center justify-center font-bold shrink-0">1</span>
+                      <span>Zamówienie zostanie <strong>trwale usunięte</strong> z bazy danych</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="mt-0.5 w-5 h-5 rounded-full bg-red-100 text-red-600 text-[10px] flex items-center justify-center font-bold shrink-0">2</span>
+                      <span>
+                        <strong>{info.voucherCount} voucherów</strong> wygenerowanych przez to zamówienie zostanie usuniętych
+                        {info.consumedCount > 0 && <span className="text-orange-600"> (w tym {info.consumedCount} już skonsumowanych/wygasłych)</span>}
+                      </span>
+                    </li>
+                    {hasActive && (
+                      <li className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="mt-0.5 w-5 h-5 rounded-full bg-orange-100 text-orange-600 text-[10px] flex items-center justify-center font-bold shrink-0">!</span>
+                        <span><strong>{info.voucherCount - info.consumedCount} aktywnych voucherów</strong> zostanie usuniętych z portfeli pracowników</span>
+                      </li>
+                    )}
+                    {info.documentsCount > 0 && (
+                      <li className="flex items-start gap-2 text-sm text-gray-700">
+                        <span className="mt-0.5 w-5 h-5 rounded-full bg-red-100 text-red-600 text-[10px] flex items-center justify-center font-bold shrink-0">3</span>
+                        <span><strong>{info.documentsCount} {info.documentsCount === 1 ? 'dokument finansowy' : 'dokumenty finansowe'}</strong> (nota obciążeniowa / faktura VAT) zostaną trwale usunięte z bazy i Storage</span>
+                      </li>
+                    )}
+                    <li className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="mt-0.5 w-5 h-5 rounded-full bg-red-100 text-red-600 text-[10px] flex items-center justify-center font-bold shrink-0">{info.documentsCount > 0 ? 4 : 3}</span>
+                      <span>Umowa zlecenia nabycia voucherów (PDF) pozostaje w systemie ale <strong>straci referencję</strong> do zamówienia</span>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Extra warning for paid orders */}
+                {isPaid && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex gap-2">
+                    <AlertTriangle size={15} className="text-red-500 shrink-0 mt-0.5" />
+                    <div className="text-xs text-red-700 space-y-1">
+                      <p className="font-semibold">Zamówienie jest opłacone — operacja nieodwracalna</p>
+                      <p>Usuwasz zamówienie za które wpłynęła już płatność. Wpisz <strong className="font-mono">{confirmWord}</strong> aby potwierdzić.</p>
+                      <input
+                        type="text"
+                        value={deleteConfirmTyped}
+                        onChange={e => setDeleteConfirmTyped(e.target.value.toUpperCase())}
+                        placeholder={`Wpisz ${confirmWord}`}
+                        className="mt-2 w-full px-3 py-1.5 text-sm font-mono border border-red-300 rounded-lg focus:outline-none focus:border-red-500 bg-white"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => { setDeleteModal(null); setDeleteConfirmTyped(''); }}
+                    className="flex-1 px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition text-gray-600"
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    onClick={confirmDeleteOrder}
+                    disabled={deleteModalLoading || !canConfirm}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {deleteModalLoading
+                      ? <><Loader2 size={14} className="animate-spin"/> Usuwam…</>
+                      : <><Trash2 size={14}/> Usuń zamówienie i vouchery</>
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Cleanup Modal ───────────────────────────────────────────── */}
       {showCleanupModal && (

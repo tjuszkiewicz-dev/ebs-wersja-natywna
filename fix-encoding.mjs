@@ -1,74 +1,46 @@
+﻿// Targeted repair for AdminVouchery.tsx C5-based Polish chars
+// (ł, ś, ż, ź) that were broken by wrong cp1250 table in first pass.
+// They now appear as U+0139 (Ĺ) + U+FFFD in the file.
+// We fix them by matching their ASCII context.
 import { readFileSync, writeFileSync } from 'fs';
 
-const file = 'views/DashboardEmployee.tsx';
+const file = 'components/adminNew/AdminVouchery.tsx';
 let c = readFileSync(file, 'utf8');
 
-const m = [
-  ['UsĹ\x82ug', 'Usług'],
-  ['ZarzÄ\x85dzane', 'Zarządzane'],
-  ['dostÄ\x99p', 'dostęp'],
-  ['specjalistĂ\xB3w', 'specjalistów'],
-  ['caĹ\x82Ä\x85', 'całą'],
-  ['dobÄ\x99', 'dobę'],
-  ['ĹĽycie', 'życie'],
-  ['ĹĽyciu', 'życiu'],
-  ['Ĺ\xBBycie', 'Życie'],
-  ['Ĺ\xBByciu', 'Życiu'],
-  ['menedĹĽerĂ\xB3w', 'menedżerów'],
-  ['zdarzeĹ\x84', 'zdarzeń'],
-  ['badaĹ\x84', 'badań'],
-  ['BadaĹ\x84', 'Badań'],
-  ['przeglÄ\x85dowy', 'przeglądowy'],
-  ['pomyĹ\x82kami', 'pomyłkami'],
-  ['codzieĹ\x84', 'codzień'],
-  ['korzyĹ\x9Bciami', 'korzyściami'],
-  ['â\x80\xA2', '•'],
-  ['â\x80\x93', '–'],
-  ['â\x80\x94', '—'],
-  ['odzyskaÄ\x87', 'odzyskać'],
-  ['spokĂ\xB3j', 'spokój'],
-  ['odpornoĹ\x9Bci', 'odporności'],
-  ['asertywnoĹ\x9Bci', 'asertywności'],
-  ['mĂ\xB3wiÄ\x87', 'mówić'],
-  ['wyrzutĂ\xB3w', 'wyrzutów'],
-  ['samotnoĹ\x9BÄ\x87', 'samotność'],
-  ['budowaÄ\x87', 'budować'],
-  ['ostroĹĽnych', 'ostrożnych'],
-  ['wiÄ\x99cej', 'więcej'],
-  ['siÄ\x99', 'się'],
-  ['daÄ\x87', 'dać'],
-  ['zmanipulowaÄ\x87', 'zmanipulować'],
-  ['podwyĹĽki', 'podwyżki'],
-  ['wewnÄ\x85trz', 'wewnątrz'],
-  ['byÄ\x87', 'być'],
-  ['bÄ\x99dÄ\x85c', 'będąc'],
-  ['ZrozumieÄ\x87', 'Zrozumieć'],
-  ['bĂ\xB3lu', 'bólu'],
-  ['gĹ\x82owy', 'głowy'],
-  ['Ä\x85', 'ą'],
-  ['Ä\x99', 'ę'],
-  ['Ä\x87', 'ć'],
-  ['Ĺ\x82', 'ł'],
-  ['Ĺ\x84', 'ń'],
-  ['Ă\xB3', 'ó'],
-  ['Ĺ\x9B', 'ś'],
-  ['Ĺ\xBC', 'ż'],
-  ['Ĺ\xBB', 'Ż'],
-  ['Ĺ\x9A', 'Ź'],
-  ['Ĺ\xB9', 'ź'],
-  ['Ä\x86', 'Ć'],
-  ['Ĺ\x81', 'Ł'],
+const B = '\u0139\ufffd'; // broken token = formerly any C5-based Polish char
+
+const fixes = [
+  // STATUS_LABELS
+  ["'Wygas" + B + "y'",           "'Wygas\u0142y'"],       // Wygasły
+  ["'Zu" + B + "yty'",            "'Zu\u017cyty'"],         // Zużyty
+  // JSX: employee placeholder
+  ["u" + B + "ytkownik",          "u\u017cytkownik"],        // użytkownik
+  // table header Wartość (ć already fixed to \u0107)
+  ["'Warto" + B + "\u0107'",      "'Warto\u015b\u0107'"],   // Wartość
+  // table header Ważny do
+  ["'Wa" + B + "ny do'",          "'Wa\u017cny do'"],        // Ważny do
+  // Odśwież button (two broken chars: ś + ż)
+  ["Od" + B + "wie" + B,          "Od\u015bwie\u017c"],      // Odśwież
+  // empty state help text
+  ["U" + B + "yj panelu",         "U\u017cyj panelu"],        // Użyj
+  ["powy" + B + "ej",             "powy\u017cej"],            // powyżej
+  // error messages
+  ["B" + B + "\u0105d emisji",    "B\u0142\u0105d emisji"],  // Błąd emisji
+  ["B" + B + "\u0105d pobierania","B\u0142\u0105d pobierania"], // Błąd pobierania
 ];
 
-let fixed = 0;
-for (const [from, to] of m) {
-  const count = c.split(from).length - 1;
-  if (count > 0) {
+let count = 0;
+for (const [from, to] of fixes) {
+  const n = c.split(from).length - 1;
+  if (n > 0) {
     c = c.split(from).join(to);
-    fixed += count;
-    console.log(`  ${from} → ${to} (${count}x)`);
+    count += n;
+    console.log('Fixed ' + n + 'x: ' + to.slice(0, 35));
   }
 }
 
+const remaining = (c.match(new RegExp('\u0139\ufffd', 'g')) || []).length;
+if (remaining > 0) console.log('Remaining broken (in comments, OK):', remaining);
+
 writeFileSync(file, c, 'utf8');
-console.log(`\nZapisano. Naprawiono ${fixed} wystąpień.`);
+console.log('Total replacements:', count);

@@ -120,5 +120,28 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Firma nie istnieje' }, { status: 404 });
   }
 
-  return NextResponse.json(data);
+  // Compute live voucher counts — replaces stale companies.balance_pending / balance_active
+  const [pendingResult, activeResult] = await Promise.all([
+    // Poczekalni: sum of amount_vouchers from pending/approved orders
+    supabase
+      .from('voucher_orders')
+      .select('amount_vouchers')
+      .eq('company_id', id)
+      .in('status', ['pending', 'approved']),
+    // Aktywne na kontach pracowniczych: vouchers owned by pracownik
+    supabase
+      .from('vouchers')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', id)
+      .in('status', ['active', 'distributed']),
+  ]);
+
+  const livePending = (pendingResult.data ?? []).reduce((s, r) => s + (r.amount_vouchers ?? 0), 0);
+  const liveActive  = activeResult.count ?? 0;
+
+  return NextResponse.json({
+    ...(data as unknown as Record<string, unknown>),
+    balance_pending: livePending,
+    balance_active:  liveActive,
+  });
 }

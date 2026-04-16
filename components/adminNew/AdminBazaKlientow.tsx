@@ -11,6 +11,7 @@ export const AdminBazaKlientow: React.FC = () => {
   const [error,       setError]       = useState<string | null>(null);
   const [search,      setSearch]      = useState('');
   const [selected,    setSelected]    = useState<CustomerCompany | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [showForm,    setShowForm]    = useState(false);
   const [archivingId, setArchivingId] = useState<string | null>(null);
 
@@ -142,7 +143,16 @@ export const AdminBazaKlientow: React.FC = () => {
                 >
                   {/* Card body — klikalny */}
                   <button
-                    onClick={() => setSelected(isSelected ? null : company)}
+                    onClick={async () => {
+                      if (isSelected) { setSelected(null); return; }
+                      setDetailLoading(true);
+                      try {
+                        const res = await fetch(`/api/companies/${company.id}`);
+                        const fresh = res.ok ? await res.json() : company;
+                        setSelected(fresh);
+                      } catch { setSelected(company); }
+                      finally { setDetailLoading(false); }
+                    }}
                     className="text-left w-full p-4"
                   >
                     <div className="flex items-start gap-3">
@@ -200,7 +210,12 @@ export const AdminBazaKlientow: React.FC = () => {
       )}
 
       {/* Customer Card */}
-      {selected && (
+      {detailLoading && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 size={20} className="animate-spin text-blue-500" />
+        </div>
+      )}
+      {!detailLoading && selected && (
         <CustomerCard
           key={selected.id}
           company={selected}

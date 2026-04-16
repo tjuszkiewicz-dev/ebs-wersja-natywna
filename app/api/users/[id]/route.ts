@@ -4,12 +4,15 @@ import { supabaseServer } from '@/lib/supabase';
 import { z } from 'zod';
 
 const UpdateSchema = z.object({
-    full_name:     z.string().min(2).optional(),
-    department:    z.string().optional(),
-    position:      z.string().optional(),
-    phone_number:  z.string().optional(),
-    contract_type: z.enum(['UOP', 'UZ']).optional(),
-    hire_date:     z.string().optional(),
+    full_name:      z.string().min(2).optional(),
+    department:     z.string().optional(),
+    position:       z.string().optional(),
+    phone_number:   z.string().optional(),
+    contract_type:  z.enum(['UOP', 'UZ']).optional(),
+    hire_date:      z.string().optional(),
+    address_street: z.string().optional(),
+    address_zip:    z.string().optional(),
+    address_city:   z.string().optional(),
 }).strict();
 
 // PATCH /api/users/[id] — zaktualizuj dane pracownika

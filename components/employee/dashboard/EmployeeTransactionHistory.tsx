@@ -39,6 +39,11 @@ export const EmployeeTransactionHistory: React.FC<EmployeeTransactionHistoryProp
                   ) : (
                       <span className="text-[10px] text-slate-400">Bonus / Manual</span>
                   )}
+                  {t.sourceOrderId && (
+                      <span className="text-[10px] text-blue-400 font-mono block mt-0.5" title={`Zamówienie: ${t.sourceOrderId}`}>
+                          Zam: …{t.sourceOrderId.slice(-8)}
+                      </span>
+                  )}
               </div>
           ) : (
               <div>
@@ -73,6 +78,11 @@ export const EmployeeTransactionHistory: React.FC<EmployeeTransactionHistoryProp
                   {t.type === 'CREDIT' && t.serialRange && (
                       <p className="text-[9px] text-slate-400 font-mono mt-0.5">
                           {t.serialRange.start.slice(-6)}...{t.serialRange.end.slice(-6)}
+                      </p>
+                  )}
+                  {t.type === 'CREDIT' && t.sourceOrderId && (
+                      <p className="text-[9px] text-blue-400 font-mono mt-0.5" title={`Zamówienie: ${t.sourceOrderId}`}>
+                          Zam: …{t.sourceOrderId.slice(-8)}
                       </p>
                   )}
               </div>

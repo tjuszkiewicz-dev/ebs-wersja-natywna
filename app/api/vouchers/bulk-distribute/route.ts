@@ -56,11 +56,11 @@ export async function POST(req: NextRequest) {
   let distributedTotal = 0;
 
   for (const item of items) {
-    const { error: transferError } = await supabase.rpc('transfer_vouchers', {
+    const { error: transferError } = await supabase.rpc('distribute_to_employee', {
+      p_company_id:   companyId ?? auth.id,
       p_from_user_id: auth.id,
       p_to_user_id:   item.employeeId,
       p_amount:       item.amount,
-      p_type:         'przekazanie',
       p_order_id:     null,
     });
 

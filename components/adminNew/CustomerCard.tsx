@@ -260,8 +260,8 @@ export const CustomerCard: React.FC<Props> = ({ company, onClose }) => {
             <InfoRow label="Miasto" value={company.address_city} />
             <InfoRow label="Kod pocztowy" value={company.address_zip} />
             <InfoRow label="Pochodzenie" value={company.origin} />
-            <InfoRow label="Saldo (pending)" value={`${company.balance_pending?.toLocaleString('pl-PL') ?? 0} pkt`} />
-            <InfoRow label="Saldo (aktywne)" value={`${company.balance_active?.toLocaleString('pl-PL') ?? 0} pkt`} />
+            <InfoRow label="Vouchery w poczekalni" value={`${company.balance_pending?.toLocaleString('pl-PL') ?? 0} szt.`} />
+            <InfoRow label="Aktywne (konta pracownicze)" value={`${company.balance_active?.toLocaleString('pl-PL') ?? 0} szt.`} />
 
             {/* Fee percent — inline edit */}
             <div className="col-span-2 pt-3 border-t border-slate-100">

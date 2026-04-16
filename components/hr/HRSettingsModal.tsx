@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, User as UserIcon, Mail, Phone, Building2, Hash, MapPin, Check, Loader2 } from 'lucide-react';
 import { User } from '../../types';
 import { useStrattonSystem } from '../../context/StrattonContext';
+import { formatPhoneDigits, digitsFromPhone } from '../ui/PhoneInput';
 
 interface HRSettingsModalProps {
   isOpen: boolean;
@@ -80,6 +81,11 @@ export const HRSettingsModal: React.FC<HRSettingsModalProps> = ({
 
   const handleSaveProfile = async () => {
     if (!name.trim()) { setProfileError('Imię i nazwisko nie może być puste.'); return; }
+    const phoneDigits = digitsFromPhone(phone);
+    if (phoneDigits.length > 0 && phoneDigits.length !== 9) {
+      setProfileError('Numer telefonu musi zawierać 9 cyfr (format +48 XXX XXX XXX)');
+      return;
+    }
     setProfileError(null);
     setProfileSaving(true);
     await actions.handleUpdateEmployee(currentUser.id, {
@@ -173,9 +179,18 @@ export const HRSettingsModal: React.FC<HRSettingsModalProps> = ({
 
               <Field label="Telefon">
                 <InputRow icon={<Phone size={15} />}>
-                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    className="w-full text-sm py-2.5 outline-none bg-transparent text-slate-800"
-                    placeholder="+48 000 000 000" />
+                  <span className="text-sm text-slate-400 font-mono select-none whitespace-nowrap">+48</span>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={formatPhoneDigits(digitsFromPhone(phone))}
+                    onChange={e => {
+                      const cleaned = e.target.value.replace(/^\+?48\s*/, '').replace(/\D/g, '').slice(0, 9);
+                      setPhone(cleaned.length === 0 ? '' : `+48 ${formatPhoneDigits(cleaned)}`);
+                    }}
+                    className="flex-1 text-sm py-2.5 outline-none bg-transparent text-slate-800 font-mono"
+                    placeholder="--- --- ---"
+                  />
                 </InputRow>
               </Field>
 
