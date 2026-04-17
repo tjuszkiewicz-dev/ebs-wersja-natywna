@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Save, User as UserIcon, Mail, Phone, Building2, Hash, MapPin, Check, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Save, User as UserIcon, Mail, Phone, Building2, Hash, MapPin, Check, Loader2, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react';
 import { User } from '../../types';
 import { useStrattonSystem } from '../../context/StrattonContext';
 import { formatPhoneDigits, digitsFromPhone } from '../ui/PhoneInput';
@@ -47,6 +47,22 @@ export const HRSettingsModal: React.FC<HRSettingsModalProps> = ({
   const [companyError, setCompanyError] = useState<string | null>(null);
   const [companyId, setCompanyId] = useState<string | null>(null);
 
+  // Biała lista VAT
+  const [wlStatus, setWlStatus] = useState<'idle' | 'loading' | 'found' | 'not_found' | 'error'>('idle');
+
+  const checkWhiteList = useCallback(async (nip: string) => {
+    const clean = nip.replace(/[\s\-]/g, '');
+    if (!/^\d{10}$/.test(clean)) return;
+    setWlStatus('loading');
+    try {
+      const r = await fetch(`/api/utils/whitelist?nip=${clean}`);
+      const d = await r.json();
+      setWlStatus(d.found === true ? 'found' : d.found === false ? 'not_found' : 'error');
+    } catch {
+      setWlStatus('error');
+    }
+  }, []);
+
   useEffect(() => {
     if (!isOpen) return;
     setName(currentUser.name || '');
@@ -73,6 +89,7 @@ export const HRSettingsModal: React.FC<HRSettingsModalProps> = ({
           address_city:   row.address_city ?? '',
           address_zip:    row.address_zip ?? '',
         });
+        if (row.nip) checkWhiteList(row.nip);
       })
       .catch(() => setCompanyLoading(false));
   }, [isOpen, currentUser]);
@@ -225,8 +242,22 @@ export const HRSettingsModal: React.FC<HRSettingsModalProps> = ({
                   <InputRow icon={<Hash size={15} />}>
                     <input type="text" value={companyForm.nip} readOnly
                       className="w-full text-sm py-2.5 outline-none bg-transparent text-slate-400 cursor-not-allowed" />
+                    {wlStatus === 'loading' && <Loader2 size={14} className="animate-spin text-slate-400 shrink-0" />}
+                    {wlStatus === 'found' && <ShieldCheck size={14} className="text-emerald-500 shrink-0" />}
+                    {wlStatus === 'not_found' && <ShieldAlert size={14} className="text-red-500 shrink-0" />}
+                    {wlStatus === 'error' && <ShieldQuestion size={14} className="text-slate-400 shrink-0" />}
                   </InputRow>
-                  <p className="text-[11px] text-slate-400 mt-1">NIP jest zarządzany przez administratora.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">NIP jest zarządzany przez administratora.{' '}
+                    {wlStatus === 'found' && <span className="text-emerald-600 font-semibold">✓ Biała lista VAT: aktywny</span>}
+                    {wlStatus === 'not_found' && <span className="text-red-500 font-semibold">✗ Biała lista VAT: brak</span>}
+                    {wlStatus === 'error' && <span className="text-slate-400">Biała lista VAT: brak odpowiedzi</span>}
+                  </p>
+                  {wlStatus === 'idle' && companyForm.nip && (
+                    <button type="button" onClick={() => checkWhiteList(companyForm.nip)}
+                      className="mt-1 text-[11px] text-indigo-600 hover:underline">
+                      Sprawdź białą listę VAT
+                    </button>
+                  )}
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">

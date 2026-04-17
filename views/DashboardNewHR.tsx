@@ -177,6 +177,21 @@ export const DashboardNewHR: React.FC<Props> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [empHistoryEmployee, setEmpHistoryEmployee] = useState<User | null>(null);
 
+  // ─── Bank name cache (IBAN → bank name) ──────────────────────────────
+  const [bankInfo, setBankInfo] = useState<Record<string, { bank: string | null; loading: boolean }>>({});
+
+  useEffect(() => {
+    if (!expandedEmployeeId) return;
+    const emp = employees.find(e => e.id === expandedEmployeeId);
+    const iban = emp?.finance?.payoutAccount?.iban;
+    if (!iban || bankInfo[expandedEmployeeId]) return;
+    setBankInfo(prev => ({ ...prev, [expandedEmployeeId]: { bank: null, loading: true } }));
+    fetch(`/api/utils/bank-info?iban=${encodeURIComponent(iban)}`)
+      .then(r => r.json())
+      .then(d => setBankInfo(prev => ({ ...prev, [expandedEmployeeId!]: { bank: d.bank, loading: false } })))
+      .catch(() => setBankInfo(prev => ({ ...prev, [expandedEmployeeId!]: { bank: null, loading: false } })));
+  }, [expandedEmployeeId, employees]);
+
   // ─── Cleanup modal (admin only) ─────────────────────────────────────────
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [cleanupLoading, setCleanupLoading] = useState(false);
@@ -666,6 +681,22 @@ export const DashboardNewHR: React.FC<Props> = ({
     setActiveEdit({ empId: emp.id, section, values });
   };
 
+  // Konwertuje b.error (string lub obiekt Zod flatten) na czytelny komunikat
+  const toErrMsg = (err: unknown, fallback: string): string => {
+    if (!err) return fallback;
+    if (typeof err === 'string') return err;
+    if (typeof err === 'object') {
+      const fe = (err as any).formErrors;
+      const fi = (err as any).fieldErrors;
+      if (Array.isArray(fe) && fe.length) return String(fe[0]);
+      if (fi && typeof fi === 'object') {
+        const first = Object.values(fi).find((v): v is string[] => Array.isArray(v) && v.length > 0);
+        if (first) return String(first[0]);
+      }
+    }
+    return fallback;
+  };
+
   const saveEdit = async () => {
     if (!activeEdit || editSaving) return;
     setEditSaving(true);
@@ -683,13 +714,13 @@ export const DashboardNewHR: React.FC<Props> = ({
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ phone_number: values.phone }),
         });
-        if (!patchRes.ok) { const b = await patchRes.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu telefonu'); return; }
+        if (!patchRes.ok) { const b = await patchRes.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zapisu telefonu')); return; }
         if (values.email.trim() && values.email.trim() !== values._origEmail) {
           const emailRes = await fetch(`/api/users/${empId}/email`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: values.email.trim() }),
           });
-          if (!emailRes.ok) { const b = await emailRes.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zmiany e-maila'); return; }
+          if (!emailRes.ok) { const b = await emailRes.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zmiany e-maila')); return; }
         }
         actions.setUsers(prev => prev.map(u => u.id === empId ? {
           ...u,
@@ -702,7 +733,7 @@ export const DashboardNewHR: React.FC<Props> = ({
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ address_street: values.street, address_zip: values.zip, address_city: values.city }),
         });
-        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu adresu'); return; }
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zapisu adresu')); return; }
         actions.setUsers(prev => prev.map(u => u.id === empId ? { ...u, address: { street: values.street, city: values.city, zipCode: values.zip } } : u));
 
       } else if (section === 'iban') {
@@ -712,7 +743,7 @@ export const DashboardNewHR: React.FC<Props> = ({
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ iban: ibanVal, iban_verified: false }),
         });
-        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu IBAN'); return; }
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zapisu IBAN')); return; }
         actions.setUsers(prev => prev.map(u => u.id === empId ? {
           ...u, finance: { ...(u.finance as any), payoutAccount: { iban: ibanVal, country: 'PL', isVerified: false } },
         } : u));
@@ -722,9 +753,11 @@ export const DashboardNewHR: React.FC<Props> = ({
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ contract_type: values.contract_type, hire_date: values.hire_date || undefined, department: values.department.trim() || undefined, position: values.position.trim() || undefined }),
         });
-        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zapisu zatrudnienia'); return; }
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zapisu zatrudnienia')); return; }
         actions.setUsers(prev => prev.map(u => u.id === empId ? {
           ...u,
+          department: values.department.trim() || undefined,
+          position:   values.position.trim()   || undefined,
           contract: { ...(u.contract ?? {}), type: values.contract_type as any, contractDateStart: values.hire_date },
           organization: { ...(u.organization ?? {}), department: values.department.trim(), position: values.position.trim() },
         } : u));
@@ -736,7 +769,7 @@ export const DashboardNewHR: React.FC<Props> = ({
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: values.email.trim() }),
         });
-        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(b.error ?? 'Błąd zmiany loginu'); return; }
+        if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zmiany loginu')); return; }
         actions.setUsers(prev => prev.map(u => u.id === empId ? { ...u, email: values.email.trim() } : u));
       }
 
@@ -756,7 +789,7 @@ export const DashboardNewHR: React.FC<Props> = ({
         u.name.toLowerCase().includes(q) ||
         (u.email ?? '').toLowerCase().includes(q) ||
         (u.pesel ?? '').includes(q) ||
-        (u.department ?? '').toLowerCase().includes(q)
+        (u.organization?.department || u.department || '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -772,7 +805,7 @@ export const DashboardNewHR: React.FC<Props> = ({
         u.name.toLowerCase().includes(q) ||
         (u.email ?? '').toLowerCase().includes(q) ||
         (u.pesel ?? '').includes(q) ||
-        (u.department ?? '').toLowerCase().includes(q)
+        (u.organization?.department || u.department || '').toLowerCase().includes(q)
       );
     }
     return list;
@@ -1408,8 +1441,8 @@ export const DashboardNewHR: React.FC<Props> = ({
                         const firstName  = emp.identity?.firstName ?? emp.name.split(' ')[0] ?? emp.name;
                         const lastName   = emp.identity?.lastName  ?? emp.name.split(' ').slice(1).join(' ') ?? '';
                         const phone      = emp.identity?.phoneNumber ?? '';
-                        const dept       = emp.department ?? emp.organization?.department ?? '';
-                        const pos        = emp.position   ?? emp.organization?.position   ?? '';
+                        const dept       = emp.organization?.department || emp.department || '';
+                        const pos        = emp.organization?.position   || emp.position   || '';
                         const contract   = emp.contract?.type === ContractType.UZ ? 'Umowa Zlecenie' : 'Umowa o Pracę';
                         const balance    = emp.voucherBalance ?? emp.finance?.voucherBalance ?? 0;
                         const rowBg      = isExpanded ? '#eff6ff' : idx % 2 === 0 ? '#ffffff' : '#f9fafb';
@@ -1581,7 +1614,7 @@ export const DashboardNewHR: React.FC<Props> = ({
                                                 </div>
                                                 {editError && <p style={{fontSize:10,color:'#ef4444'}}>{editError}</p>}
                                               </div>
-                                            ) : (<><EmpDetailRow label="IBAN" value={emp.finance?.payoutAccount?.iban} mono/><EmpDetailRow label="Status" value={emp.finance?.payoutAccount?.iban?(emp.finance.payoutAccount.isVerified?'Zweryfikowane ✓':'Niezweryfikowane'):undefined}/></>)}
+                                            ) : (<><EmpDetailRow label="IBAN" value={emp.finance?.payoutAccount?.iban} mono/><EmpDetailRow label="Status" value={emp.finance?.payoutAccount?.iban?(bankInfo[emp.id]?.loading?'Weryfikowanie...':bankInfo[emp.id]?.bank?'Zweryfikowane ✓':'Niezweryfikowane'):undefined}/>{emp.finance?.payoutAccount?.iban && <EmpDetailRow label="Bank" value={bankInfo[emp.id]?.loading ? '...' : (bankInfo[emp.id]?.bank ?? '—')}/>}</>)}
                                           </div>
                                         );
                                       })()}
@@ -2074,7 +2107,7 @@ export const DashboardNewHR: React.FC<Props> = ({
                                           <EmpDetailRow label="IBAN" value={emp.finance?.payoutAccount?.iban} mono/>
                                           <EmpDetailRow label="Status" value={
                                             emp.finance?.payoutAccount?.iban
-                                              ? (emp.finance.payoutAccount.isVerified ? 'Zweryfikowane ✓' : 'Niezweryfikowane')
+                                              ? (bankInfo[emp.id]?.loading ? 'Weryfikowanie...' : bankInfo[emp.id]?.bank ? 'Zweryfikowane ✓' : 'Niezweryfikowane')
                                               : undefined
                                           }/>
                                         </div>
