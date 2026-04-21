@@ -269,12 +269,13 @@ BEGIN
       -- Ledger: return to company HR account
       -- Use HR account (role='pracodawca') or fallback to employee for now
       INSERT INTO voucher_transactions (from_user_id, to_user_id, amount, type, order_id)
-      SELECT
+      VALUES (
         r_emp.user_id,
         COALESCE((SELECT id FROM user_profiles WHERE company_id = r_emp.company_id AND role = 'pracodawca' LIMIT 1), r_emp.user_id),
         r_emp.voucher_count,
         'odkup',
-        NULL;
+        NULL
+      );
 
       -- In-app notification for employee
       INSERT INTO notifications (user_id, message, type)
