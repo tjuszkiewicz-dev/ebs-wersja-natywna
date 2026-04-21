@@ -14,6 +14,10 @@
 --      Expires overdue vouchers and auto-creates buyback_agreements per employee.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- 0. Drop old function signatures (different arity → ambiguous overloads)
+DROP FUNCTION IF EXISTS mint_vouchers(UUID, UUID, UUID, INTEGER, INTEGER);
+DROP FUNCTION IF EXISTS distribute_to_employee(UUID, UUID, UUID, INTEGER, UUID);
+
 -- 1. Store intended valid_until in the order at hr-confirm time
 ALTER TABLE voucher_orders
   ADD COLUMN IF NOT EXISTS voucher_valid_until TIMESTAMPTZ;
