@@ -238,17 +238,14 @@ BEGIN
     -- Create buyback agreement
     v_ba_id := gen_random_uuid();
     INSERT INTO buyback_agreements (
-      id, user_id, company_id, voucher_count, total_face_value,
-      status, created_at, expired_at
+      id, user_id, voucher_count, total_value_pln, status, snapshot
     ) VALUES (
       v_ba_id,
       r_emp.user_id,
-      r_emp.company_id,
       r_emp.voucher_count,
       r_emp.total_face_value,
-      'pending',
-      NOW(),
-      r_emp.expired_at
+      'pending_approval',
+      jsonb_build_object('expired_at', r_emp.expired_at, 'company_id', r_emp.company_id)
     )
     ON CONFLICT DO NOTHING;
 
