@@ -266,9 +266,15 @@ BEGIN
       SET balance = GREATEST(0, balance - r_emp.voucher_count)
       WHERE user_id = r_emp.user_id;
 
-      -- Ledger: return to company
+      -- Ledger: return to company HR account
+      -- Use HR account (role='pracodawca') or fallback to employee for now
       INSERT INTO voucher_transactions (from_user_id, to_user_id, amount, type, order_id)
-      VALUES (r_emp.user_id, NULL, r_emp.voucher_count, 'odkup', NULL);
+      SELECT
+        r_emp.user_id,
+        COALESCE((SELECT id FROM user_profiles WHERE company_id = r_emp.company_id AND role = 'pracodawca' LIMIT 1), r_emp.user_id),
+        r_emp.voucher_count,
+        'odkup',
+        NULL;
 
       -- In-app notification for employee
       INSERT INTO notifications (user_id, message, type)
