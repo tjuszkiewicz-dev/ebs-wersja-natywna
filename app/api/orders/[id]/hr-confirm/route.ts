@@ -50,6 +50,36 @@ export async function PATCH(
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
+  // 1b. Oblicz i zapisz voucher_valid_until JUŻ TERAZ (przy potwierdzeniu, nie przy płatności).
+  //     Kluczowa naprawa: jeśli płatność nadejdzie po skonfigurowanym momencie wygaśnięcia
+  //     (np. zamówienie potwierdzone 21 kwietnia przed 23:50, płatność 22 kwietnia),
+  //     compute_voucher_valid_until() zwróciłoby NASTĘPNY miesiąc. Przechowując datę tutaj,
+  //     zapewniamy, że vouchery wygasną w BIEŻĄCYM miesiącu.
+  try {
+    const { data: companyExpiry } = await supabase
+      .from('companies')
+      .select('voucher_expiry_day, voucher_expiry_hour, voucher_expiry_minute')
+      .eq('id', order.company_id)
+      .single();
+
+    if ((companyExpiry as any)?.voucher_expiry_day) {
+      const { data: computedUntil } = await (supabase.rpc as any)('compute_voucher_valid_until', {
+        p_expiry_day:    (companyExpiry as any).voucher_expiry_day,
+        p_expiry_hour:   (companyExpiry as any).voucher_expiry_hour   ?? 0,
+        p_expiry_minute: (companyExpiry as any).voucher_expiry_minute ?? 5,
+      });
+
+      if (computedUntil) {
+        await supabase
+          .from('voucher_orders')
+          .update({ voucher_valid_until: computedUntil } as any)
+          .eq('id', orderId);
+      }
+    }
+  } catch {
+    // Błąd obliczania daty wygaśnięcia nie blokuje zatwierdzenia zamówienia
+  }
+
   // NOTE: Vouchers are NOT minted and NOT distributed here.
   // Minting and distribution happen in PATCH /api/orders/[id]/pay after admin confirms payment.
 

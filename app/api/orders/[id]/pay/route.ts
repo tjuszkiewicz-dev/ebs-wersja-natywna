@@ -35,12 +35,16 @@ export async function PATCH(
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
   // 2. Emit vouchers — minted to the HR user (company account owner)
+  // Use voucher_valid_until stored at hr-confirm time to prevent wrong-month expiry
+  const storedValidUntil: string | null = (order as any).voucher_valid_until ?? null;
+
   const { error: mintErr } = await supabase.rpc('mint_vouchers', {
     p_order_id:     orderId,
     p_company_id:   order.company_id,
     p_owner_id:     order.hr_user_id,
     p_quantity:     order.amount_vouchers,
     p_valid_months: 12,
+    p_valid_until:  storedValidUntil,
   });
 
   if (mintErr) return NextResponse.json({ error: mintErr.message }, { status: 500 });
@@ -65,6 +69,7 @@ export async function PATCH(
       p_to_user_id:   userId,
       p_amount:       amount,
       p_order_id:     orderId,
+      p_valid_until:  storedValidUntil,
     });
 
     if (transferErr) continue;

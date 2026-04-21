@@ -349,7 +349,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
-            image="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800"
             name="Uniga"
             desc="Szerokie ubezpieczenie na życie dla rodziny."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
@@ -359,7 +359,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<ShieldCheck size={24} style={{ color: '#10B981' }} />}
-            image="https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800"
             name="Loyds"
             desc="Ubezpieczenie od utraty dochodu dla menedżerów."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
@@ -406,7 +406,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<Shield size={24} style={{ color: '#F59E0B' }} />}
-            image="https://images.unsplash.com/photo-1542382121-e9de4599fb4b?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800"
             name="Leadenhall"
             desc="OC w życiu prywatnym, chroni przed pomyłkami na codzień."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
@@ -441,26 +441,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             price={0}
             onClick={() => handlePartnerRequest('Goldman Sachs', 'IKZE')}
           />
-          <AppIconCard
-            icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
-            image=""
-            name="Wolne miejsce"
-            desc="Wkrótce nowy produkt inwestycyjny."
-            gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
-            hasAccess={false}
-            price={0}
-            onClick={() => {}}
-          />
-          <AppIconCard
-            icon={<span className="font-serif font-bold text-[#1e3a8a] text-[10px] whitespace-nowrap leading-none text-center">Goldman<br/>Sachs</span>}
-            image=""
-            name="Wolne miejsce"
-            desc="Wkrótce nowy produkt inwestycyjny."
-            gradient="linear-gradient(135deg,#eff6ff,#dbeafe)"
-            hasAccess={false}
-            price={0}
-            onClick={() => {}}
-          />
+
         </ServiceCarousel>
       </div>
 
@@ -500,7 +481,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<Moon size={24} style={{ color: '#10B981' }} />}
-            image="https://images.unsplash.com/photo-1511296933631-18b46797e652?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1531353826977-0941b4779a1c?auto=format&fit=crop&q=80&w=800"
             name="Sen jako Twój najlepszy projekt"
             desc="ONE-TIME • Biohacking nocnej regeneracji."
             gradient="linear-gradient(135deg,#ecfdf5,#d1fae5)"
@@ -538,7 +519,7 @@ export const DashboardEmployee: React.FC<Props> = ({
         <ServiceCarousel>
           <AppIconCard
             icon={<ShoppingCart size={24} style={{ color: '#F59E0B' }} />}
-            image="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80&w=800"
             name="Psychologia zakupów online"
             desc="ONE-TIME • Jak nie dać się zmanipulować algorytmom."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
@@ -568,7 +549,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<Landmark size={24} style={{ color: '#F59E0B' }} />}
-            image="https://images.unsplash.com/photo-1565514020176-6c2235b8b3a9?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1579621970588-a35d0e7ab9b6?auto=format&fit=crop&q=80&w=800"
             name="Emerytura 2.0"
             desc="ONE-TIME • Zrozumieć PPK, IKE i IKZE bez bólu głowy."
             gradient="linear-gradient(135deg,#fffbeb,#fef3c7)"
@@ -605,7 +586,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
           <AppIconCard
             icon={<Compass size={24} style={{ color: '#EC4899' }} />}
-            image="https://images.unsplash.com/photo-1455355675860-e883e35ab3a7?auto=format&fit=crop&q=80&w=800"
+            image="https://images.unsplash.com/photo-1452860606245-08befc0ff44b?auto=format&fit=crop&q=80&w=800"
             name="Hobby zamiast scrollowania"
             desc="ONE-TIME • Jak znaleĹşć pasję, która nie wymaga ekranu."
             gradient="linear-gradient(135deg,#fdf2f8,#fce7f3)"
@@ -705,9 +686,8 @@ export const DashboardEmployee: React.FC<Props> = ({
           <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-center justify-center text-white/20 text-xs font-medium" style={{ height: 400 }}>
             Baner reklamowy
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden flex items-center justify-center" style={{ height: 200 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/orange.png" alt="Orange" className="w-full h-full object-cover" />
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-center justify-center text-white/20 text-xs font-medium" style={{ height: 200 }}>
+            Baner reklamowy
           </div>
         </div>
 
@@ -778,9 +758,8 @@ export const DashboardEmployee: React.FC<Props> = ({
           <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-center justify-center text-white/20 text-xs font-medium" style={{ height: 400 }}>
             Baner reklamowy
           </div>
-          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden flex items-center justify-center" style={{ height: 200 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/PZU.png" alt="PZU" className="w-full h-full object-cover" />
+          <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-center justify-center text-white/20 text-xs font-medium" style={{ height: 200 }}>
+            Baner reklamowy
           </div>
         </div>
       </div>{/* end xl:grid */}

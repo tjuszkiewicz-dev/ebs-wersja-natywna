@@ -14,6 +14,7 @@ import { NotificationHistoryModal } from '@/components/notifications/Notificatio
 import { useStrattonSystem } from '@/context/StrattonContext';
 import { supabaseBrowser } from '@/lib/supabase';
 import { Search, Settings, Wallet, Clock, X, Menu } from 'lucide-react';
+import { EmployeeSettingsModal } from '@/components/employee/EmployeeSettingsModal';
 
 function EmployeeLayout() {
   const { state, actions } = useStrattonSystem();
@@ -26,6 +27,7 @@ function EmployeeLayout() {
   const [isSearchOpen,         setSearchOpen]         = useState(false);
   const [isHistoryModalOpen,   setHistoryModalOpen]   = useState(false);
   const [showOrangePopup,      setShowOrangePopup]    = useState(true);
+  const [isSettingsOpen,       setSettingsOpen]       = useState(false);
 
   const closeOrangePopup = () => {
     setShowOrangePopup(false);
@@ -187,7 +189,11 @@ function EmployeeLayout() {
               onNotificationClick={(n) => { if (!n.read) actions.handleMarkSingleNotificationRead(n.id); }}
             />
 
-            <button title="Ustawienia" className="p-2 rounded-full transition text-white/40 hover:bg-white/10">
+            <button
+              title="Ustawienia"
+              onClick={() => setSettingsOpen(true)}
+              className="p-2 rounded-full transition text-white/40 hover:bg-white/10 hover:text-white"
+            >
               <Settings size={20} />
             </button>
 
@@ -230,6 +236,13 @@ function EmployeeLayout() {
         notifications={myNotifications}
         onClearAll={actions.handleClearNotifications}
         onNotificationClick={(n) => { if (!n.read) actions.handleMarkSingleNotificationRead(n.id); }}
+      />
+
+      <EmployeeSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        userId={currentUser.id}
+        userName={currentUser.name}
       />
 
       {/* ORANGE POPUP AD */}

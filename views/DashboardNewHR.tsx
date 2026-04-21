@@ -157,9 +157,31 @@ export const DashboardNewHR: React.FC<Props> = ({
     }
   }, [company.id]);
 
+  // Expired vouchers — source of truth: Supabase (EXPIRED + BUYBACK_PENDING)
+  const [expiredApiData, setExpiredApiData] = useState<{ employeeId: string; fullName: string; count: number }[]>([]);
+  const [expiredLoading, setExpiredLoading] = useState(false);
+
+  const fetchExpiredVouchers = useCallback(async () => {
+    if (!company.id) return;
+    setExpiredLoading(true);
+    try {
+      const res = await fetch(`/api/companies/${company.id}/expired-vouchers`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setExpiredApiData(Array.isArray(data) ? data : []);
+    } catch {
+      // cicho — lista po prostu będzie pusta
+    } finally {
+      setExpiredLoading(false);
+    }
+  }, [company.id]);
+
   useEffect(() => {
-    if (activeTab === 'BUYBACK') fetchBuybackBatches();
-  }, [activeTab, fetchBuybackBatches]);
+    if (activeTab === 'BUYBACK') {
+      fetchBuybackBatches();
+      fetchExpiredVouchers();
+    }
+  }, [activeTab, fetchBuybackBatches, fetchExpiredVouchers]);
 
   // ─── Tab 1: New Order state ──────────────────────────────────────────────
   const [uploadedRows, setUploadedRows] = useState<HrExcelRow[]>([]);
@@ -366,43 +388,34 @@ export const DashboardNewHR: React.FC<Props> = ({
     [companyExpiryDeadline]
   );
 
-  // Count expired vouchers per employee.
-  // After migration 019: individual records have status='expired' and current_owner_id=employee.
-  // For existing data (records still on HR user): fall back to employee.voucherBalance when
-  // the company deadline has passed — every voucher an employee holds is past expiry.
+  // expiredCountByEmpId — z Supabase (endpoint /expired-vouchers), nie z mockData
   const expiredCountByEmpId = useMemo(() => {
     const map = new Map<string, number>();
-
-    // Primary: individual voucher records with status EXPIRED assigned to employees
-    vouchers
-      .filter(v => v.status === VoucherStatus.EXPIRED && !!v.ownerId)
-      .forEach(v => {
-        map.set(v.ownerId!, (map.get(v.ownerId!) ?? 0) + 1);
-      });
-
-    // Fallback: if deadline has passed and an employee has balance but no expired records yet,
-    // use their full balance (pre-migration data — voucher records are still on HR user)
-    if (deadlinePassed) {
-      myEmployees.forEach(emp => {
-        if (!map.has(emp.id)) {
-          const balance = emp.voucherBalance ?? 0;
-          if (balance > 0) map.set(emp.id, balance);
-        }
-      });
+    for (const row of expiredApiData) {
+      map.set(row.employeeId, row.count);
     }
-
     return map;
-  }, [vouchers, myEmployees, deadlinePassed]);
+  }, [expiredApiData]);
 
-  // Employees with EXPIRED vouchers (defined after myEmployees)
+  // Pracownicy z przeterminowanymi voucherami — tylko ci z bazy danych
   const buybackPendingEmployees = useMemo(() => {
     const results: { employee: User; count: number }[] = [];
     myEmployees.forEach(emp => {
       const count = expiredCountByEmpId.get(emp.id) ?? 0;
       if (count > 0) results.push({ employee: emp, count });
     });
+    // Dołącz pracowników ze ściągniętymi danymi którzy mogą nie być w myEmployees (brak w localStorage)
+    for (const row of expiredApiData) {
+      if (!myEmployees.find(e => e.id === row.employeeId)) {
+        // Pracownik z Supabase — twórz minimalny obiekt tylko do wyświetlenia
+        results.push({
+          employee: { id: row.employeeId, name: row.fullName } as User,
+          count: row.count,
+        });
+      }
+    }
     return results;
-  }, [myEmployees, expiredCountByEmpId]);
+  }, [myEmployees, expiredCountByEmpId, expiredApiData]);
 
   const handleGenerateBatch = useCallback(async () => {
     if (buybackPendingEmployees.length === 0) return;
@@ -421,12 +434,13 @@ export const DashboardNewHR: React.FC<Props> = ({
       }
       setBatchGenSuccess(`Paczka wygenerowana: ${d.voucherCount} voucherów, ${d.totalAmount?.toFixed(2)} PLN.`);
       fetchBuybackBatches();
+      fetchExpiredVouchers();
     } catch (e: any) {
       setBatchGenError(e.message ?? 'Błąd generowania');
     } finally {
       setGeneratingBatch(false);
     }
-  }, [company.id, buybackPendingEmployees.length, fetchBuybackBatches]);
+  }, [company.id, buybackPendingEmployees.length, fetchBuybackBatches, fetchExpiredVouchers]);
 
   const employeesByPesel = useMemo(() => {
     const map = new Map<string, User>();
@@ -459,16 +473,47 @@ export const DashboardNewHR: React.FC<Props> = ({
   const [financialDocs, setFinancialDocs] = useState<FinancialDoc[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [docsTab, setDocsTab] = useState<'nota' | 'faktura_vat'>('nota');
+  const [pdfGenerating, setPdfGenerating] = useState<Record<string, boolean>>({});
+
+  // Automatycznie generuje PDF w tle dla dokumentów bez pdf_url
+  const autoGenerateMissingPdfs = useCallback(async (docs: FinancialDoc[]) => {
+    const missing = docs.filter(d => !d.pdf_url);
+    if (missing.length === 0) return;
+    // Mark all as generating
+    setPdfGenerating(prev => {
+      const next = { ...prev };
+      missing.forEach(d => { next[d.id] = true; });
+      return next;
+    });
+    await Promise.all(missing.map(async (doc) => {
+      try {
+        const res = await fetch(`/api/companies/${company.id}/financials/${doc.id}/pdf`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok && data.pdf_url) {
+          setFinancialDocs(prev => prev.map(d => d.id === doc.id ? { ...d, pdf_url: data.pdf_url } : d));
+        }
+      } catch {
+        // cicho — użytkownik zobaczy "—" jeśli się nie uda
+      } finally {
+        setPdfGenerating(prev => ({ ...prev, [doc.id]: false }));
+      }
+    }));
+  }, [company.id]);
 
   const fetchFinancialDocs = useCallback(async () => {
     setDocsLoading(true);
     try {
       const res = await fetch(`/api/invoices?companyId=${company.id}`);
-      if (res.ok) setFinancialDocs(await res.json());
+      if (res.ok) {
+        const docs: FinancialDoc[] = await res.json();
+        setFinancialDocs(docs);
+        // Uruchom generowanie PDF w tle dla dokumentów bez linku
+        autoGenerateMissingPdfs(docs);
+      }
     } finally {
       setDocsLoading(false);
     }
-  }, [company.id]);
+  }, [company.id, autoGenerateMissingPdfs]);
 
   useEffect(() => {
     fetchFinancialDocs();
@@ -796,7 +841,8 @@ export const DashboardNewHR: React.FC<Props> = ({
   }, [myEmployees, empFilter, empSearch]);
 
   const filteredBuybackEmployees = useMemo(() => {
-    let list = myEmployees;
+    // Podstawa: tylko pracownicy z przeterminowanymi voucherami (z Supabase)
+    let list = buybackPendingEmployees.map(e => e.employee);
     if (buybackEmpFilter === 'ACTIVE') list = list.filter(u => u.status === 'ACTIVE');
     if (buybackEmpFilter === 'INACTIVE') list = list.filter(u => u.status === 'INACTIVE');
     if (buybackEmpSearch.trim()) {
@@ -809,7 +855,7 @@ export const DashboardNewHR: React.FC<Props> = ({
       );
     }
     return list;
-  }, [myEmployees, buybackEmpFilter, buybackEmpSearch]);
+  }, [buybackPendingEmployees, buybackEmpFilter, buybackEmpSearch]);
 
   // ─── Tab 2: Filtered history ─────────────────────────────────────────────
 
@@ -1012,23 +1058,28 @@ export const DashboardNewHR: React.FC<Props> = ({
                       <FileSpreadsheet size={15}/> Pobierz pusty szablon
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const activeEmps = myEmployees.filter(u => u.status === 'ACTIVE');
                         if (activeEmps.length === 0) {
                           alert('Brak aktywnych pracowników do eksportu.');
                           return;
                         }
-                        exportActiveEmployees(
+                        await exportActiveEmployees(
                           activeEmps.map(u => ({
                             firstName:      u.identity?.firstName ?? u.name.split(' ')[0] ?? u.name,
                             lastName:       u.identity?.lastName  ?? u.name.split(' ').slice(1).join(' ') ?? '',
                             pesel:          u.pesel ?? u.identity?.pesel ?? '',
+                            street:         u.address?.street  ?? '',
+                            zipCode:        u.address?.zipCode ?? '',
+                            city:           u.address?.city    ?? '',
                             email:          u.email ?? '',
                             phoneNumber:    u.identity?.phoneNumber ?? '',
                             department:     u.department ?? u.organization?.department ?? '',
                             position:       u.position   ?? u.organization?.position   ?? '',
                             contractType:   u.contract?.type === 'UZ' ? 'Umowa Zlecenie' : 'Umowa o Pracę',
+                            hireDate:       u.organization?.hireDate ?? u.contract?.contractDateStart ?? '',
                             iban:           u.finance?.payoutAccount?.iban ?? '',
+                            ibanVerified:   u.finance?.payoutAccount?.isVerified ? 'Zweryfikowany' : 'Niezweryfikowany',
                           })),
                           company.name
                         );
@@ -1903,6 +1954,10 @@ export const DashboardNewHR: React.FC<Props> = ({
                                   className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
                                   <Download size={13}/> Pobierz
                                 </a>
+                              ) : pdfGenerating[doc.id] ? (
+                                <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                                  <Loader2 size={12} className="animate-spin"/> Generowanie…
+                                </span>
                               ) : (
                                 <span className="text-xs text-gray-400">—</span>
                               )}
@@ -1957,9 +2012,10 @@ export const DashboardNewHR: React.FC<Props> = ({
                 </div>
                 <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-1">
                   {(['ALL','ACTIVE','INACTIVE'] as const).map(f => {
+                    const base = buybackPendingEmployees.map(e => e.employee);
                     const count = f === 'ALL'
-                      ? myEmployees.length
-                      : myEmployees.filter(u => u.status === (f === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE')).length;
+                      ? base.length
+                      : base.filter(u => u.status === (f === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE')).length;
                     return (
                       <button key={f} onClick={() => setBuybackEmpFilter(f)}
                         className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded transition-colors ${
@@ -2016,10 +2072,17 @@ export const DashboardNewHR: React.FC<Props> = ({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredBuybackEmployees.length === 0 ? (
+                      {expiredLoading ? (
                         <tr>
                           <td colSpan={12} style={{ padding: '32px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13, border: '1px solid #e5e7eb', background: '#fff' }}>
-                            Brak pracowników spełniających kryteria wyszukiwania.
+                            <Loader2 size={18} className="inline animate-spin mr-2 text-blue-500" />
+                            Pobieranie danych z bazy...
+                          </td>
+                        </tr>
+                      ) : filteredBuybackEmployees.length === 0 ? (
+                        <tr>
+                          <td colSpan={12} style={{ padding: '32px 16px', textAlign: 'center', color: '#9ca3af', fontSize: 13, border: '1px solid #e5e7eb', background: '#fff' }}>
+                            Brak pracowników z przeterminowanymi voucherami.
                           </td>
                         </tr>
                       ) : (

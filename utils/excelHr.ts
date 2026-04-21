@@ -1,5 +1,9 @@
-// Excel utilities for HR panel — uses SheetJS (npm: xlsx)
+// Excel utilities for HR panel
+// Szablon (generateExcelTemplate) + eksport pracowników (exportActiveEmployees)
+// używają ExcelJS dla pełnej obsługi kolorów/stylów.
+// Parse pliku wejściowego nadal przez SheetJS (lżejszy, tylko odczyt).
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 export interface HrExcelRow {
   rowIndex: number;
@@ -38,44 +42,169 @@ export interface ActiveEmployeeRow {
   firstName: string;
   lastName: string;
   pesel: string;
+  // adres — kolumny D, E, F
+  street: string;
+  zipCode: string;
+  city: string;
+  // kontakt — kolumny G, H
   email: string;
   phoneNumber: string;
+  // voucher — kolumna I (wyróżniona)
+  // (puste — do uzupełnienia przez HR)
+  // zatrudnienie — kolumny J–M
   department: string;
   position: string;
   contractType: string;
+  hireDate: string;
+  // finanse — kolumny N, O
   iban: string;
+  ibanVerified: string;
 }
 
-export function exportActiveEmployees(employees: ActiveEmployeeRow[], companyName: string): void {
-  const header = ['Imię', 'Nazwisko', 'PESEL', 'Zamówienie voucherów', 'Email', 'Telefon', 'Dział', 'Stanowisko', 'Typ umowy', 'IBAN'];
-  const rows = employees.map(e => [
-    e.firstName,
-    e.lastName,
-    e.pesel,
-    '',              // Zamówienie voucherów — do uzupełnienia przez HR
-    e.email,
-    e.phoneNumber,
-    e.department,
-    e.position,
-    e.contractType,
-    e.iban,
-  ]);
+// ── Kolory (ARGB hex, bez '#') ────────────────────────────────────────────────
+const COLOR_GREEN      = 'FFB7E1CD'; // pastelowy zielony  A–H
+const COLOR_GREEN_LITE = 'FFD4EEE0'; // jaśniejszy zielony I
+const COLOR_BLUE       = 'FFB7D4F0'; // pastelowy niebieski J–M
+const COLOR_ORANGE     = 'FFFFE0B2'; // pastelowy pomarańczowy N–O
 
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-  ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 14 }, { wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 20 }, { wch: 25 }, { wch: 18 }, { wch: 32 }];
+function applyHeaderCell(
+  ws: ExcelJS.Worksheet,
+  col: number,
+  value: string,
+  argb: string,
+) {
+  const cell = ws.getRow(1).getCell(col);
+  cell.value = value;
+  cell.font = { bold: true, size: 10 };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+  cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  cell.border = {
+    top:    { style: 'thin', color: { argb: 'FFAAAAAA' } },
+    bottom: { style: 'thin', color: { argb: 'FFAAAAAA' } },
+    left:   { style: 'thin', color: { argb: 'FFAAAAAA' } },
+    right:  { style: 'thin', color: { argb: 'FFAAAAAA' } },
+  };
+}
 
-  // Bold header row
-  for (let c = 0; c < header.length; c++) {
-    const cellRef = XLSX.utils.encode_cell({ r: 0, c });
-    if (ws[cellRef]) ws[cellRef].s = { font: { bold: true } };
+function applyDataCell(
+  cell: ExcelJS.Cell,
+  argb: string,
+) {
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } };
+  cell.alignment = { vertical: 'middle', horizontal: 'left' };
+  cell.border = {
+    top:    { style: 'hair', color: { argb: 'FFCCCCCC' } },
+    bottom: { style: 'hair', color: { argb: 'FFCCCCCC' } },
+    left:   { style: 'hair', color: { argb: 'FFCCCCCC' } },
+    right:  { style: 'hair', color: { argb: 'FFCCCCCC' } },
+  };
+}
+
+// Mapowanie kolumna → kolor grupy
+const COL_COLOR: Record<number, string> = {
+  1: COLOR_GREEN,       // A  Imię
+  2: COLOR_GREEN,       // B  Nazwisko
+  3: COLOR_GREEN,       // C  PESEL
+  4: COLOR_GREEN,       // D  Ulica
+  5: COLOR_GREEN,       // E  Kod pocztowy
+  6: COLOR_GREEN,       // F  Miasto
+  7: COLOR_GREEN,       // G  Email
+  8: COLOR_GREEN,       // H  Telefon
+  9: COLOR_GREEN_LITE,  // I  Zamówienie voucherów
+  10: COLOR_BLUE,       // J  Dział
+  11: COLOR_BLUE,       // K  Stanowisko
+  12: COLOR_BLUE,       // L  Typ umowy
+  13: COLOR_BLUE,       // M  Data zatrudnienia
+  14: COLOR_ORANGE,     // N  IBAN
+  15: COLOR_ORANGE,     // O  Status IBAN
+};
+
+const HEADERS: [string, number][] = [
+  ['Imię',                   14],
+  ['Nazwisko',               18],
+  ['PESEL',                  13],
+  ['Ulica',                  26],
+  ['Kod pocztowy',           13],
+  ['Miasto',                 18],
+  ['Email',                  28],
+  ['Telefon',                14],
+  ['Zamówienie voucherów',   22], // I — do uzupełnienia przez HR
+  ['Dział',                  18],
+  ['Stanowisko',             22],
+  ['Typ umowy',              16],
+  ['Data zatrudnienia',      17],
+  ['IBAN',                   30],
+  ['Status IBAN',            16],
+];
+
+export async function exportActiveEmployees(
+  employees: ActiveEmployeeRow[],
+  companyName: string,
+): Promise<void> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'EBS — Eliton Benefits System';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Aktywni pracownicy', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
+
+  // Szerokości kolumn
+  ws.columns = HEADERS.map(([, wch]) => ({ width: wch }));
+
+  // Nagłówki
+  HEADERS.forEach(([label], idx) => {
+    applyHeaderCell(ws, idx + 1, label, COL_COLOR[idx + 1]);
+  });
+  ws.getRow(1).height = 32;
+
+  // Dane
+  for (const e of employees) {
+    const rowData = [
+      e.firstName,
+      e.lastName,
+      e.pesel,
+      e.street,
+      e.zipCode,
+      e.city,
+      e.email,
+      e.phoneNumber,
+      '',               // I — Zamówienie voucherów (do uzupełnienia)
+      e.department,
+      e.position,
+      e.contractType,
+      e.hireDate,
+      e.iban,
+      e.ibanVerified,
+    ];
+    const exRow = ws.addRow(rowData);
+    exRow.height = 18;
+    rowData.forEach((_, idx) => {
+      applyDataCell(exRow.getCell(idx + 1), COL_COLOR[idx + 1]);
+    });
+    // Kolumna I (voucher) — wyróżnij jako "do wypełnienia"
+    const voucherCell = exRow.getCell(9);
+    voucherCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: COLOR_GREEN_LITE } };
   }
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Aktywni pracownicy');
+  // Autofiltr na wierszu nagłówkowym
+  ws.autoFilter = { from: 'A1', to: 'O1' };
 
   const today = new Date().toISOString().slice(0, 10);
   const safeName = companyName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  XLSX.writeFile(wb, `aktywni_pracownicy_${safeName}_${today}.xlsx`);
+  const fileName = `aktywni_pracownicy_${safeName}_${today}.xlsx`;
+
+  // Pobieranie w przeglądarce
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export interface EmployeeCredentialRow {

@@ -155,7 +155,7 @@ Available in `components/ui/` and `components/bits/`:
 - `components/ui/Orb.tsx` + `Orb.css` — animated orb
 - `components/ui/MagicRings.tsx` + `MagicRings.css`
 - `components/ui/ServiceCarousel.tsx` — Embla carousel, 4-column layout (`md:flex-[0_0_25%]`), `AppIconCard` min-height `220px`
-- `components/bits/BorderGlow/`, `components/bits/StarBorder/`
+- `components/bits/StarBorder/`
 - `components/employee/mobile/WalletCard.tsx` — animated voucher balance card, `p-8` padding, white text
 
 ### Extracted Sub-Components & Helpers

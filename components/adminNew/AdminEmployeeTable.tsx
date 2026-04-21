@@ -283,7 +283,6 @@ export const AdminEmployeeTable: React.FC<Props> = ({ employees, onRefresh }) =>
                     border: '1px solid #e5e7eb',
                     padding: '7px 11px',
                     background: rowBg,
-                    borderLeft: isExpanded && idx === 0 ? '3px solid #3b82f6' : undefined,
                     ...extra,
                   });
 

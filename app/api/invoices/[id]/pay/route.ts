@@ -78,12 +78,16 @@ export async function PATCH(
           .eq('id', orderId);
 
         // 2. Emituj vouchery na konto HR
+        // Use voucher_valid_until stored at hr-confirm time to prevent wrong-month expiry
+        const storedValidUntil: string | null = (order as any).voucher_valid_until ?? null;
+
         const { error: mintErr } = await supabase.rpc('mint_vouchers', {
           p_order_id:     orderId,
           p_company_id:   order.company_id,
           p_owner_id:     order.hr_user_id,
           p_quantity:     order.amount_vouchers,
           p_valid_months: 12,
+          p_valid_until:  storedValidUntil,
         });
 
         if (!mintErr) {
@@ -106,6 +110,7 @@ export async function PATCH(
               p_to_user_id:   userId,
               p_amount:       amount,
               p_order_id:     orderId,
+              p_valid_until:  storedValidUntil,
             });
 
             if (transferErr) continue;

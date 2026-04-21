@@ -33,237 +33,238 @@ export interface DocumentContext {
   distributionSummary: string; // np. "Emisja 800 voucherów dla 8 pracowników"
 }
 
-/** Generuje HTML dla noty obciążeniowej (emisja voucherów, VAT 0%) */
-function buildNotaHtml(ctx: DocumentContext): string {
-  const fmt = (n: number) => n.toFixed(2).replace('.', ',') + ' zł';
-  const date = new Date(ctx.issuedAt).toLocaleDateString('pl-PL');
-  const dueDate = new Date(new Date(ctx.issuedAt).getTime() + 14 * 86400000).toLocaleDateString('pl-PL');
+// ── Helper: kwota słownie (format polski) ────────────────────────────────────
+function kwotaSlownie(amount: number): string {
+  const ones  = ['', 'jeden', 'dwa', 'trzy', 'cztery', 'pięć', 'sześć', 'siedem', 'osiem', 'dziewięć'];
+  const teens = ['dziesięć', 'jedenaście', 'dwanaście', 'trzynaście', 'czternaście', 'piętnaście',
+                 'szesnaście', 'siedemnaście', 'osiemnaście', 'dziewiętnaście'];
+  const tenths = ['', 'dziesięć', 'dwadzieścia', 'trzydzieści', 'czterdzieści', 'pięćdziesiąt',
+                  'sześćdziesiąt', 'siedemdziesiąt', 'osiemdziesiąt', 'dziewięćdziesiąt'];
+  const hunds  = ['', 'sto', 'dwieście', 'trzysta', 'czterysta', 'pięćset',
+                  'sześćset', 'siedemset', 'osiemset', 'dziewięćset'];
+
+  function chunk(n: number): string {
+    if (n === 0) return '';
+    const h = Math.floor(n / 100);
+    const r = n % 100;
+    let mid = '';
+    if (r >= 10 && r <= 19) {
+      mid = teens[r - 10];
+    } else {
+      const t = Math.floor(r / 10);
+      const o = r % 10;
+      mid = [tenths[t], ones[o]].filter(Boolean).join(' ');
+    }
+    return [hunds[h], mid].filter(Boolean).join(' ');
+  }
+
+  function decl(n: number, forms: [string, string, string]): string {
+    if (n === 1) return forms[0];
+    const m100 = Math.abs(n) % 100;
+    const m10  = Math.abs(n) % 10;
+    if (m100 >= 12 && m100 <= 14) return forms[2];
+    if (m10 >= 2 && m10 <= 4)     return forms[1];
+    return forms[2];
+  }
+
+  const totalCents = Math.round(amount * 100);
+  const int = Math.floor(totalCents / 100);
+  const gr  = totalCents % 100;
+  if (int === 0) return `zero złotych ${gr}/100 PLN`;
+
+  const mil = Math.floor(int / 1_000_000);
+  const tys = Math.floor((int % 1_000_000) / 1_000);
+  const rem = int % 1_000;
+
+  const parts: string[] = [];
+  if (mil > 0) parts.push(`${chunk(mil)} ${decl(mil, ['milion', 'miliony', 'milionów'])}`);
+  if (tys > 0) parts.push(`${chunk(tys)} ${decl(tys, ['tysiąc', 'tysiące', 'tysięcy'])}`);
+  if (rem > 0) parts.push(chunk(rem));
+
+  const plnWord = decl(int, ['złoty', 'złote', 'złotych']);
+  return `${parts.join(' ')} ${plnWord} ${gr}/100 PLN`;
+}
+
+// ── Układ liczby z separatorem tysięcy ───────────────────────────────────────
+function fmtPl(n: number): string {
+  const [intPart, decPart] = n.toFixed(2).split('.');
+  return `${intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0')},${decPart}`;
+}
+
+/** Generuje HTML dokumentu księgowego według polskiego układu faktury (nota lub FV) */
+export function buildPolishInvoiceHtml(ctx: DocumentContext, type: 'nota' | 'faktura_vat'): string {
+  const isNota    = type === 'nota';
+  const docNumber = isNota ? ctx.docNotaNumber : ctx.docFakturaNumber;
+  const docTitle  = isNota ? 'Nota Obciążeniowa' : 'Faktura VAT';
+  const date      = new Date(ctx.issuedAt).toLocaleDateString('pl-PL');
+  const dueDate   = new Date(new Date(ctx.issuedAt).getTime() + 14 * 86_400_000).toLocaleDateString('pl-PL');
+
+  // Miasto z adresu wystawcy: "ul. Junony 23/11, 80-299 Gdańsk" → "Gdańsk"
+  const city = ISSUER.address.split(',').pop()?.trim().replace(/^\d{2}-\d{3}\s+/, '') ?? 'Gdańsk';
+
+  const amountGross = isNota ? ctx.voucherAmount : ctx.feeGross;
+  const amountNet   = isNota ? ctx.voucherAmount : ctx.feeNet;
+  const vatAmount   = isNota ? 0                 : ctx.feeVat;
+  const vatRate     = isNota ? '0%'              : '23%';
+  const ilosc       = isNota ? Math.round(ctx.voucherAmount) : 1;
+  const cenaJedn    = isNota ? 1                 : ctx.feeNet;
+  const opis        = isNota
+    ? 'Emisja elektronicznych voucherów wielofunkcyjnych (MPV)'
+    : 'Obsługa serwisowa — udostępnienie i dystrybucja voucherów pracownikom';
+
+  // QR code: numer dokumentu + kwota (zewnętrzne API, Puppeteer może pobrać)
+  const qrData = encodeURIComponent(`${docNumber}|${fmtPl(amountGross)} PLN|${ISSUER.bank}`);
+  const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${qrData}`;
+
+  const slownie = kwotaSlownie(amountGross);
+
+  // Style pomocnicze dla komórek tabeli głównej
+  const th = (extra = '') =>
+    `style="border:1px solid #ccc;padding:5px 7px;background:#f5f5f5;font-weight:700;font-size:10px;white-space:nowrap;${extra}"`;
+  const td = (extra = '') =>
+    `style="border:1px solid #ccc;padding:5px 7px;font-size:10px;${extra}"`;
+  const tds = (extra = '') =>
+    `style="border:1px solid #ccc;padding:4px 7px;font-size:9.5px;background:#fafafa;${extra}"`;
+  const tdt = (extra = '') =>
+    `style="border:1px solid #ccc;padding:5px 7px;font-size:10px;font-weight:700;background:#f0f0f0;${extra}"`;
 
   return `<!DOCTYPE html>
-<html lang="pl">
-<head>
-<meta charset="UTF-8"/>
-<style>
+<html lang="pl"><head><meta charset="UTF-8"/><style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 32px; }
-  .logo { font-size: 20px; font-weight: 900; color: #1e3a5f; margin-bottom: 4px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-  .doc-title { font-size: 18px; font-weight: 700; color: #1e3a5f; margin-bottom: 8px; }
-  .doc-number { font-size: 13px; color: #6b7280; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
-  .card-title { font-size: 9px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-  .card p { line-height: 1.6; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th { background: #1e3a5f; color: #fff; padding: 8px 10px; font-size: 10px; text-align: left; }
-  td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
-  .tr-total td { font-weight: 700; background: #f9fafb; border-top: 2px solid #1e3a5f; }
-  .badge { display: inline-block; background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; }
-  .legal { margin-top: 20px; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 9.5px; color: #6b7280; line-height: 1.5; }
-  .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; text-align: center; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div>
-    <div class="logo">STRATTON PRIME</div>
-    <p style="color:#6b7280;font-size:10px">${ISSUER.name}</p>
-    <p style="color:#6b7280;font-size:10px">NIP: ${ISSUER.nip} | KRS: ${ISSUER.krs} | REGON: ${ISSUER.regon}</p>
-    <p style="color:#6b7280;font-size:10px">${ISSUER.address}</p>
-  </div>
-  <div style="text-align:right">
-    <div class="doc-title">NOTA OBCIĄŻENIOWA</div>
-    <div class="doc-number">${ctx.docNotaNumber}</div>
-    <p style="color:#6b7280;margin-top:4px">Data wystawienia: ${date}</p>
-    <p style="color:#6b7280">Termin płatności: ${dueDate}</p>
-  </div>
-</div>
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 28px 36px; line-height: 1.4; }
+  p.f { margin-bottom: 2px; font-size: 10.5px; }
+</style></head><body>
 
-<div class="grid2">
-  <div class="card">
-    <div class="card-title">Wystawca</div>
-    <p><strong>${ISSUER.name}</strong></p>
-    <p>NIP: ${ISSUER.nip} | KRS: ${ISSUER.krs}</p>
-    <p>REGON: ${ISSUER.regon}</p>
-    <p>${ISSUER.address}</p>
-    <p>E-mail: ${ISSUER.email}</p>
-  </div>
-  <div class="card">
-    <div class="card-title">Nabywca</div>
-    <p><strong>${ctx.companyName}</strong></p>
-    <p>NIP: ${ctx.companyNip}</p>
-    <p>${ctx.companyAddress || '—'}</p>
-  </div>
-</div>
+<!-- ── GÓRA: kod QR (lewo) + tabela informacyjna (prawo) ── -->
+<table style="width:100%;border-collapse:collapse;margin-bottom:14px"><tr>
+  <td style="vertical-align:top;width:120px;padding-right:12px">
+    <img src="${qrUrl}" width="110" height="110" alt="" onerror="this.style.visibility='hidden'"/>
+  </td>
+  <td style="vertical-align:top;width:auto"></td>
+  <td style="vertical-align:top">
+    <table style="border-collapse:collapse;float:right;min-width:190px">
+      <tr><td style="border:1px solid #bbb;background:#f5f5f5;padding:4px 20px;text-align:center;font-size:9px;color:#555">Miejsce wystawienia</td></tr>
+      <tr><td style="border:1px solid #bbb;padding:4px 20px;text-align:center;font-weight:700">${city}</td></tr>
+      <tr><td style="border:1px solid #bbb;background:#f5f5f5;padding:4px 20px;text-align:center;font-size:9px;color:#555">Data wystawienia</td></tr>
+      <tr><td style="border:1px solid #bbb;padding:4px 20px;text-align:center;font-weight:700">${date}</td></tr>
+      <tr><td style="border:1px solid #bbb;background:#f5f5f5;padding:4px 20px;text-align:center;font-size:9px;color:#555">Data sprzedaży</td></tr>
+      <tr><td style="border:1px solid #bbb;padding:4px 20px;text-align:center;font-weight:700">${date}</td></tr>
+    </table>
+  </td>
+</tr></table>
 
-<p style="margin-bottom:8px;font-size:10px;color:#6b7280">
-  Zamówienie: <strong>${ctx.orderId}</strong> &nbsp;|&nbsp; ${ctx.distributionSummary}
-</p>
+<!-- ── STRONY: Sprzedawca | Nabywca ── -->
+<table style="width:100%;border-collapse:collapse;margin-bottom:14px"><tr>
+  <td style="width:50%;border:1px solid #bbb;padding:10px 14px;vertical-align:top">
+    <div style="font-weight:700;font-size:10px;text-align:center;background:#f5f5f5;padding:5px;border-bottom:1px solid #bbb;margin:-10px -14px 9px">Sprzedawca</div>
+    <p class="f"><strong>${ISSUER.name}</strong></p>
+    <p class="f">NIP: ${ISSUER.nip}</p>
+    <p class="f">KRS: ${ISSUER.krs} | REGON: ${ISSUER.regon}</p>
+    <p class="f">${ISSUER.address}</p>
+    <p class="f">E-mail: ${ISSUER.email}</p>
+  </td>
+  <td style="width:50%;border:1px solid #bbb;padding:10px 14px;vertical-align:top">
+    <div style="font-weight:700;font-size:10px;text-align:center;background:#f5f5f5;padding:5px;border-bottom:1px solid #bbb;margin:-10px -14px 9px">Nabywca</div>
+    <p class="f"><strong>${ctx.companyName}</strong></p>
+    <p class="f">NIP: ${ctx.companyNip}</p>
+    <p class="f">${ctx.companyAddress || ''}</p>
+  </td>
+</tr></table>
 
-<table>
-  <thead>
-    <tr>
-      <th>Lp.</th>
-      <th>Opis</th>
-      <th>Podstawa prawna</th>
-      <th style="text-align:right">Kwota</th>
-      <th style="text-align:center">VAT</th>
-    </tr>
-  </thead>
+<!-- ── TYTUŁ DOKUMENTU ── -->
+<div style="text-align:center;font-size:14px;font-weight:700;margin:14px 0 12px">${docTitle} ${docNumber}</div>
+
+<!-- ── TABELA POZYCJI ── -->
+<table style="width:100%;border-collapse:collapse;margin-bottom:14px">
+  <thead><tr>
+    <th ${th('width:26px;text-align:center')}>Lp.</th>
+    <th ${th()}>Nazwa towaru lub usługi</th>
+    <th ${th('text-align:center')}>Jm.</th>
+    <th ${th('text-align:right')}>Ilość</th>
+    <th ${th('text-align:right')}>Cena netto</th>
+    <th ${th('text-align:right')}>Wartość netto</th>
+    <th ${th('text-align:right')}>Stawka VAT</th>
+    <th ${th('text-align:right')}>Kwota VAT</th>
+    <th ${th('text-align:right')}>Wartość brutto</th>
+  </tr></thead>
   <tbody>
     <tr>
-      <td>1</td>
-      <td>Emisja voucherów wielofunkcyjnych (MPV) — ${ctx.distributionSummary}</td>
-      <td><span class="badge">art. 8b UoVAT</span></td>
-      <td style="text-align:right;font-weight:600">${fmt(ctx.voucherAmount)}</td>
-      <td style="text-align:center">0% (MPV)</td>
+      <td ${td('text-align:center')}>1</td>
+      <td ${td()}>${opis}</td>
+      <td ${td('text-align:center')}>szt.</td>
+      <td ${td('text-align:right')}>${ilosc}</td>
+      <td ${td('text-align:right')}>${fmtPl(cenaJedn)}</td>
+      <td ${td('text-align:right')}>${fmtPl(amountNet)}</td>
+      <td ${td('text-align:right')}>${vatRate}</td>
+      <td ${td('text-align:right')}>${fmtPl(vatAmount)}</td>
+      <td ${td('text-align:right;font-weight:600')}>${fmtPl(amountGross)}</td>
+    </tr>
+    <tr>
+      <td colspan="5" ${tds('text-align:right')}>W tym</td>
+      <td ${tds('text-align:right')}>${fmtPl(amountNet)}</td>
+      <td ${tds('text-align:right')}>${vatRate}</td>
+      <td ${tds('text-align:right')}>${fmtPl(vatAmount)}</td>
+      <td ${tds('text-align:right')}>${fmtPl(amountGross)}</td>
+    </tr>
+    <tr>
+      <td colspan="5" ${tdt('text-align:right')}>Razem</td>
+      <td ${tdt('text-align:right')}>${fmtPl(amountNet)}</td>
+      <td ${tdt()}></td>
+      <td ${tdt('text-align:right')}>${fmtPl(vatAmount)}</td>
+      <td ${tdt('text-align:right')}>${fmtPl(amountGross)}</td>
     </tr>
   </tbody>
-  <tfoot>
-    <tr class="tr-total">
-      <td colspan="3"><strong>DO ZAPŁATY</strong></td>
-      <td style="text-align:right">${fmt(ctx.voucherAmount)}</td>
-      <td style="text-align:center">VAT 0%</td>
-    </tr>
-  </tfoot>
 </table>
 
-<p style="font-size:10px;color:#374151;margin-bottom:4px">
-  <strong>Numer konta:</strong> ${ISSUER.bank}
-</p>
-<p style="font-size:10px;color:#374151">
-  <strong>Tytuł przelewu:</strong> ${ctx.docNotaNumber} / ${ctx.companyNip}
-</p>
+<!-- ── PŁATNOŚĆ: dane (lewo) | kwota do zapłaty (prawo) ── -->
+<table style="width:100%;border-collapse:collapse;margin-bottom:14px"><tr>
+  <td style="width:50%;border:1px solid #bbb;padding:10px 14px;vertical-align:top">
+    <p class="f"><span style="color:#555">Sposób płatności:</span> przelew</p>
+    <p style="margin-top:5px;margin-bottom:2px;font-size:10.5px"><span style="color:#555">Numer konta:</span></p>
+    <p class="f" style="font-family:monospace;font-size:10px;letter-spacing:0.03em">${ISSUER.bank}</p>
+    <p style="margin-top:5px" class="f"><span style="color:#555">Tytuł przelewu:</span> ${docNumber} / ${ctx.companyNip}</p>
+    <p class="f"><span style="color:#555">Termin płatności:</span> ${dueDate}</p>
+  </td>
+  <td style="width:50%;border:1px solid #bbb;padding:10px 14px;vertical-align:middle">
+    <p style="font-size:16px;font-weight:700;margin-bottom:7px">Do zapłaty&nbsp; ${fmtPl(amountGross)} PLN</p>
+    <p style="font-size:10px;color:#333;line-height:1.5">Słownie: ${slownie}</p>
+  </td>
+</tr></table>
 
-<div class="legal">
+<!-- ── PODPISY ── -->
+<table style="width:100%;margin-top:48px"><tr>
+  <td style="width:50%;text-align:center;border-top:1px solid #aaa;padding-top:6px;padding-right:48px;font-size:10px;color:#c0392b">
+    Podpis osoby upoważnionej do wystawienia
+  </td>
+  <td style="width:50%;text-align:center;border-top:1px solid #aaa;padding-top:6px;padding-left:48px;font-size:10px;color:#c0392b">
+    Podpis osoby upoważnionej do odbioru
+  </td>
+</tr></table>
+
+${isNota ? `<!-- ── PODSTAWA PRAWNA (tylko nota) ── -->
+<div style="margin-top:16px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:3px;font-size:8.5px;color:#555;line-height:1.55">
   <strong>Podstawa prawna VAT 0% przy emisji MPV:</strong>
   Voucher wielofunkcyjny (Multi-Purpose Voucher) zgodny z art. 8b ust. 1 Ustawy z dnia 11 marca 2004 r.
   o podatku od towarów i usług (Dz.U. 2004 nr 54 poz. 535 ze zm.) wdrażającej Dyrektywę UE 2016/1065.
   VAT jest rozliczany przez podmiot realizujący voucher w momencie jego realizacji.
   Nota obciążeniowa nie jest fakturą VAT.
-</div>
+</div>` : ''}
 
-<div class="footer">
-  Dokument wygenerowany automatycznie przez system EBS — Stratton Prime sp. z o.o. |
-  NIP: ${ISSUER.nip} | KRS: ${ISSUER.krs} | ${date} | ${ctx.docNotaNumber}
-</div>
-</body>
-</html>`;
+</body></html>`;
 }
 
-/** Generuje HTML dla faktury VAT za obsługę serwisową (23% VAT) */
+/** @internal */
+function buildNotaHtml(ctx: DocumentContext): string {
+  return buildPolishInvoiceHtml(ctx, 'nota');
+}
+
+/** @internal */
 function buildFakturaHtml(ctx: DocumentContext): string {
-  const fmt = (n: number) => n.toFixed(2).replace('.', ',') + ' zł';
-  const date = new Date(ctx.issuedAt).toLocaleDateString('pl-PL');
-  const dueDate = new Date(new Date(ctx.issuedAt).getTime() + 14 * 86400000).toLocaleDateString('pl-PL');
-
-  return `<!DOCTYPE html>
-<html lang="pl">
-<head>
-<meta charset="UTF-8"/>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; padding: 32px; }
-  .logo { font-size: 20px; font-weight: 900; color: #1e3a5f; margin-bottom: 4px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
-  .doc-title { font-size: 18px; font-weight: 700; color: #1e3a5f; margin-bottom: 8px; }
-  .doc-number { font-size: 13px; color: #6b7280; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-  .card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px; }
-  .card-title { font-size: 9px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
-  .card p { line-height: 1.6; }
-  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-  th { background: #1e3a5f; color: #fff; padding: 8px 10px; font-size: 10px; text-align: left; }
-  td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; }
-  .tr-total td { font-weight: 700; background: #f9fafb; }
-  .tr-grand td { font-weight: 700; background: #1e3a5f; color: #fff; font-size: 13px; }
-  .footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; text-align: center; }
-</style>
-</head>
-<body>
-<div class="header">
-  <div>
-    <div class="logo">STRATTON PRIME</div>
-    <p style="color:#6b7280;font-size:10px">${ISSUER.name}</p>
-    <p style="color:#6b7280;font-size:10px">NIP: ${ISSUER.nip} | KRS: ${ISSUER.krs} | REGON: ${ISSUER.regon}</p>
-    <p style="color:#6b7280;font-size:10px">${ISSUER.address}</p>
-  </div>
-  <div style="text-align:right">
-    <div class="doc-title">FAKTURA VAT</div>
-    <div class="doc-number">${ctx.docFakturaNumber}</div>
-    <p style="color:#6b7280;margin-top:4px">Data wystawienia: ${date}</p>
-    <p style="color:#6b7280">Termin płatności: ${dueDate}</p>
-  </div>
-</div>
-
-<div class="grid2">
-  <div class="card">
-    <div class="card-title">Sprzedawca</div>
-    <p><strong>${ISSUER.name}</strong></p>
-    <p>NIP: ${ISSUER.nip} | KRS: ${ISSUER.krs}</p>
-    <p>REGON: ${ISSUER.regon}</p>
-    <p>${ISSUER.address}</p>
-    <p>E-mail: ${ISSUER.email}</p>
-  </div>
-  <div class="card">
-    <div class="card-title">Nabywca</div>
-    <p><strong>${ctx.companyName}</strong></p>
-    <p>NIP: ${ctx.companyNip}</p>
-    <p>${ctx.companyAddress || '—'}</p>
-  </div>
-</div>
-
-<p style="margin-bottom:8px;font-size:10px;color:#6b7280">
-  Zamówienie: <strong>${ctx.orderId}</strong> &nbsp;|&nbsp; ${ctx.distributionSummary}
-</p>
-
-<table>
-  <thead>
-    <tr>
-      <th>Lp.</th>
-      <th>Opis</th>
-      <th style="text-align:right">Netto</th>
-      <th style="text-align:right">VAT 23%</th>
-      <th style="text-align:right">Brutto</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>1</td>
-      <td>Obsługa serwisowa — udostępnienie i dystrybucja voucherów pracownikom (${ctx.distributionSummary})</td>
-      <td style="text-align:right">${fmt(ctx.feeNet)}</td>
-      <td style="text-align:right">${fmt(ctx.feeVat)}</td>
-      <td style="text-align:right;font-weight:600">${fmt(ctx.feeGross)}</td>
-    </tr>
-  </tbody>
-  <tfoot>
-    <tr class="tr-total">
-      <td colspan="2"><strong>Razem netto</strong></td>
-      <td style="text-align:right">${fmt(ctx.feeNet)}</td>
-      <td style="text-align:right">${fmt(ctx.feeVat)}</td>
-      <td style="text-align:right">${fmt(ctx.feeGross)}</td>
-    </tr>
-    <tr class="tr-grand">
-      <td colspan="4"><strong>DO ZAPŁATY BRUTTO</strong></td>
-      <td style="text-align:right">${fmt(ctx.feeGross)}</td>
-    </tr>
-  </tfoot>
-</table>
-
-<p style="font-size:10px;color:#374151;margin-bottom:4px">
-  <strong>Numer konta:</strong> ${ISSUER.bank}
-</p>
-<p style="font-size:10px;color:#374151">
-  <strong>Tytuł przelewu:</strong> ${ctx.docFakturaNumber} / ${ctx.companyNip}
-</p>
-
-<div class="footer">
-  Dokument wygenerowany automatycznie przez system EBS — Stratton Prime sp. z o.o. |
-  NIP: ${ISSUER.nip} | KRS: ${ISSUER.krs} | ${date} | ${ctx.docFakturaNumber}
-</div>
-</body>
-</html>`;
+  return buildPolishInvoiceHtml(ctx, 'faktura_vat');
 }
+
+
+
 
 /**
  * Tworzy nota + faktura_vat w tabeli financial_documents,

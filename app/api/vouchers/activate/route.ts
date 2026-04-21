@@ -6,20 +6,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 
-function nextExpiryDate(expiryDay: number): string {
-  const today = new Date();
-  const thisMonthExpiry = new Date(today.getFullYear(), today.getMonth(), expiryDay);
-  const targetDate = today >= thisMonthExpiry
-    ? new Date(today.getFullYear(), today.getMonth() + 1, expiryDay)
-    : thisMonthExpiry;
-
-  const year  = targetDate.getFullYear();
-  const month = targetDate.getMonth();
-  const lastDay = new Date(year, month + 1, 0).getDate();
-  const day = Math.min(expiryDay, lastDay);
-  return new Date(year, month, day).toISOString().slice(0, 10);
-}
-
 export async function POST(_req: NextRequest) {
   const auth = await getAuthUserWithRole();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,7 +36,22 @@ export async function POST(_req: NextRequest) {
   const expiryDay:    number = (company as any)?.voucher_expiry_day    ?? 10;
   const expiryHour:   number = (company as any)?.voucher_expiry_hour   ?? 0;
   const expiryMinute: number = (company as any)?.voucher_expiry_minute ?? 5;
-  const newValidUntil = nextExpiryDate(expiryDay);
+
+  // Use Supabase RPC so hour:minute are included (JS fallback is date-only)
+  let newValidUntil: string;
+  const { data: computedUntil } = await (supabase.rpc as any)('compute_voucher_valid_until', {
+    p_expiry_day:    expiryDay,
+    p_expiry_hour:   expiryHour,
+    p_expiry_minute: expiryMinute,
+  });
+  if (computedUntil) {
+    newValidUntil = computedUntil as string;
+  } else {
+    // Fallback: date-only (hour/minute ignored) — shouldn't normally happen
+    const today = new Date();
+    const target = new Date(today.getFullYear(), today.getMonth() + 1, expiryDay);
+    newValidUntil = target.toISOString().slice(0, 10);
+  }
 
   // Znajdź wygasłe vouchery należące do pracownika
   const { data: expired, error: vErr } = await supabase

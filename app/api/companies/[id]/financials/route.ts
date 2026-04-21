@@ -106,5 +106,22 @@ export async function GET(
     });
   }
 
+  // ── Auto-naprawa spójności ──────────────────────────────────────────────────
+  // Jeśli nota opłacona w financial_documents ale order wciąż 'approved' → napraw
+  const now = new Date().toISOString();
+  for (const doc of docs) {
+    if (
+      doc.type === 'nota' &&
+      doc.status === 'paid' &&
+      doc.order_status === 'approved'
+    ) {
+      await supabase
+        .from('voucher_orders')
+        .update({ status: 'paid', updated_at: now })
+        .eq('id', doc.orderId)
+        .eq('status', 'approved');
+    }
+  }
+
   return NextResponse.json(docs);
 }

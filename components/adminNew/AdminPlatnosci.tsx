@@ -48,8 +48,8 @@ const PaymentBadge: React.FC<{ status: 'pending' | 'paid' }> = ({ status }) => (
 
 // ── Financial docs panel ───────────────────────────────────────────────────────
 
-const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void }> = ({
-  company, onClose,
+const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void; onPaid?: () => void }> = ({
+  company, onClose, onPaid,
 }) => {
   const [docs,    setDocs]    = useState<FinancialDoc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,8 +82,7 @@ const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void }> = 
         body:    JSON.stringify({ status: 'paid' }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? `HTTP ${res.status}`);
-      fetchDocs();
-    } catch (e: any) {
+      fetchDocs();      onPaid?.();    } catch (e: any) {
       alert(e.message ?? 'Błąd aktualizacji');
     } finally {
       setBusyId(null);
@@ -245,14 +244,14 @@ export const AdminPlatnosci: React.FC = () => {
   const [error,        setError]        = useState<string | null>(null);
   const [search,       setSearch]       = useState('');
   const [selected,     setSelected]     = useState<Company | null>(null);
-  const [pendingSet,   setPendingSet]   = useState<Set<string>>(new Set());
+  const [pendingMap, setPendingMap] = useState<Record<string, { nota: boolean; fvat: boolean }>>({});
 
   const fetchPending = useCallback(async () => {
     try {
       const res = await fetch('/api/invoices/pending-companies');
       if (!res.ok) return;
-      const ids: string[] = await res.json();
-      setPendingSet(new Set(ids));
+      const data = await res.json();
+      setPendingMap(data ?? {});
     } catch { /* cicho — wskaźnik opcjonalny */ }
   }, []);
 
@@ -340,10 +339,23 @@ export const AdminPlatnosci: React.FC = () => {
                   <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                     <Hash size={9} />{company.nip}
                   </p>
-                  {pendingSet.has(company.id) && (
-                    <p className="text-[10px] font-bold text-emerald-500 mt-1 animate-pulse">
-                      ● Nie opłacone
-                    </p>
+                  {pendingMap[company.id] && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        pendingMap[company.id].nota
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {pendingMap[company.id].nota ? '● NK' : '✓ NK'}
+                      </span>
+                      <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                        pendingMap[company.id].fvat
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {pendingMap[company.id].fvat ? '● FV' : '✓ FV'}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
@@ -365,6 +377,7 @@ export const AdminPlatnosci: React.FC = () => {
           key={selected.id}
           company={selected}
           onClose={() => setSelected(null)}
+          onPaid={fetchPending}
         />
       )}
     </div>

@@ -21,7 +21,11 @@
       "Read(//tmp/**)",
       "Bash(ls:*)",
       "Bash(npm install:*)",
-      "Bash(npx vercel:*)"
+      "Bash(npx vercel:*)",
+      "Bash(claude plugin:*)",
+      "Read(//c/Users/Użytkownik/.claude/plugins/marketplaces/karpathy-skills//**)",
+      "Bash(xargs grep *)",
+      "Bash(sed 's/[^0-9]*$//')"
     ]
   },
   "enableAllProjectMcpServers": true,

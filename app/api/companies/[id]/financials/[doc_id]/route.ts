@@ -104,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     }
 
     // Auto-aktualizuj status zamówienia + emituj vouchery jeśli opłacone
-    await syncOrderStatus(supabase, orderId, parsed.data.status, now);
+    await syncOrderStatus(supabase, orderId, type, parsed.data.status, now);
 
     return NextResponse.json(docData);
   }
@@ -120,7 +120,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     })
     .eq('id', params.doc_id)
     .eq('company_id', params.id)
-    .select('linked_order_id')
+    .select('linked_order_id, type')
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -128,7 +128,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   // Auto-aktualizuj status zamówienia
   if (data.linked_order_id) {
-    await syncOrderStatus(supabase, data.linked_order_id, parsed.data.status, now);
+    await syncOrderStatus(supabase, data.linked_order_id, data.type as 'nota' | 'faktura_vat', parsed.data.status, now);
   }
 
   return NextResponse.json(data);
@@ -141,41 +141,24 @@ import { calculateAndSaveCommissions } from '@/lib/vouchers';
 async function syncOrderStatus(
   supabase: ReturnType<typeof import('@/lib/supabase').supabaseServer>,
   orderId: string,
+  docType: 'nota' | 'faktura_vat',
   newDocStatus: 'paid' | 'pending',
   now: string,
 ) {
+  // Tylko nota decyduje o statusie zamówienia — faktura_vat to prowizja, osobna sprawa
+  if (docType !== 'nota') return;
+
   if (newDocStatus !== 'paid') {
-    // Cofnięcie — sprawdź czy żaden inny dokument nie jest już opłacony
-    const { data: paidDocs } = await supabase
-      .from('financial_documents')
-      .select('id')
-      .eq('linked_order_id', orderId)
+    // Cofnięcie — przywróć zamówienie do 'approved' jeśli było 'paid'
+    await supabase
+      .from('voucher_orders')
+      .update({ status: 'approved', updated_at: now })
+      .eq('id', orderId)
       .eq('status', 'paid');
-
-    if (!paidDocs || paidDocs.length === 0) {
-      await supabase
-        .from('voucher_orders')
-        .update({ status: 'approved', updated_at: now })
-        .eq('id', orderId)
-        .eq('status', 'paid');
-    }
     return;
   }
 
-  // Sprawdź czy OBA dokumenty dla zamówienia są opłacone
-  const { data: allDocs } = await supabase
-    .from('financial_documents')
-    .select('status')
-    .eq('linked_order_id', orderId);
-
-  const allPaid = allDocs && allDocs.length > 0 && allDocs.every(d => d.status === 'paid');
-
-  if (!allPaid) {
-    // Tylko jeden z dokumentów opłacony — nic nie rób z zamówieniem jeszcze
-    return;
-  }
-
-  // Pobierz zamówienie
+  // Nota opłacona → oznacz zamówienie jako opłacone
   const { data: order } = await supabase
     .from('voucher_orders')
     .select('*')
