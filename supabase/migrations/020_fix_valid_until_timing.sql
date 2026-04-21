@@ -246,8 +246,7 @@ BEGIN
       r_emp.total_face_value,
       'pending_approval',
       jsonb_build_object('expired_at', r_emp.expired_at, 'company_id', r_emp.company_id)
-    )
-    ON CONFLICT DO NOTHING;
+    );
 
     -- Link vouchers to buyback agreement
     UPDATE vouchers
