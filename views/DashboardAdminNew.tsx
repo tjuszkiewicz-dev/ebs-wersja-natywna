@@ -5,9 +5,10 @@ import { AdminPlatnosci } from '../components/adminNew/AdminPlatnosci';
 import { AdminArchiwum } from '../components/adminNew/AdminArchiwum';
 import { AdminVouchery } from '../components/adminNew/AdminVouchery';
 import { AdminBuyback } from '../components/adminNew/AdminBuyback';
-import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw } from 'lucide-react';
+import { AdminUsers } from '../components/adminNew/AdminUsers';
+import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock } from 'lucide-react';
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -16,6 +17,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-archiwum':  'archiwum',
   'admin-vouchery':  'vouchery',
   'admin-buyback':   'buyback',
+  'admin-uzytkowniczy': 'uzytkowniczy',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -25,6 +27,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   archiwum:  'admin-archiwum',
   vouchery:  'admin-vouchery',
   buyback:   'admin-buyback',
+  uzytkowniczy: 'admin-uzytkowniczy',
 };
 
 interface Props {
@@ -52,6 +55,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
     { id: 'archiwum',  label: 'Archiwum',            icon: <Archive size={16} /> },
     { id: 'vouchery',  label: 'Vouchery',            icon: <Ticket size={16} /> },
     { id: 'buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={16} /> },
+    { id: 'uzytkowniczy', label: 'Użytkownicy',      icon: <Lock size={16} /> },
   ];
 
   return (
@@ -97,6 +101,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'archiwum'  && <AdminArchiwum />}
         {tab === 'vouchery'  && <AdminVouchery />}
         {tab === 'buyback'   && <AdminBuyback />}
+        {tab === 'uzytkowniczy' && <AdminUsers />}
       </div>
     </div>
   );
