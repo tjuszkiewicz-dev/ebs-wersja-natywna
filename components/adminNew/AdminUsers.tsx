@@ -5,10 +5,13 @@ interface AdminUser {
   id: string;
   email: string;
   role: 'superadmin' | 'pracodawca' | 'pracownik';
+  full_name?: string;
+  position?: string;
   company_id?: string;
   company_name?: string;
   status: 'active' | 'inactive' | 'anonymized';
   created_at: string;
+  // Last login dari auth.users
   last_signed_in?: string;
 }
 
@@ -225,6 +228,8 @@ export const AdminUsers: React.FC = () => {
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Email</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Rola</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Imię i Nazwisko</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Stanowisko</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Firma</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600">Utworzony</th>
@@ -242,6 +247,8 @@ export const AdminUsers: React.FC = () => {
                             {ROLE_LABELS[user.role]}
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{user.full_name || '—'}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{user.position || '—'}</td>
                         <td className="px-4 py-3 text-sm text-slate-600">{user.company_name || '—'}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-block px-2 py-1 rounded border text-xs font-medium ${STATUS_COLORS[user.status]}`}>
@@ -275,7 +282,7 @@ export const AdminUsers: React.FC = () => {
                       {/* Expanded Actions Row */}
                       {expandedUserId === user.id && (
                         <tr className="bg-slate-50 border-t border-slate-200">
-                          <td colSpan={7} className="px-4 py-3">
+                          <td colSpan={9} className="px-4 py-3">
                             <div className="space-y-3">
                               {/* Reset Password */}
                               {resetPasswordUserId === user.id ? (

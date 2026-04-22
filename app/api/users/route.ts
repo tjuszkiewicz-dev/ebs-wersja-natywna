@@ -16,17 +16,16 @@ export async function GET(req: NextRequest) {
 
     let profilesQuery = supabase
         .from('user_profiles')
-        .select('*, temp_password')
+        .select('*, company:companies(id, name)')
         .order('created_at', { ascending: false });
 
     if (companyId) {
         profilesQuery = profilesQuery.eq('company_id', companyId);
     }
 
-    const [profilesResult, authUsersResult, balancesResult] = await Promise.all([
+    const [profilesResult, authUsersResult] = await Promise.all([
         profilesQuery,
         supabase.auth.admin.listUsers({ perPage: 1000 }),
-        supabase.from('voucher_accounts').select('user_id, balance'),
     ]);
 
     if (profilesResult.error) {
@@ -37,19 +36,10 @@ export async function GET(req: NextRequest) {
         (authUsersResult.data?.users ?? []).map(u => [u.id, u.email ?? ''])
     );
 
-    // Saldo voucherów z tabeli voucher_accounts (utrzymywanej przez mint_vouchers/transfer_vouchers)
-    const balanceMap = new Map<string, number>();
-    for (const va of balancesResult.data ?? []) {
-        if (va.user_id) {
-            balanceMap.set(va.user_id, va.balance ?? 0);
-        }
-    }
-
     const withEmails = (profilesResult.data ?? []).map(p => ({
         ...p,
         email: emailMap.get(p.id) ?? '',
-        voucherBalance: balanceMap.get(p.id) ?? 0,
-        tempPassword: p.temp_password ?? null,
+        company_name: (p.company as any)?.name ?? null,
     }));
 
     return NextResponse.json(withEmails);
