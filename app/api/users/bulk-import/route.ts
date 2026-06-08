@@ -24,6 +24,28 @@ const BulkImportSchema = z.object({
     companyId: z.string().min(1),
 });
 
+const norm = (s?: string | null) => (s ?? '').trim().toLowerCase();
+const normPesel = (s?: string | null) => (s ?? '').replace(/\D/g, '');
+
+/**
+ * Buduje unikalny e-mail logowania (alias) dla kolejnego rekordu tej samej osoby
+ * w innej firmie. Prawdziwy e-mail (kontaktowy) trzymamy osobno w contact_email.
+ * Alias osadza skrót company_id, więc jest deterministyczny i unikalny per firma.
+ */
+function buildLoginAlias(realEmail: string, companyId: string, taken: Set<string>): string {
+    const [localRaw, domainRaw] = realEmail.split('@');
+    const local = localRaw || 'user';
+    const domain = domainRaw || 'ebs.local';
+    const tag = companyId.replace(/-/g, '').slice(0, 8);
+    let candidate = `${local}+c${tag}@${domain}`.toLowerCase();
+    let n = 2;
+    while (taken.has(candidate)) {
+        candidate = `${local}+c${tag}-${n}@${domain}`.toLowerCase();
+        n++;
+    }
+    return candidate;
+}
+
 // POST /api/users/bulk-import
 export async function POST(req: NextRequest) {
     const auth = await getAuthUserWithRole();
@@ -43,10 +65,8 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     const { validRows, companyId } = parsed.data;
 
-    // Pobierz WSZYSTKICH istniejących użytkowników auth (paginacja) — unikamy
-    // niestabilnych sprawdzeń komunikatów błędów "already exists".
-    // Ważne: perPage=1000 to max 1000 na stronę; w projektach z >1000 userami
-    // musimy iterować wszystkie strony żeby nie ominąć istniejących emaili.
+    // Pobierz WSZYSTKICH istniejących użytkowników auth (paginacja) — żeby wiedzieć
+    // które adresy są już zajęte globalnie (auth.users.email jest unikalny globalnie).
     const allAuthUsers: any[] = [];
     let authPage = 1;
     while (true) {
@@ -56,66 +76,92 @@ export async function POST(req: NextRequest) {
         if (pageUsers.length < 1000) break; // last page reached
         authPage++;
     }
-    const existingAuthByEmail = new Map<string, string>(
-        allAuthUsers.map((u: any) => [u.email?.toLowerCase() ?? '', u.id as string])
+    const authEmailToId = new Map<string, string>(
+        allAuthUsers.map((u: any) => [norm(u.email), u.id as string])
     );
+    const authIdToEmail = new Map<string, string>(
+        allAuthUsers.map((u: any) => [u.id as string, norm(u.email)])
+    );
+    const takenAuthEmails = new Set<string>([...authEmailToId.keys()].filter(Boolean));
 
-    // Utwórz konta auth + profile dla każdego pracownika
-    const createdUsers: { id: string; email: string; tempPassword: string; name: string }[] = [];
+    // Pobierz istniejących pracowników TEJ firmy — deduplikacja jest ograniczona
+    // do jednej firmy (PESEL w obrębie firmy; pomocniczo e-mail kontaktowy).
+    // To kluczowa zmiana: NIE dopasowujemy globalnie po e-mailu i NIGDY nie
+    // nadpisujemy company_id rekordu należącego do innej firmy.
+    const { data: companyProfiles } = await supabase
+        .from('user_profiles')
+        .select('id, pesel, contact_email')
+        .eq('company_id', companyId)
+        .eq('role', 'pracownik');
+
+    const peselToId = new Map<string, string>();
+    const emailToIdInCompany = new Map<string, string>();
+    for (const p of companyProfiles ?? []) {
+        const ip = normPesel(p.pesel);
+        if (ip) peselToId.set(ip, p.id);
+        const realEmail = norm(p.contact_email) || authIdToEmail.get(p.id) || '';
+        if (realEmail) emailToIdInCompany.set(realEmail, p.id);
+    }
+
+    // Utwórz/zaktualizuj rekordy pracowników DLA TEJ FIRMY
+    const createdUsers: { id: string; email: string; loginEmail: string; tempPassword: string; name: string }[] = [];
     const errors: string[] = [];
 
     for (const row of validRows) {
         const tempPassword = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2).toUpperCase() + '!';
-        const email = row.email.toLowerCase().trim();
+        const realEmail = norm(row.email);
+        const pesel = normPesel(row.pesel);
         const street = row.street?.trim() ?? '';
         const zipCode = row.zipCode?.trim() ?? '';
         const city = row.city?.trim() ?? '';
 
-        let userId: string;
-        const existingId = existingAuthByEmail.get(email);
+        // 1) Czy ta osoba już istnieje W TEJ FIRMIE? (PESEL > e-mail kontaktowy)
+        let userId: string | undefined;
+        if (pesel && peselToId.has(pesel)) {
+            userId = peselToId.get(pesel);
+        } else if (realEmail && emailToIdInCompany.has(realEmail)) {
+            userId = emailToIdInCompany.get(realEmail);
+        }
 
-        if (existingId) {
-            // Sprawdź aktualną rolę — nie nadpisuj pracodawcy ani admina!
-            const { data: existingProfile } = await supabase
-                .from('user_profiles')
-                .select('role')
-                .eq('id', existingId)
-                .single();
-            const existingRole = existingProfile?.role ?? 'pracownik';
-            if (['pracodawca', 'superadmin', 'partner', 'menedzer', 'dyrektor'].includes(existingRole)) {
-                errors.push(`${email}: pominięto — użytkownik ma rolę ${existingRole} i nie może być importowany jako pracownik`);
-                continue;
-            }
-            // Zwykły pracownik — zresetuj hasło żeby nowe tempPassword działało do logowania
-            userId = existingId;
+        let loginEmail: string;
+
+        if (userId) {
+            // Aktualizacja istniejącego pracownika tej firmy — resetujemy hasło.
+            loginEmail = authIdToEmail.get(userId) || realEmail;
             await supabase.auth.admin.updateUserById(userId, {
                 password: tempPassword,
                 email_confirm: true,
             });
         } else {
-            // Nowy użytkownik — utwórz konto auth
+            // 2) Nowy rekord dla tej firmy. Login = prawdziwy e-mail, jeśli wolny;
+            //    w przeciwnym razie alias (np. ta sama osoba pracuje już w innej firmie).
+            loginEmail = (realEmail && !takenAuthEmails.has(realEmail))
+                ? realEmail
+                : buildLoginAlias(realEmail || `${pesel || 'user'}@ebs.local`, companyId, takenAuthEmails);
+
             const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
-                email,
+                email: loginEmail,
                 password: tempPassword,
                 email_confirm: true,
             });
             if (authError || !newUser?.user) {
-                console.error(`[bulk-import] createUser error for ${email}:`, authError?.message ?? 'no user returned');
-                errors.push(`${email}: ${authError?.message ?? 'no user returned'}`);
+                console.error(`[bulk-import] createUser error for ${loginEmail}:`, authError?.message ?? 'no user returned');
+                errors.push(`${realEmail || loginEmail}: ${authError?.message ?? 'no user returned'}`);
                 continue;
             }
             userId = newUser.user.id;
+            takenAuthEmails.add(loginEmail);
+            authIdToEmail.set(userId, loginEmail);
         }
 
         const rawIban = row.iban ? row.iban.replace(/\s+/g, '').toUpperCase() : null;
         const isUZ = row.contractType?.toUpperCase().includes('UZ') || row.contractType?.includes('ZLECENIE');
 
         // Upewnij się, że hire_date jest w formacie YYYY-MM-DD lub null
-        // (PostgreSQL DATE odrzuci inne formaty, np. "28.04.2026")
         const hireDateRaw = row.hireDate?.trim() ?? '';
         const hireDate = /^\d{4}-\d{2}-\d{2}$/.test(hireDateRaw) ? hireDateRaw : null;
 
-        // Zaszyfruj PESEL jeśli podany (kolumna pesel_encrypted, klucz z EBS_PESEL_KEY)
+        // Zaszyfruj PESEL jeśli podany
         let peselEncrypted: string | null = null;
         if (row.pesel) {
             const peselKey = process.env.EBS_PESEL_KEY;
@@ -128,7 +174,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // Utwórz lub zaktualizuj profil (upsert) — bez temp_password żeby kolumna nie blokowała
+        // Utwórz lub zaktualizuj profil (upsert po id) — company_id zawsze = bieżąca firma.
         const { error: profileError } = await supabase
             .from('user_profiles')
             .upsert({
@@ -136,6 +182,7 @@ export async function POST(req: NextRequest) {
                 role:            'pracownik',
                 full_name:       `${row.name} ${row.surname}`,
                 company_id:      companyId,
+                contact_email:   realEmail || null,
                 department:      row.department ?? null,
                 position:        row.position ?? null,
                 phone_number:    row.phoneNumber ?? null,
@@ -155,18 +202,23 @@ export async function POST(req: NextRequest) {
             }, { onConflict: 'id' });
 
         if (profileError) {
-            console.error(`[bulk-import] profile upsert error for ${email}:`, profileError.message);
-            errors.push(`${email}: profile error — ${profileError.message}`);
+            console.error(`[bulk-import] profile upsert error for ${loginEmail}:`, profileError.message);
+            errors.push(`${realEmail || loginEmail}: profile error — ${profileError.message}`);
             continue;
         }
 
-        // Zapisz hasło tymczasowe oddzielnie — ignoruj błąd jeśli kolumna nie istnieje
+        // Zapisz hasło tymczasowe oddzielnie
         await supabase
             .from('user_profiles')
             .update({ temp_password: tempPassword })
             .eq('id', userId);
 
-        createdUsers.push({ id: userId, email, tempPassword, name: `${row.name} ${row.surname}` });
+        // Zaktualizuj mapy deduplikacji, żeby kolejne wiersze w tym samym pliku
+        // nie utworzyły duplikatu tej samej osoby w tej firmie.
+        if (pesel) peselToId.set(pesel, userId!);
+        if (realEmail) emailToIdInCompany.set(realEmail, userId!);
+
+        createdUsers.push({ id: userId!, email: realEmail, loginEmail, tempPassword, name: `${row.name} ${row.surname}` });
     }
 
     // Zapisz historię importu
@@ -182,7 +234,7 @@ export async function POST(req: NextRequest) {
             date:          now,
             importedCount: createdUsers.length,
             errors,
-            users:         createdUsers.map(u => ({ id: u.id, email: u.email, name: u.name, tempPassword: u.tempPassword })),
+            users:         createdUsers.map(u => ({ id: u.id, email: u.email, loginEmail: u.loginEmail, name: u.name, tempPassword: u.tempPassword })),
         },
     });
 
@@ -190,6 +242,6 @@ export async function POST(req: NextRequest) {
         imported: createdUsers.length,
         errors,
         reportId,
-        users: createdUsers.map(u => ({ id: u.id, email: u.email, name: u.name, tempPassword: u.tempPassword })),
+        users: createdUsers.map(u => ({ id: u.id, email: u.email, loginEmail: u.loginEmail, name: u.name, tempPassword: u.tempPassword })),
     }, { status: 201 });
 }

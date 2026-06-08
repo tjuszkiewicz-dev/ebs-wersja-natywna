@@ -23,6 +23,26 @@ const CreateEmployeeSchema = z.object({
   contractType: z.enum(['UOP', 'UZ']).optional(),
 });
 
+const normPesel = (s?: string | null) => (s ?? '').replace(/\D/g, '');
+
+/**
+ * Unikalny e-mail logowania (alias) dla kolejnego rekordu tej samej osoby w innej
+ * firmie. Prawdziwy e-mail trzymamy w contact_email. Alias osadza skrót company_id.
+ */
+function buildLoginAlias(realEmail: string, companyId: string, taken: Set<string>): string {
+  const [localRaw, domainRaw] = realEmail.split('@');
+  const local = localRaw || 'user';
+  const domain = domainRaw || 'ebs.local';
+  const tag = companyId.replace(/-/g, '').slice(0, 8);
+  let candidate = `${local}+c${tag}@${domain}`.toLowerCase();
+  let n = 2;
+  while (taken.has(candidate)) {
+    candidate = `${local}+c${tag}-${n}@${domain}`.toLowerCase();
+    n++;
+  }
+  return candidate;
+}
+
 // ── GET — kartoteka pracowników firmy ─────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
@@ -45,7 +65,7 @@ export async function GET(request: NextRequest) {
   // Pobierz profile pracowników tej firmy
   const { data: profiles, error } = await supabase
     .from('user_profiles')
-    .select('id, full_name, pesel, phone_number, department, position, contract_type, hire_date, status, iban, iban_verified, created_at, role, company_id, temp_password')
+    .select('id, full_name, pesel, phone_number, department, position, contract_type, hire_date, status, iban, iban_verified, created_at, role, company_id, temp_password, contact_email')
     .eq('company_id', companyId)
     .eq('role', 'pracownik')
     .order('created_at', { ascending: false });
@@ -93,7 +113,8 @@ export async function GET(request: NextRequest) {
     role:           p.role,
     company_id:     p.company_id,
     full_name:      p.full_name,
-    email:          emailMap[p.id] ?? '',
+    email:          p.contact_email || emailMap[p.id] || '',
+    login_email:    emailMap[p.id] ?? '',
     pesel:          p.pesel,
     phone_number:   p.phone_number,
     department:     p.department,
@@ -130,7 +151,8 @@ export async function POST(request: NextRequest) {
   const { companyId, firstName, lastName, email, pesel, department, position, phoneNumber, iban, contractType } = parsed.data;
   const supabase = supabaseServer() as any;
   const now = new Date().toISOString();
-  const normalizedEmail = email.toLowerCase().trim();
+  const realEmail = email.toLowerCase().trim();
+  const peselNorm = normPesel(pesel);
 
   // Generuj tymczasowe hasło
   const tempPassword =
@@ -139,29 +161,55 @@ export async function POST(request: NextRequest) {
     Math.floor(10 + Math.random() * 90) +
     '!';
 
-  // Sprawdź czy konto auth już istnieje — jeśli tak, zresetuj hasło zamiast tworzyć nowe
-  let userId: string;
+  // Mapa wszystkich zajętych adresów auth (globalnie unikalne) + id->email.
   const { data: listData } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   const existingAuthUsers: Array<{ id: string; email?: string }> = listData?.users ?? [];
-  const existingAuthByEmail = new Map(
+  const authEmailToId = new Map(
     existingAuthUsers.map((u: { id: string; email?: string }) => [u.email?.toLowerCase() ?? '', u.id])
   );
+  const authIdToEmail = new Map(
+    existingAuthUsers.map((u: { id: string; email?: string }) => [u.id, u.email?.toLowerCase() ?? ''])
+  );
+  const takenAuthEmails = new Set<string>([...authEmailToId.keys()].filter(Boolean) as string[]);
 
-  const existingUserId = existingAuthByEmail.get(normalizedEmail);
-  if (existingUserId) {
-    // Konto istnieje — zresetuj hasło
-    const { error: updateError } = await supabase.auth.admin.updateUserById(existingUserId, {
+  // Czy ta osoba już istnieje W TEJ FIRMIE? (PESEL > e-mail kontaktowy).
+  // Deduplikacja ograniczona do firmy — nigdy nie nadpisujemy rekordu innej firmy.
+  const { data: companyProfiles } = await supabase
+    .from('user_profiles')
+    .select('id, pesel, contact_email')
+    .eq('company_id', companyId)
+    .eq('role', 'pracownik');
+
+  let userId: string | undefined;
+  for (const p of companyProfiles ?? []) {
+    if (peselNorm && normPesel(p.pesel) === peselNorm) { userId = p.id; break; }
+  }
+  if (!userId) {
+    for (const p of companyProfiles ?? []) {
+      const pEmail = (p.contact_email?.toLowerCase() ?? '') || authIdToEmail.get(p.id) || '';
+      if (realEmail && pEmail === realEmail) { userId = p.id; break; }
+    }
+  }
+
+  const existedInCompany = !!userId;
+
+  if (userId) {
+    // Aktualizacja istniejącego pracownika tej firmy — zresetuj hasło.
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
       password: tempPassword,
       email_confirm: true,
     });
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }
-    userId = existingUserId;
   } else {
-    // Utwórz nowe konto w Supabase Auth
+    // Nowy rekord dla tej firmy. Login = prawdziwy e-mail jeśli wolny, inaczej alias.
+    const loginEmail = (realEmail && !takenAuthEmails.has(realEmail))
+      ? realEmail
+      : buildLoginAlias(realEmail || `${peselNorm || 'user'}@ebs.local`, companyId, takenAuthEmails);
+
     const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
-      email: normalizedEmail,
+      email: loginEmail,
       password: tempPassword,
       email_confirm: true,
     });
@@ -177,7 +225,7 @@ export async function POST(request: NextRequest) {
   const rawIban = iban ? iban.replace(/\s+/g, '').toUpperCase() : null;
   const isUZ = contractType === 'UZ';
 
-  // Upsert profilu użytkownika (obsługuje zarówno nowego jak i istniejącego)
+  // Upsert profilu użytkownika (company_id zawsze = bieżąca firma)
   const { error: profileError } = await supabase
     .from('user_profiles')
     .upsert({
@@ -185,6 +233,7 @@ export async function POST(request: NextRequest) {
       role:             'pracownik',
       full_name:        `${firstName} ${lastName}`,
       company_id:       companyId,
+      contact_email:    realEmail || null,
       department:       department ?? null,
       position:         position ?? null,
       phone_number:     phoneNumber ?? null,
@@ -199,8 +248,8 @@ export async function POST(request: NextRequest) {
     }, { onConflict: 'id' });
 
   if (profileError) {
-    // Nie usuwamy konta auth przy upsert (mogło wcześniej istnieć)
-    if (!existingUserId) {
+    // Usuwamy świeżo utworzone konto auth tylko jeśli to my je założyliśmy
+    if (!existedInCompany) {
       await supabase.auth.admin.deleteUser(userId);
     }
     return NextResponse.json({ error: profileError.message }, { status: 500 });
@@ -212,9 +261,11 @@ export async function POST(request: NextRequest) {
     .update({ temp_password: tempPassword })
     .eq('id', userId);
 
+  const loginEmailOut = authIdToEmail.get(userId) || realEmail;
   return NextResponse.json({
     id:           userId,
-    email:        normalizedEmail,
+    email:        realEmail,
+    loginEmail:   loginEmailOut,
     name:         `${firstName} ${lastName}`,
     tempPassword,
     companyId,

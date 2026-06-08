@@ -34,6 +34,7 @@ export interface Database {
           full_name:          string | null;
           company_name:       string | null;
           company_id:         string | null;
+          contact_email:      string | null;
           pesel:              string | null;
           phone_number:       string | null;
           iban:               string | null;
@@ -57,6 +58,7 @@ export interface Database {
           full_name?:          string | null;
           company_name?:       string | null;
           company_id?:         string | null;
+          contact_email?:      string | null;
           pesel?:              string | null;
           phone_number?:       string | null;
           iban?:               string | null;
@@ -80,6 +82,7 @@ export interface Database {
           full_name?:          string | null;
           company_name?:       string | null;
           company_id?:         string | null;
+          contact_email?:      string | null;
           pesel?:              string | null;
           phone_number?:       string | null;
           iban?:               string | null;
