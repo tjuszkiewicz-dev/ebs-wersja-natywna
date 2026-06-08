@@ -438,18 +438,24 @@ export const DashboardNewHR: React.FC<Props> = ({
     const stateEmployees = state.users.filter(u => u.companyId === company.id && u.role === Role.EMPLOYEE);
     const apiEmployees = directoryEmployees.filter(u => u.companyId === company.id && u.role === Role.EMPLOYEE);
 
-    // Merge both sources to prevent temporary global-state glitches from hiding employees.
+    // Merge both sources to prevent temporary global-state glitches from hiding employees,
+    // ale deduplikujemy po TOŻSAMOŚCI osoby (PESEL > e-mail > id), nie po (id+email+pesel).
+    // Dzięki temu nieaktualna kopia z localStorage (np. po przeniesieniu pracownika do innej
+    // firmy / zmianie loginu na alias) nie tworzy "ducha" obok rekordu z API.
+    // API jest źródłem prawdy → idzie pierwsze i wygrywa przy konflikcie.
     const merged: User[] = [];
     const seen = new Set<string>();
 
-    const keyFor = (u: User) => {
+    const identityKey = (u: User) => {
+      const pesel = (u.pesel ?? '').replace(/\D/g, '');
+      if (pesel) return `pesel:${pesel}`;
       const email = (u.email ?? '').trim().toLowerCase();
-      const pesel = (u.pesel ?? '').trim();
-      return `${u.id}::${email}::${pesel}`;
+      if (email) return `email:${email}`;
+      return `id:${u.id}`;
     };
 
-    for (const u of [...stateEmployees, ...apiEmployees]) {
-      const key = keyFor(u);
+    for (const u of [...apiEmployees, ...stateEmployees]) {
+      const key = identityKey(u);
       if (seen.has(key)) continue;
       seen.add(key);
       merged.push(u);
