@@ -25,3 +25,8 @@ dist-ssr
 .next/
 next-env.d.ts
 .vercel
+
+# Claude Code worktrees & generated reports
+.claude/worktrees/
+/ebs-stack-report.pdf
+tsconfig.tsbuildinfo
