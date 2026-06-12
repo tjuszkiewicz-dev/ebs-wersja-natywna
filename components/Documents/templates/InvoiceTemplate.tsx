@@ -109,8 +109,8 @@ export const InvoiceTemplate: React.FC<Props> = ({ type, order, company }) => {
         </div>
         <div className="w-[48%] text-right">
             <p className="font-bold text-slate-400 uppercase mb-2 border-b border-slate-200 pb-1" style={{ fontSize: '7pt' }}>RACHUNEK BANKOWY:</p>
-            <p className="font-bold text-slate-800">Bank Millenium S.A.</p>
-            <p className="font-mono text-lg mt-1 tracking-wider text-slate-900">PL 12 1020 3040 0000 9999 8888 7777</p>
+            <p className="font-bold text-slate-800">Bank Millennium S.A.</p>
+            <p className="font-mono text-lg mt-1 tracking-wider text-slate-900">PL66 1160 2202 0000 0006 6619 4064</p>
         </div>
       </div>
 

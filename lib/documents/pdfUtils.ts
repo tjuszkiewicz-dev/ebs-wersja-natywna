@@ -1,13 +1,13 @@
 import { supabaseServer } from '@/lib/supabase';
 
 export const ISSUER = {
-  name:    process.env.ISSUER_NAME    ?? 'Stratton Prime sp. z o.o.',
-  nip:     process.env.ISSUER_NIP     ?? '5842867357',
-  krs:     process.env.ISSUER_KRS     ?? '0001169520',
-  regon:   process.env.ISSUER_REGON   ?? '541537557',
-  address: process.env.ISSUER_ADDRESS ?? 'ul. Junony 23/11, 80-299 Gdańsk',
-  bank:    process.env.ISSUER_BANK    ?? 'PL00 0000 0000 0000 0000 0000 0000',
-  email:   process.env.ISSUER_EMAIL   ?? 'faktury@strattonprime.pl',
+  name:    process.env.ISSUER_NAME  ?? 'Stratton Prime sp. z o.o.',
+  nip:     process.env.ISSUER_NIP   ?? '5842867357',
+  krs:     process.env.ISSUER_KRS   ?? '0001169520',
+  regon:   process.env.ISSUER_REGON ?? '541537557',
+  address: 'ul. Junony 23/11, 80-299 Gdańsk',
+  bank:    'PL66 1160 2202 0000 0006 6619 4064',
+  email:   process.env.ISSUER_EMAIL ?? 'faktury@strattonprime.pl',
 };
 
 /** Wysyła HTML do PDF-serwera (Puppeteer), zwraca Buffer lub null jeśli serwer niedostępny */
