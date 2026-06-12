@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { ensureClient } from './invoiceService';
+import {
+  ensureClient,
+  buildNotaInput,
+  buildFakturaInput,
+  issueDocumentsForOrder,
+} from './invoiceService';
 
 function fakeSupabase(companyRow: any, updateSpy = vi.fn()) {
   return {
@@ -42,3 +47,67 @@ describe('ensureClient', () => {
     expect(fa.createClient).toHaveBeenCalled();
   });
 });
+
+describe('document mapping', () => {
+  it('nota: gross = voucher amount, tax np, kind accounting_note', () => {
+    const input = buildNotaInput(7, 5000, '2026-06-12', 14);
+    expect(input.kind).toBe('accounting_note');
+    expect(input.client_id).toBe(7);
+    expect(input.payment_to_kind).toBe(14);
+    expect(input.positions[0]).toMatchObject({ total_price_gross: 5000, tax: 'np' });
+  });
+
+  it('faktura: net fee with 23% VAT, kind vat', () => {
+    const input = buildFakturaInput(7, 1000, '2026-06-12', 14);
+    expect(input.kind).toBe('vat');
+    expect(input.positions[0]).toMatchObject({ price_net: 1000, tax: 23 });
+  });
+});
+
+describe('issueDocumentsForOrder', () => {
+  const order = { id: 'o1', company_id: 'c1', amount_pln: 5000 } as any;
+  const company = { id: 'c1', nip: '5842867357', name: 'X', fakturownia_client_id: 7 } as any;
+
+  it('skips a doc that already has a fakturownia_invoice_id', async () => {
+    const fa = { createInvoice: vi.fn(), invoiceUrl: () => 'u', invoicePdfUrl: () => 'p' };
+    const existing = [{ type: 'nota', fakturownia_invoice_id: 1 }, { type: 'faktura_vat', fakturownia_invoice_id: 2 }];
+    const supa = supaForIssue(existing);
+    await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14);
+    expect(fa.createInvoice).not.toHaveBeenCalled();
+  });
+
+  it('creates missing docs and writes back ids + links', async () => {
+    const fa = {
+      createInvoice: vi.fn()
+        .mockResolvedValueOnce({ id: 11, number: 'NK/1', token: 'tn', status: 'issued' })
+        .mockResolvedValueOnce({ id: 22, number: 'FV/1', token: 'tf', status: 'issued' }),
+      invoiceUrl: (t: string) => `https://d/invoice/${t}`,
+      invoicePdfUrl: (t: string) => `https://d/invoice/${t}.pdf`,
+    };
+    const updates: any[] = [];
+    const supa = supaForIssue([{ type: 'nota', fakturownia_invoice_id: null, id: 'd1' },
+                               { type: 'faktura_vat', fakturownia_invoice_id: null, id: 'd2' }], updates);
+    await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14);
+    expect(fa.createInvoice).toHaveBeenCalledTimes(2);
+    expect(updates[0]).toMatchObject({ fakturownia_invoice_id: 11, fakturownia_sync_status: 'synced',
+      external_payment_ref: 'NK/1', payment_url: 'https://d/invoice/tn' });
+  });
+});
+
+// Helper: supabase double returning the given financial_documents rows.
+function supaForIssue(rows: any[], updates: any[] = []) {
+  return {
+    from(table: string) {
+      if (table === 'financial_documents') {
+        return {
+          select() { return this; },
+          eq() { return this; },
+          // resolve the list query
+          order() { return Promise.resolve({ data: rows }); },
+          update(payload: any) { updates.push(payload); return { eq: () => Promise.resolve({ error: null }) }; },
+        };
+      }
+      return { select() { return this; }, eq() { return this; }, single: () => Promise.resolve({ data: {} }) };
+    },
+  };
+}
