@@ -22,6 +22,8 @@ export interface SynthesizedDoc {
   external_payment_ref: string | null;
   pdf_url:              string | null;
   umowa_pdf_url:        string | null; // URL umowy zlecenia nabycia voucherów (tylko nota)
+  payment_url:             string | null;
+  fakturownia_sync_status: 'pending' | 'synced' | 'failed' | null;
 }
 
 export async function GET(
@@ -85,6 +87,8 @@ export async function GET(
       external_payment_ref: notaOverride?.external_payment_ref ?? null,
       pdf_url:              notaOverride?.pdf_url ?? null,
       umowa_pdf_url:        order.umowa_pdf_url ?? null,
+      payment_url:             notaOverride?.payment_url ?? null,
+      fakturownia_sync_status: notaOverride?.fakturownia_sync_status ?? null,
     });
 
     // fee_pln jest przechowywane jako gross (z VAT) — back-kalkuluj net
@@ -107,6 +111,8 @@ export async function GET(
       external_payment_ref: fvatOverride?.external_payment_ref ?? null,
       pdf_url:              fvatOverride?.pdf_url ?? null,
       umowa_pdf_url:        null, // umowa jest przypisana do noty, nie faktury
+      payment_url:             fvatOverride?.payment_url ?? null,
+      fakturownia_sync_status: fvatOverride?.fakturownia_sync_status ?? null,
     });
   }
 

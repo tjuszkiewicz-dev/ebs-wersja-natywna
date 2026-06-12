@@ -30,6 +30,8 @@ interface FinancialDoc {
   external_payment_ref: string | null;
   pdf_url:              string | null;
   umowa_pdf_url:        string | null;
+  payment_url:             string | null;
+  fakturownia_sync_status: 'pending' | 'synced' | 'failed' | null;
 }
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -104,6 +106,22 @@ const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void; onPa
       alert('Błąd połączenia z serwerem');
     } finally {
       setPdfGenId(null);
+    }
+  };
+  const retryFakturownia = async (docId: string) => {
+    setBusyId(docId);
+    try {
+      const res = await fetch(`/api/financial-documents/${docId}/retry-fakturownia`, { method: 'POST' });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(body.error ?? 'Błąd ponownej wysyłki do Fakturowni');
+        return;
+      }
+      fetchDocs();
+    } catch {
+      alert('Błąd połączenia z serwerem');
+    } finally {
+      setBusyId(null);
     }
   };
   const filtered = docs.filter((d) => d.type === tab);
@@ -253,18 +271,40 @@ const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void; onPa
                     </td>
                   )}
                   <td className="px-4 py-3">
-                    {doc.status === 'pending' ? (
-                      <button
-                        onClick={() => markPaid(doc.id)}
-                        disabled={busyId === doc.id}
-                        className="flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 transition disabled:opacity-60"
-                      >
-                        {busyId === doc.id ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle2 size={10} />}
-                        Oznacz jako opłacone
-                      </button>
-                    ) : (
-                      <span className="text-slate-400 text-[11px]">Opłacone</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {doc.payment_url && (
+                        <a
+                          href={doc.payment_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-green-600 text-white text-[11px] font-semibold hover:bg-green-700 transition"
+                        >
+                          Zapłać
+                        </a>
+                      )}
+                      {doc.fakturownia_sync_status === 'failed' && (
+                        <button
+                          onClick={() => retryFakturownia(doc.id)}
+                          disabled={busyId === doc.id}
+                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-amber-500 text-white text-[11px] font-semibold hover:bg-amber-600 transition disabled:opacity-60"
+                        >
+                          {busyId === doc.id ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
+                          Ponów wysyłkę
+                        </button>
+                      )}
+                      {doc.status === 'pending' ? (
+                        <button
+                          onClick={() => markPaid(doc.id)}
+                          disabled={busyId === doc.id}
+                          className="flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-semibold hover:bg-blue-700 transition disabled:opacity-60"
+                        >
+                          {busyId === doc.id ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle2 size={10} />}
+                          Oznacz jako opłacone
+                        </button>
+                      ) : (
+                        <span className="text-slate-400 text-[11px]">Opłacone</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
