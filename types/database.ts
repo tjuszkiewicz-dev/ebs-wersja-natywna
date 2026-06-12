@@ -211,6 +211,7 @@ export interface Database {
           is_first_invoice:   boolean;
           doc_voucher_id:     string | null;
           doc_fee_id:         string | null;
+          umowa_pdf_url:      string | null;
           payroll_snapshots:  unknown | null;
           distribution_plan:  unknown | null;
           created_at:         string;
@@ -228,6 +229,7 @@ export interface Database {
           is_first_invoice?:  boolean;
           doc_voucher_id?:    string | null;
           doc_fee_id?:        string | null;
+          umowa_pdf_url?:     string | null;
           payroll_snapshots?: unknown | null;
           distribution_plan?: unknown | null;
           created_at?:        string;
@@ -245,6 +247,7 @@ export interface Database {
           is_first_invoice?:  boolean;
           doc_voucher_id?:    string | null;
           doc_fee_id?:        string | null;
+          umowa_pdf_url?:     string | null;
           payroll_snapshots?: unknown | null;
           distribution_plan?: unknown | null;
           created_at?:        string;

@@ -26,8 +26,9 @@ export interface SynthesizedDoc {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
   const auth = await getAuthUserWithRole();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (auth.role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -83,7 +84,7 @@ export async function GET(
       payment_confirmed_at: notaOverride?.payment_confirmed_at ?? null,
       external_payment_ref: notaOverride?.external_payment_ref ?? null,
       pdf_url:              notaOverride?.pdf_url ?? null,
-      umowa_pdf_url:        (order as any).umowa_pdf_url ?? null,
+      umowa_pdf_url:        order.umowa_pdf_url ?? null,
     });
 
     // fee_pln jest przechowywane jako gross (z VAT) — back-kalkuluj net

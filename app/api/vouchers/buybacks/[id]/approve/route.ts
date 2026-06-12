@@ -5,8 +5,9 @@ import { supabaseServer } from '@/lib/supabase';
 
 export async function PATCH(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
   const auth = await getAuthUserWithRole();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (auth.role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

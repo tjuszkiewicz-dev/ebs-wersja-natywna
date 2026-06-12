@@ -29,8 +29,9 @@ function generateTempPassword(): string {
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { id: string; contact_id: string } }
+  { params: __paramsP }: { params: Promise<{ id: string; contact_id: string }> }
 ) {
+  const params = await __paramsP;
   const auth = await getAuthUserWithRole();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (auth.role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

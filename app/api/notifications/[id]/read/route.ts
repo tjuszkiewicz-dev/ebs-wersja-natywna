@@ -5,8 +5,9 @@ import { supabaseServer } from '@/lib/supabase';
 // PATCH /api/notifications/[id]/read — oznacz jedno powiadomienie jako przeczytane
 export async function PATCH(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

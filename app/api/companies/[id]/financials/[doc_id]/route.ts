@@ -15,9 +15,10 @@ const UpdateSchema = z.object({
   external_payment_ref: z.string().optional().nullable(),
 });
 
-type Params = { params: { id: string; doc_id: string } };
+type Params = { params: Promise<{ id: string; doc_id: string }> };
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest, { params: __paramsP }: Params) {
+  const params = await __paramsP;
   const auth = await getAuthUserWithRole();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (auth.role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });

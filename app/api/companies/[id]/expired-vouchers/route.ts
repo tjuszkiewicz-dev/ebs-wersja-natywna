@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 
-type Params = { params: { id: string } };
+type Params = { params: Promise<{ id: string }> };
 
 export interface ExpiredVoucherEmployee {
   employeeId: string;
@@ -14,7 +14,8 @@ export interface ExpiredVoucherEmployee {
   count:      number;
 }
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(_req: NextRequest, { params: __paramsP }: Params) {
+  const params = await __paramsP;
   const auth = await getAuthUserWithRole();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

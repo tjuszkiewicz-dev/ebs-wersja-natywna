@@ -5,8 +5,9 @@ import { supabaseServer } from '@/lib/supabase';
 // GET /api/notification-configs/[id]
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -24,8 +25,9 @@ export async function GET(
 // PATCH /api/notification-configs/[id] — zaktualizuj konfigurację
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

@@ -18,8 +18,9 @@ const UpdateSchema = z.object({
 // PATCH /api/users/[id] — zaktualizuj dane pracownika
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
     const auth = await getAuthUserWithRole();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

@@ -16,7 +16,7 @@ const UpdateSchema = z.object({
   is_hr_operator:    z.boolean().optional(),
 });
 
-type Params = { params: { id: string; contact_id: string } };
+type Params = { params: Promise<{ id: string; contact_id: string }> };
 
 async function requireSuperadmin() {
   const auth = await getAuthUserWithRole();
@@ -25,7 +25,8 @@ async function requireSuperadmin() {
   return auth;
 }
 
-export async function PATCH(req: NextRequest, { params }: Params) {
+export async function PATCH(req: NextRequest, { params: __paramsP }: Params) {
+  const params = await __paramsP;
   const auth = await requireSuperadmin();
   if (!auth) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
@@ -47,7 +48,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   return NextResponse.json(data);
 }
 
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(_req: NextRequest, { params: __paramsP }: Params) {
+  const params = await __paramsP;
   const auth = await requireSuperadmin();
   if (!auth) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 

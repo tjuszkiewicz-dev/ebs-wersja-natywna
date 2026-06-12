@@ -10,8 +10,9 @@ import { supabaseServer } from '@/lib/supabase';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params: __paramsP }: { params: Promise<{ id: string }> }
 ) {
+  const params = await __paramsP;
   const auth = await getAuthUserWithRole();
 
   // Only superadmin can reset passwords
