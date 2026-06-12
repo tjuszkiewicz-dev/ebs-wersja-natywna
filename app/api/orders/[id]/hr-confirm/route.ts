@@ -7,6 +7,8 @@ import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { createOrderDocuments, createUmowaDocument } from '@/lib/documentService';
 import { calculateOrderTotals } from '@/utils/financialMath';
+import { getFakturowniaClient } from '@/lib/fakturownia/factory';
+import { issueDocumentsForOrder } from '@/lib/fakturownia/invoiceService';
 
 export async function PATCH(
   _req: NextRequest,
@@ -135,6 +137,28 @@ export async function PATCH(
     fakturaPdfUrl = docs.fakturaPdfUrl;
   } catch {
     // Błąd generowania dokumentów nie blokuje zatwierdzenia zamówienia
+  }
+
+  // 2b. Wystaw dokumenty w Fakturowni (źródło prawdy). Awaria FA nie blokuje potwierdzenia.
+  //     UWAGA: companies nie ma kolumny fee_percent — fee domyślnie 20% (zgodnie z resztą flow).
+  try {
+    const fa = getFakturowniaClient();
+    if (fa) {
+      const { data: companyFa } = await supabase
+        .from('companies')
+        .select('id, nip, name, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
+        .eq('id', order.company_id)
+        .single();
+      if (companyFa) {
+        await issueDocumentsForOrder(
+          supabase, fa, order, companyFa as any,
+          20,
+          (companyFa as any).custom_payment_terms_days ?? undefined,
+        );
+      }
+    }
+  } catch {
+    // Awaria integracji FA nie blokuje zatwierdzenia — dokumenty zostają z sync_status='failed'/null.
   }
 
   // 6. Generuj Umowę Zlecenia Nabycia Voucherów i zapisz URL w zamówieniu
