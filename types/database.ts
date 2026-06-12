@@ -124,6 +124,7 @@ export interface Database {
           origin:                       'NATIVE' | 'CRM_SYNC';
           external_crm_id:              string | null;
           is_sync_managed:              boolean;
+          fakturownia_client_id:        number | null;
           created_at:                   string;
           updated_at:                   string;
         };
@@ -147,6 +148,7 @@ export interface Database {
           origin?:                       'NATIVE' | 'CRM_SYNC';
           external_crm_id?:              string | null;
           is_sync_managed?:              boolean;
+          fakturownia_client_id?:        number | null;
           created_at?:                   string;
           updated_at?:                   string;
         };
@@ -170,6 +172,7 @@ export interface Database {
           origin?:                       'NATIVE' | 'CRM_SYNC';
           external_crm_id?:              string | null;
           is_sync_managed?:              boolean;
+          fakturownia_client_id?:        number | null;
           created_at?:                   string;
           updated_at?:                   string;
         };
@@ -768,6 +771,10 @@ export interface Database {
           external_payment_ref:  string | null;
           pdf_url:               string | null;
           created_at:            string;
+          fakturownia_invoice_id:  number | null;
+          fakturownia_token:       string | null;
+          payment_url:             string | null;
+          fakturownia_sync_status: 'pending' | 'synced' | 'failed' | null;
         };
         Insert: {
           id?:                   string;
@@ -785,6 +792,10 @@ export interface Database {
           external_payment_ref?: string | null;
           pdf_url?:              string | null;
           created_at?:           string;
+          fakturownia_invoice_id?:  number | null;
+          fakturownia_token?:       string | null;
+          payment_url?:             string | null;
+          fakturownia_sync_status?: 'pending' | 'synced' | 'failed' | null;
         };
         Update: {
           id?:                   string;
@@ -802,6 +813,10 @@ export interface Database {
           external_payment_ref?: string | null;
           pdf_url?:              string | null;
           created_at?:           string;
+          fakturownia_invoice_id?:  number | null;
+          fakturownia_token?:       string | null;
+          payment_url?:             string | null;
+          fakturownia_sync_status?: 'pending' | 'synced' | 'failed' | null;
         };
         Relationships: [];
       };
