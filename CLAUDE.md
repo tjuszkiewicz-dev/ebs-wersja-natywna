@@ -63,6 +63,21 @@ Initial demo data is seeded from `services/mockData.ts`.
 
 `server/app.js` is a separate Express server (port **3015**) using Puppeteer. It handles `POST /api/generate-pdf` for document types: `DEBIT_NOTE`, `VAT_INVOICE`, `BUYBACK_AGREEMENT`, `IMPORT_REPORT`, `PROTOCOL`. Must be running independently alongside the Next.js dev server.
 
+### Fakturownia Integration
+
+Faktury VAT i noty księgowe są wystawiane w **Fakturowni** (źródło prawdy), z automatycznym KSeF po stronie konta FA. KSeF nie ma kodu w EBS.
+
+- **Env vars** (`.env.local` + Vercel Production): `FAKTUROWNIA_API_TOKEN`, `FAKTUROWNIA_DOMAIN` (np. `stratton-prime`), `FAKTUROWNIA_WEBHOOK_SECRET`. Brak env → integracja wyłączona (`getFakturowniaClient()` zwraca `null`, flow działa jak dawniej).
+- **Moduły** `lib/fakturownia/`:
+  - `client.ts` — czysty wrapper HTTP REST API (zero wiedzy o EBS), testy `client.test.ts` (Vitest, mock `fetch`).
+  - `invoiceService.ts` — `ensureClient` (mapuje firmę EBS → klienta FA po NIP, cache w `companies.fakturownia_client_id`), `buildNotaInput`/`buildFakturaInput`, `issueDocumentsForOrder` (idempotentne, zapisuje `fakturownia_invoice_id`/`token`/`payment_url`/`pdf_url`/`fakturownia_sync_status` do `financial_documents`).
+  - `factory.ts` — `getFakturowniaClient()` z env.
+- **Wystawianie**: `PATCH /api/orders/[id]/hr-confirm` po utworzeniu lokalnych `financial_documents` woła `issueDocumentsForOrder` (failure-tolerant — awaria FA nie blokuje potwierdzenia; dokument zostaje z `sync_status='failed'`). Uwaga: `companies` **nie ma** kolumny `fee_percent` — fee domyślnie 20%.
+- **Sync płatności**: webhook `POST /api/webhooks/fakturownia?secret=...` (instant) + cron `GET /api/cron/sync-fakturownia-payments` co 30 min (`vercel.json`).
+- **Retry**: `POST /api/financial-documents/[id]/retry-fakturownia` (superadmin) — przycisk „Ponów wysyłkę" w `AdminPlatnosci` przy `sync_status='failed'`.
+- **DB**: migracja `038_fakturownia.sql` — `companies.fakturownia_client_id` + `financial_documents.{fakturownia_invoice_id,fakturownia_token,payment_url,fakturownia_sync_status}`.
+- **Lokalna generacja PDF** nota/faktura (PDF-serwer) jest teraz nadrzędnie zastępowana linkiem PDF z Fakturowni (zapisanym w `pdf_url`), ale pozostaje jako fallback gdy integracja wyłączona.
+
 ### Employee Dashboard Layout (`EmployeeDashboardClient.tsx`)
 
 `app/dashboard/_components/EmployeeDashboardClient.tsx` — full layout with:
