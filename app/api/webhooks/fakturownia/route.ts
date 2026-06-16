@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase';
+import { getFakturowniaClient } from '@/lib/fakturownia/factory';
 
 // Fakturownia powiadamia o zmianie statusu faktury. Weryfikacja sekretu w query (?secret=).
 export async function POST(req: NextRequest) {
@@ -10,10 +11,26 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null) as { id?: number; status?: string } | null;
   const invoiceId = body?.id;
-  const status = body?.status;
   if (!invoiceId) return NextResponse.json({ ok: true }); // nic do zrobienia
 
-  if (status === 'paid') {
+  // Nie ufamy statusowi z payloadu — potwierdzamy stan bezpośrednio w FA (źródło prawdy).
+  // Dzięki temu samo znajomość sekretu nie wystarcza, by oznaczyć dowolną fakturę jako opłaconą.
+  const fa = getFakturowniaClient();
+  let isPaid: boolean;
+  if (fa) {
+    try {
+      const inv = await fa.getInvoice(invoiceId);
+      isPaid = inv.status === 'paid';
+    } catch (err) {
+      console.error('[fakturownia] webhook: weryfikacja faktury nie powiodła się', invoiceId, err);
+      return NextResponse.json({ error: 'verify failed' }, { status: 502 });
+    }
+  } else {
+    // Integracja wyłączona (brak env) — fallback do statusu z payloadu (zachowanie zgodne ze starym).
+    isPaid = body?.status === 'paid';
+  }
+
+  if (isPaid) {
     const supabase = supabaseServer();
     await supabase.from('financial_documents').update({
       status: 'paid',

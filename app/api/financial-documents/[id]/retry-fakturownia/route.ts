@@ -28,13 +28,13 @@ export async function POST(
 
   const { data: company } = await supabase
     .from('companies')
-    .select('id, nip, name, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
+    .select('id, nip, name, fee_percent, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
     .eq('id', (order as any).company_id).single();
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
   await issueDocumentsForOrder(
     supabase, fa, order as any, company as any,
-    20,
+    (company as any).fee_percent ?? 20,
     (company as any).custom_payment_terms_days ?? undefined,
   );
   return NextResponse.json({ ok: true });

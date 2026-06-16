@@ -87,10 +87,44 @@ describe('issueDocumentsForOrder', () => {
     const updates: any[] = [];
     const supa = supaForIssue([{ type: 'nota', fakturownia_invoice_id: null, id: 'd1' },
                                { type: 'faktura_vat', fakturownia_invoice_id: null, id: 'd2' }], updates);
-    await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14);
+    const res = await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14);
     expect(fa.createInvoice).toHaveBeenCalledTimes(2);
     expect(updates[0]).toMatchObject({ fakturownia_invoice_id: 11, fakturownia_sync_status: 'synced',
       external_payment_ref: 'NK/1', payment_url: 'https://d/invoice/tn' });
+    expect(res).toEqual({ issued: 2, failed: 0, skipped: 0 });
+  });
+
+  it('marks a doc failed (no invoice id) when createInvoice throws — safe to retry', async () => {
+    const fa = { createInvoice: vi.fn().mockRejectedValue(new Error('FA 500')),
+      invoiceUrl: () => 'u', invoicePdfUrl: () => 'p' };
+    const updates: any[] = [];
+    const supa = supaForIssue([{ type: 'nota', fakturownia_invoice_id: null, id: 'd1' }], updates);
+    const res = await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14);
+    expect(updates).toEqual([{ fakturownia_sync_status: 'failed' }]);
+    expect(res).toEqual({ issued: 0, failed: 1, skipped: 0 });
+  });
+
+  it('does NOT mark failed when invoice was created but DB persist fails — avoids duplicate on retry', async () => {
+    const fa = { createInvoice: vi.fn().mockResolvedValue({ id: 11, number: 'NK/1', token: 'tn', status: 'issued' }),
+      invoiceUrl: (t: string) => `https://d/invoice/${t}`, invoicePdfUrl: (t: string) => `https://d/invoice/${t}.pdf` };
+    const updates: any[] = [];
+    // update() zawsze zwraca błąd → persist nieudany
+    const supa = {
+      from(table: string) {
+        if (table === 'financial_documents') {
+          return {
+            select() { return this; }, eq() { return this; },
+            order() { return Promise.resolve({ data: [{ type: 'nota', fakturownia_invoice_id: null, id: 'd1' }] }); },
+            update(payload: any) { updates.push(payload); return { eq: () => Promise.resolve({ error: { message: 'db down' } }) }; },
+          };
+        }
+        return { select() { return this; }, eq() { return this; }, single: () => Promise.resolve({ data: {} }) };
+      },
+    };
+    const res = await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14);
+    // próbował zapisać synced payload (3 razy), ale NIGDY nie zapisał 'failed'
+    expect(updates.every(u => u.fakturownia_sync_status === 'synced')).toBe(true);
+    expect(res).toEqual({ issued: 0, failed: 1, skipped: 0 });
   });
 });
 

@@ -3,7 +3,14 @@ import { supabaseServer } from '@/lib/supabase';
 import { getFakturowniaClient } from '@/lib/fakturownia/factory';
 
 // Reconcyliacja: odpytaj FA o status niezapłaconych dokumentów. Vercel Cron wywołuje GET.
-export async function GET() {
+export async function GET(req: Request) {
+  // Weryfikacja wywołania przez Vercel Cron (nagłówek Authorization: Bearer CRON_SECRET).
+  // Egzekwowane tylko gdy CRON_SECRET ustawiony — brak env zachowuje dotychczasowe zachowanie.
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const fa = getFakturowniaClient();
   if (!fa) return NextResponse.json({ skipped: 'integration disabled' });
 
@@ -25,8 +32,9 @@ export async function GET() {
         }).eq('id', doc.id);
         updated++;
       }
-    } catch {
+    } catch (err) {
       // pojedyncza faktura nie wywraca całej reconcyliacji
+      console.error('[fakturownia] sync-cron: błąd dla faktury', doc.fakturownia_invoice_id, err);
     }
   }
   return NextResponse.json({ checked: docs?.length ?? 0, updated });

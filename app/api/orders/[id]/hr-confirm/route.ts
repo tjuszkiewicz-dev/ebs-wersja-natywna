@@ -140,25 +140,27 @@ export async function PATCH(
   }
 
   // 2b. Wystaw dokumenty w Fakturowni (źródło prawdy). Awaria FA nie blokuje potwierdzenia.
-  //     UWAGA: companies nie ma kolumny fee_percent — fee domyślnie 20% (zgodnie z resztą flow).
+  //     Prowizja na fakturze VAT = companies.fee_percent (to samo, co na dokumentach lokalnych),
+  //     fallback 20% gdy brak wartości.
   try {
     const fa = getFakturowniaClient();
     if (fa) {
       const { data: companyFa } = await supabase
         .from('companies')
-        .select('id, nip, name, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
+        .select('id, nip, name, fee_percent, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
         .eq('id', order.company_id)
         .single();
       if (companyFa) {
         await issueDocumentsForOrder(
           supabase, fa, order, companyFa as any,
-          20,
+          (companyFa as any).fee_percent ?? 20,
           (companyFa as any).custom_payment_terms_days ?? undefined,
         );
       }
     }
-  } catch {
+  } catch (err) {
     // Awaria integracji FA nie blokuje zatwierdzenia — dokumenty zostają z sync_status='failed'/null.
+    console.error('[fakturownia] hr-confirm: wystawianie dokumentów nie powiodło się dla zamówienia', orderId, err);
   }
 
   // 6. Generuj Umowę Zlecenia Nabycia Voucherów i zapisz URL w zamówieniu
