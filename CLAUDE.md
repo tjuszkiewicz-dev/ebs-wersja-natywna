@@ -23,7 +23,7 @@ npm start       # next start (production server)
 
 ### Framework
 
-**Next.js 15 (App Router)** is the sole frontend framework. Vite has been removed entirely — config files (`index.html`, `App.tsx`, `vite.config.ts`) **and** the `vite` / `@vitejs/plugin-react` dev-dependencies (audyt 2026-06-12). The project deploys to **Vercel** on every push to `main`.
+**Next.js 15 (App Router)** is the sole frontend framework. Vite has been removed entirely — config files (`index.html`, `App.tsx`, `vite.config.ts`) **and** the `vite` / `@vitejs/plugin-react` dev-dependencies (audyt 2026-06-12). Deploy na **Vercel** odbywa się **ręcznie przez `npx vercel --prod`** (CLI; konto **Hobby** — crony max raz/dobę). Push na `main` **nie** uruchamia automatycznie produkcyjnego buildu (brak działającej integracji Git → Vercel). Branch service `main`.
 
 - Next.js dev: port `3010`
 - PDF server: port `3015` (changed from 3001/3012)

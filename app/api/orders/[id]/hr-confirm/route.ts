@@ -98,7 +98,7 @@ export async function PATCH(
     // Pobierz dane firmy do dokumentu
     const { data: companyRaw5 } = await supabase
       .from('companies')
-      .select('name, nip, address_street, address_city, address_zip')
+      .select('name, nip, fee_percent, address_street, address_city, address_zip')
       .eq('id', order.company_id)
       .single();
     const company = companyRaw5 as any;
