@@ -139,9 +139,9 @@ export async function PATCH(
     // Błąd generowania dokumentów nie blokuje zatwierdzenia zamówienia
   }
 
-  // 2b. Wystaw dokumenty w Fakturowni (źródło prawdy). Awaria FA nie blokuje potwierdzenia.
-  //     Prowizja na fakturze VAT = companies.fee_percent (to samo, co na dokumentach lokalnych),
-  //     fallback 20% gdy brak wartości.
+  // 2b. Wystaw w Fakturowni TYLKO NOTĘ księgową (źródło prawdy). Faktura VAT jest ODROCZONA —
+  //     wystawi się dopiero PO oznaczeniu noty jako opłaconej (webhook/cron płatności → issueFakturaForOrder).
+  //     Awaria FA nie blokuje potwierdzenia. Prowizja = companies.fee_percent (fallback 20%).
   try {
     const fa = getFakturowniaClient();
     if (fa) {
@@ -155,6 +155,7 @@ export async function PATCH(
           supabase, fa, order, companyFa as any,
           (companyFa as any).fee_percent ?? 20,
           (companyFa as any).custom_payment_terms_days ?? undefined,
+          'nota',
         );
       }
     }

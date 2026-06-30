@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase';
 import { getFakturowniaClient } from '@/lib/fakturownia/factory';
+import { issueFakturaForOrder } from '@/lib/fakturownia/invoiceService';
 
 // Fakturownia powiadamia o zmianie statusu faktury. Weryfikacja sekretu w query (?secret=).
 export async function POST(req: NextRequest) {
@@ -36,6 +37,20 @@ export async function POST(req: NextRequest) {
       status: 'paid',
       payment_confirmed_at: new Date().toISOString(),
     }).eq('fakturownia_invoice_id', invoiceId);
+
+    // Po opłaceniu NOTY → wystaw w FA fakturę VAT (KSeF po stronie konta FA).
+    const { data: paidDoc } = await supabase
+      .from('financial_documents')
+      .select('type, linked_order_id')
+      .eq('fakturownia_invoice_id', invoiceId)
+      .maybeSingle();
+    if (fa && paidDoc?.type === 'nota' && paidDoc.linked_order_id) {
+      try {
+        await issueFakturaForOrder(supabase, fa, paidDoc.linked_order_id);
+      } catch (err) {
+        console.error('[fakturownia] webhook: wystawienie faktury VAT po opłacie noty nie powiodło się', paidDoc.linked_order_id, err);
+      }
+    }
   }
   return NextResponse.json({ ok: true });
 }

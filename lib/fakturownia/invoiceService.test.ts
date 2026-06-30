@@ -57,10 +57,11 @@ describe('document mapping', () => {
     expect(input.positions[0]).toMatchObject({ total_price_gross: 5000, tax: 'np' });
   });
 
-  it('faktura: net fee with 23% VAT, kind vat', () => {
-    const input = buildFakturaInput(7, 1000, '2026-06-12', 14);
+  it('faktura: gross fee with 23% VAT, kind vat (konto FA w trybie cen brutto)', () => {
+    const input = buildFakturaInput(7, 1230, '2026-06-12', 14);
     expect(input.kind).toBe('vat');
-    expect(input.positions[0]).toMatchObject({ price_net: 1000, tax: 23 });
+    expect(input.positions[0]).toMatchObject({ total_price_gross: 1230, tax: 23 });
+    expect(input.positions[0].price_net).toBeUndefined();
   });
 });
 
@@ -125,6 +126,20 @@ describe('issueDocumentsForOrder', () => {
     // próbował zapisać synced payload (3 razy), ale NIGDY nie zapisał 'failed'
     expect(updates.every(u => u.fakturownia_sync_status === 'synced')).toBe(true);
     expect(res).toEqual({ issued: 0, failed: 1, skipped: 0 });
+  });
+
+  it('only="nota" wystawia tylko notę, pomija fakturę (odroczenie)', async () => {
+    const fa = {
+      createInvoice: vi.fn().mockResolvedValue({ id: 11, number: 'NK/1', token: 'tn', status: 'issued' }),
+      invoiceUrl: (t: string) => `https://d/invoice/${t}`, invoicePdfUrl: (t: string) => `https://d/invoice/${t}.pdf`,
+    };
+    const updates: any[] = [];
+    const supa = supaForIssue([{ type: 'nota', fakturownia_invoice_id: null, id: 'd1' },
+                               { type: 'faktura_vat', fakturownia_invoice_id: null, id: 'd2' }], updates);
+    const res = await issueDocumentsForOrder(supa as any, fa as any, order, company, 20, 14, 'nota');
+    expect(fa.createInvoice).toHaveBeenCalledTimes(1);
+    expect(updates[0]).toMatchObject({ fakturownia_invoice_id: 11 });
+    expect(res).toEqual({ issued: 1, failed: 0, skipped: 0 });
   });
 });
 

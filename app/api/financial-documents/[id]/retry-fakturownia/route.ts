@@ -19,7 +19,7 @@ export async function POST(
   const { id } = await params;
 
   const { data: doc } = await supabase
-    .from('financial_documents').select('linked_order_id').eq('id', id).single();
+    .from('financial_documents').select('linked_order_id, type').eq('id', id).single();
   if (!doc?.linked_order_id) return NextResponse.json({ error: 'No linked order' }, { status: 404 });
 
   const { data: order } = await supabase
@@ -32,10 +32,12 @@ export async function POST(
     .eq('id', (order as any).company_id).single();
   if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
 
-  await issueDocumentsForOrder(
+  // Ponawiamy wystawienie tylko TEGO dokumentu (jego typu), nie obu — zgodnie z odroczeniem faktury.
+  const result = await issueDocumentsForOrder(
     supabase, fa, order as any, company as any,
     (company as any).fee_percent ?? 20,
     (company as any).custom_payment_terms_days ?? undefined,
+    (doc as any).type as 'nota' | 'faktura_vat',
   );
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, result });
 }

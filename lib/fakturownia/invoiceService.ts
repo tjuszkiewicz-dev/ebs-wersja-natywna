@@ -51,7 +51,7 @@ export function buildNotaInput(
 }
 
 export function buildFakturaInput(
-  clientId: number, feeNetPln: number, issueDate: string, paymentDays?: number,
+  clientId: number, feeGrossPln: number, issueDate: string, paymentDays?: number,
 ): FaInvoiceInput {
   return {
     kind: 'vat',
@@ -61,7 +61,9 @@ export function buildFakturaInput(
     positions: [{
       name: 'Opłata serwisowa za obsługę programu benefitowego',
       quantity: 1,
-      price_net: feeNetPln,
+      // Konto FA jest w trybie cen brutto → pozycja wymaga total_price_gross.
+      // Sam price_net daje 422 "positions.total_price_gross nie może być puste".
+      total_price_gross: feeGrossPln,
       tax: 23,
     }],
   };
@@ -98,6 +100,7 @@ export async function issueDocumentsForOrder(
   company: CompanyForInvoice,
   feePercent: number,           // e.g. 20
   paymentDays: number | undefined,
+  only?: 'nota' | 'faktura_vat', // gdy ustawione — wystaw w FA tylko ten typ dokumentu
 ): Promise<IssueResult> {
   const clientId = await ensureClient(supabase, fa, company);
   const issueDate = new Date().toISOString().slice(0, 10);
@@ -117,10 +120,11 @@ export async function issueDocumentsForOrder(
   }
 
   for (const doc of docs) {
+    if (only && doc.type !== only) continue;                       // odroczenie: nota teraz, faktura po opłacie
     if (doc.fakturownia_invoice_id) { result.skipped++; continue; } // idempotent
     const input = doc.type === 'nota'
       ? buildNotaInput(clientId, Number(order.amount_pln), issueDate, paymentDays)
-      : buildFakturaInput(clientId, totals.feeNet, issueDate, paymentDays);
+      : buildFakturaInput(clientId, totals.feeGross, issueDate, paymentDays);
 
     // 1) Utwórz dokument w FA. Awaria tutaj = nic nie powstało → bezpiecznie ponowić później.
     let inv;
@@ -154,4 +158,39 @@ export async function issueDocumentsForOrder(
     }
   }
   return result;
+}
+
+/**
+ * Wystawia w Fakturowni fakturę VAT dla zamówienia — wywoływane PO oznaczeniu noty jako OPŁACONEJ
+ * (z webhooka/cronu płatności). Pobiera zamówienie + firmę i deleguje do issueDocumentsForOrder
+ * z filtrem only='faktura_vat'. Zwraca null, gdy zamówienie/firma nie istnieją.
+ */
+export async function issueFakturaForOrder(
+  supabase: SupabaseClient,
+  fa: FakturowniaClient,
+  orderId: string,
+): Promise<IssueResult | null> {
+  const { data: order } = await supabase
+    .from('voucher_orders')
+    .select('id, company_id, amount_pln')
+    .eq('id', orderId)
+    .single();
+  if (!order) return null;
+
+  const { data: company } = await supabase
+    .from('companies')
+    .select('id, nip, name, fee_percent, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
+    .eq('id', (order as { company_id: string }).company_id)
+    .single();
+  if (!company) return null;
+
+  return issueDocumentsForOrder(
+    supabase,
+    fa,
+    order as OrderForInvoice,
+    company as CompanyForInvoice,
+    (company as { fee_percent?: number }).fee_percent ?? 20,
+    (company as { custom_payment_terms_days?: number }).custom_payment_terms_days ?? undefined,
+    'faktura_vat',
+  );
 }
