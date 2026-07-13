@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { z } from 'zod';
+import { normalizeIBAN } from '@/lib/iban';
 
 const ImportRowSchema = z.object({
     name:         z.string(),
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
             authIdToEmail.set(userId, loginEmail);
         }
 
-        const rawIban = row.iban ? row.iban.replace(/\s+/g, '').toUpperCase() : null;
+        const rawIban = row.iban ? normalizeIBAN(row.iban) : null;
         const isUZ = row.contractType?.toUpperCase().includes('UZ') || row.contractType?.includes('ZLECENIE');
 
         // Upewnij się, że hire_date jest w formacie YYYY-MM-DD lub null
@@ -192,8 +193,8 @@ export async function POST(req: NextRequest) {
                 address_zip:     zipCode || null,
                 address_city:    city || null,
                 iban:          rawIban,
-                iban_verified: !!rawIban,
-                iban_verified_at: rawIban ? now : null,
+                iban_verified: false,
+                iban_verified_at: null,
                 contract_type: isUZ ? 'UZ' : 'UOP',
                 hire_date:     hireDate,
                 status:        'active',
