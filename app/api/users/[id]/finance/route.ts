@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { z } from 'zod';
+import { isValidIBAN, normalizeIBAN } from '@/lib/iban';
 
 const FinanceSchema = z.object({
-    iban:          z.string().min(15).max(34).optional(),
+    iban:          z.string().optional().refine(v => !v || isValidIBAN(normalizeIBAN(v)), 'Nieprawidłowy numer rachunku (IBAN)'),
     iban_verified: z.boolean().optional(),
 });
 
@@ -41,10 +42,17 @@ export async function PATCH(
 
     const supabase2 = supabaseServer();
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (parsed.data.iban !== undefined) update.iban = parsed.data.iban;
+    if (parsed.data.iban !== undefined) {
+        update.iban = parsed.data.iban ? normalizeIBAN(parsed.data.iban) : null;
+        // Zmiana IBAN kasuje weryfikację, chyba że jawnie podano iban_verified
+        if (parsed.data.iban_verified === undefined) {
+            update.iban_verified = false;
+            update.iban_verified_at = null;
+        }
+    }
     if (parsed.data.iban_verified !== undefined) {
         update.iban_verified = parsed.data.iban_verified;
-        if (parsed.data.iban_verified) update.iban_verified_at = new Date().toISOString();
+        update.iban_verified_at = parsed.data.iban_verified ? new Date().toISOString() : null;
     }
 
     const { data, error } = await supabase2
