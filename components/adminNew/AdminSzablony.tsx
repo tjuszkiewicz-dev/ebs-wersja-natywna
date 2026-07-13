@@ -14,7 +14,9 @@ export default function AdminSzablony() {
 
   useEffect(() => {
     fetch('/api/admin/document-templates/buyback_agreement')
-      .then(r => r.json()).then(d => { if (d.html) setHtml(d.html); })
+      .then(r => r.json())
+      .then(d => { if (d.html) setHtml(d.html); else setMsg(d.error ? 'Nie udało się wczytać szablonu' : null); })
+      .catch(() => setMsg('Nie udało się wczytać szablonu'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -24,7 +26,11 @@ export default function AdminSzablony() {
       const res = await fetch('/api/admin/document-templates/buyback_agreement', {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ html }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.error ?? `HTTP ${res.status}`); }
+      if (!res.ok) {
+        const d = await res.json();
+        const errMsg = typeof d.error === 'string' ? d.error : `Błąd zapisu (HTTP ${res.status})`;
+        throw new Error(errMsg);
+      }
       setMsg('Zapisano.');
     } catch (e: any) { setMsg(e.message ?? 'Błąd zapisu'); }
     finally { setSaving(false); }
