@@ -80,8 +80,11 @@ export async function PATCH(req: NextRequest, { params: __paramsP }: Params) {
     if ((d as any).address_street   !== undefined)     updatePayload.address_street = (d as any).address_street;
     if ((d as any).address_city     !== undefined)     updatePayload.address_city = (d as any).address_city;
     if ((d as any).address_zip      !== undefined)     updatePayload.address_zip = (d as any).address_zip;
-    if (d.bank_account      !== undefined) updatePayload.bank_account = d.bank_account === '' ? null : d.bank_account;
-    if (d.bank_account_desc !== undefined) updatePayload.bank_account_desc = d.bank_account_desc;
+    // Rachunek na nocie jest kontrolowany przez Stratton — tylko superadmin może go zmieniać
+    if (auth.role === 'superadmin') {
+      if (d.bank_account      !== undefined) updatePayload.bank_account = d.bank_account === '' ? null : d.bank_account;
+      if (d.bank_account_desc !== undefined) updatePayload.bank_account_desc = d.bank_account_desc;
+    }
   } else {
     updatePayload.archived_at = parsed.data.action === 'archive' ? new Date().toISOString() : null;
   }
@@ -119,7 +122,7 @@ export async function GET(_req: NextRequest, { params: __paramsP }: Params) {
   const supabase = supabaseServer();
   const { data, error } = await supabase
     .from('companies')
-    .select('id, name, nip, krs, regon, address_street, address_city, address_zip, balance_pending, balance_active, custom_voucher_validity_days, custom_payment_terms_days, voucher_expiry_day, voucher_expiry_hour, voucher_expiry_minute')
+    .select('id, name, nip, krs, regon, address_street, address_city, address_zip, balance_pending, balance_active, custom_voucher_validity_days, custom_payment_terms_days, voucher_expiry_day, voucher_expiry_hour, voucher_expiry_minute, fee_percent, bank_account, bank_account_desc')
     .eq('id', id)
     .single();
 

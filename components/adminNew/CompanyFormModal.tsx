@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { X, Loader2, AlertCircle, Search, CheckCircle2, Building2 } from 'lucide-react';
+import { isValidIBAN } from '@/lib/iban';
 
 // ── Walidacja ─────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,11 @@ export const CompanyFormModal: React.FC<Props> = ({ onClose, onCreated }) => {
         errs[key] = issue.message;
       }
       setFieldErrors(errs);
+      return;
+    }
+
+    if (form.bank_account && !isValidIBAN(form.bank_account)) {
+      setFieldErrors(prev => ({ ...prev, bank_account: 'Nieprawidłowy numer rachunku (IBAN)' }));
       return;
     }
 

@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       address_street:             d.address_street ?? null,
       address_city:               d.address_city ?? null,
       address_zip:                d.address_zip ?? null,
-      bank_account:      d.bank_account ?? null,
+      bank_account:      d.bank_account || null,
       bank_account_desc: d.bank_account_desc ?? null,
       origin:                     'NATIVE',
     })
