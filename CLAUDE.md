@@ -190,6 +190,13 @@ Consumers import from `../types` or `@/types`. `types/database.ts` pozostaje oso
 - **PDF** generowany serwerowo przez `lib/documents/buybackAgreementService.createBuybackAgreementPdf(agreementId)` (szablon + `buyback_agreements` + `user_profiles` → `generatePdfBuffer`+`uploadPdf`), URL zapisywany w `buyback_agreements.pdf_url`.
 - `document_templates` nie jest jeszcze w `types/database.ts` — zapytania używają `(supabase as any)` (konwencja repo). Wpięcie generacji PDF w automat odkupu + wypełnienie snapshotu danymi pracownika = SP5.
 
+### Wygaśnięcie → przypomnienie → odkup → paczki przelewów (SP4/SP5)
+
+Wszystko doklejone do dziennego crona `app/api/cron/expire-vouchers` (Vercel Hobby: max 2 crony — bez nowego).
+- **E-mail**: `lib/mailer.sendEmail` (Resend). Env: `RESEND_API_KEY` + `RESEND_FROM_EMAIL` (domena `@stratton-prime.pl` **potwierdzona w Resend**); **brak env = wysyłka pomijana** (log, flow działa dalej).
+- **SP4 — przypomnienie 1-dzień-przed** (przed RPC): cron znajduje vouchery `status='distributed'` z `valid_until` w oknie „jutro" i `expiry_reminder_at IS NULL` (migracja 042), grupuje po właścicielu (`lib/vouchers/expiryReminders.groupExpiringByOwner`), wysyła e-mail + powiadomienie in-app, ustawia `expiry_reminder_at` (idempotencja).
+- **SP5 — odkup** (po RPC `expire_vouchers_and_create_buybacks`): dla nowych `buyback_agreements` (`pdf_url IS NULL`) generuje PDF umowy (`createBuybackAgreementPdf`, SP3), wysyła pracownikowi e-mail z załączoną umową, i buduje **paczki przelewów per firma** w `buyback_batches` (format `elixir0` + `millennium`, `status='generated'`): `lib/bank/elixir0.buildElixir0` (KIR, rekord 110) + `lib/bank/millenniumCsv.buildMillenniumCsv`. Obciążenie = konto Stratton (`ISSUER.bank`), uznanie = IBAN pracownika. **Elixir-0 wymaga weryfikacji testowym importem w banku** przed pierwszym realnym użyciem; żaden przelew nie jest wykonywany automatycznie (tylko pliki do pobrania).
+
 ### AI Integration
 
 `DashboardEmployee` includes an AI Legal Assistant powered by Google Gemini (`@google/generative-ai`). The API key is loaded from `VITE_GEMINI_API_KEY` in `.env.local`.
