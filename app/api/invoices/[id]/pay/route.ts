@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { calculateAndSaveCommissions } from '@/lib/vouchers';
+import { getFakturowniaClient } from '@/lib/fakturownia/factory';
+import { issueFakturaForOrder } from '@/lib/fakturownia/invoiceService';
 
 function parsePlannedAmount(entry: any): number {
   const raw = entry?.final_netto_voucher ?? entry?.voucherPartNet ?? entry?.amount ?? 0;
@@ -112,6 +114,18 @@ export async function PATCH(
     .eq('id', docId);
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+
+  // Opłacona NOTA → wystaw w Fakturowni fakturę VAT za obsługę (auto-KSeF po stronie konta FA).
+  // Nota jest generowana lokalnie w EBS; faktura powstaje w FA dopiero w tym momencie.
+  // Idempotentne (issueDocumentsForOrder pomija dokumenty z fakturownia_invoice_id); awaria FA nie blokuje opłaty.
+  if (doc.type === 'nota' && doc.linked_order_id) {
+    try {
+      const fa = getFakturowniaClient();
+      if (fa) await issueFakturaForOrder(supabase, fa, doc.linked_order_id);
+    } catch (err) {
+      console.error('[fakturownia] invoices/pay: wystawienie faktury VAT po opłacie noty nie powiodło się', doc.linked_order_id, err);
+    }
+  }
 
   let vouchersDistributed = 0;
   let orderId: string | null = doc.linked_order_id ?? null;

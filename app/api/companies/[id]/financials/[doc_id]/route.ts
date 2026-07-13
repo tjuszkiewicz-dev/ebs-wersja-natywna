@@ -9,6 +9,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
+import { getFakturowniaClient } from '@/lib/fakturownia/factory';
+import { issueFakturaForOrder } from '@/lib/fakturownia/invoiceService';
+
+/** Opłacona NOTA → wystaw w FA fakturę VAT za obsługę (auto-KSeF po stronie konta FA).
+ *  Idempotentne; awaria FA nie blokuje oznaczenia opłaty. */
+async function issueFakturaAfterNotaPaid(supabase: ReturnType<typeof supabaseServer>, orderId: string) {
+  try {
+    const fa = getFakturowniaClient();
+    if (fa) await issueFakturaForOrder(supabase, fa, orderId);
+  } catch (err) {
+    console.error('[fakturownia] financials/PATCH: wystawienie faktury VAT po opłacie noty nie powiodło się', orderId, err);
+  }
+}
 
 const UpdateSchema = z.object({
   status:               z.enum(['pending', 'paid']),
@@ -116,6 +129,10 @@ export async function PATCH(req: NextRequest, { params: __paramsP }: Params) {
       await syncOrderStatus(supabase, orderId, type, parsed.data.status, now);
     }
 
+    if (type === 'nota' && parsed.data.status === 'paid') {
+      await issueFakturaAfterNotaPaid(supabase, orderId);
+    }
+
     return NextResponse.json(docData);
   }
 
@@ -156,6 +173,10 @@ export async function PATCH(req: NextRequest, { params: __paramsP }: Params) {
 
   if (data.linked_order_id && data.type === 'nota' && parsed.data.status !== 'paid') {
     await syncOrderStatus(supabase, data.linked_order_id, 'nota', parsed.data.status, now);
+  }
+
+  if (data.linked_order_id && data.type === 'nota' && parsed.data.status === 'paid') {
+    await issueFakturaAfterNotaPaid(supabase, data.linked_order_id);
   }
 
   return NextResponse.json(data);
@@ -262,6 +283,10 @@ async function syncOrderStatus(
       p_owner_id:     order.hr_user_id,
       p_quantity:     order.amount_vouchers,
       p_valid_months: 12,
+      // Data wygaśnięcia policzona przy hr-confirm — bez niej vouchery mintowane tą ścieżką
+      // dostawałyby domyślne 12 miesięcy zamiast skonfigurowanego dnia wygaśnięcia firmy
+      // (spójnie z /api/orders/[id]/pay i /api/invoices/[id]/pay).
+      p_valid_until:  (order as any).voucher_valid_until ?? null,
     });
 
     if (mintErr) throw new Error(`Błąd emisji voucherów: ${mintErr.message}`);

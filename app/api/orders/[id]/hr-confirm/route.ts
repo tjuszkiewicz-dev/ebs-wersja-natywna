@@ -7,8 +7,6 @@ import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { createOrderDocuments, createUmowaDocument } from '@/lib/documentService';
 import { calculateOrderTotals } from '@/utils/financialMath';
-import { getFakturowniaClient } from '@/lib/fakturownia/factory';
-import { issueDocumentsForOrder } from '@/lib/fakturownia/invoiceService';
 
 export async function PATCH(
   _req: NextRequest,
@@ -139,30 +137,11 @@ export async function PATCH(
     // Błąd generowania dokumentów nie blokuje zatwierdzenia zamówienia
   }
 
-  // 2b. Wystaw w Fakturowni TYLKO NOTĘ księgową (źródło prawdy). Faktura VAT jest ODROCZONA —
-  //     wystawi się dopiero PO oznaczeniu noty jako opłaconej (webhook/cron płatności → issueFakturaForOrder).
-  //     Awaria FA nie blokuje potwierdzenia. Prowizja = companies.fee_percent (fallback 20%).
-  try {
-    const fa = getFakturowniaClient();
-    if (fa) {
-      const { data: companyFa } = await supabase
-        .from('companies')
-        .select('id, nip, name, fee_percent, fakturownia_client_id, address_street, address_city, address_zip, custom_payment_terms_days')
-        .eq('id', order.company_id)
-        .single();
-      if (companyFa) {
-        await issueDocumentsForOrder(
-          supabase, fa, order, companyFa as any,
-          (companyFa as any).fee_percent ?? 20,
-          (companyFa as any).custom_payment_terms_days ?? undefined,
-          'nota',
-        );
-      }
-    }
-  } catch (err) {
-    // Awaria integracji FA nie blokuje zatwierdzenia — dokumenty zostają z sync_status='failed'/null.
-    console.error('[fakturownia] hr-confirm: wystawianie dokumentów nie powiodło się dla zamówienia', orderId, err);
-  }
+  // 2b. Fakturownia przy potwierdzeniu: NIC nie wystawiamy.
+  //     - Nota księgowa jest generowana LOKALNIE (createOrderDocuments powyżej) — wzór noty w FA
+  //       (accounting_note) jest wadliwy (dwóch „Wystawców", brak konta bankowego), więc z niego rezygnujemy.
+  //     - Faktura VAT jest ODROCZONA: wystawi się w FA (z auto-KSeF) dopiero po oznaczeniu noty
+  //       jako opłaconej — patrz /api/invoices/[id]/pay i /api/orders/[id]/pay → issueFakturaForOrder.
 
   // 6. Generuj Umowę Zlecenia Nabycia Voucherów i zapisz URL w zamówieniu
   let umowaPdfUrl: string | null = null;

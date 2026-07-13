@@ -21,6 +21,12 @@ export async function POST(
   const { data: doc } = await supabase
     .from('financial_documents').select('linked_order_id, type').eq('id', id).single();
   if (!doc?.linked_order_id) return NextResponse.json({ error: 'No linked order' }, { status: 404 });
+  if ((doc as any).type === 'nota') {
+    return NextResponse.json(
+      { error: 'Noty księgowe są generowane lokalnie w EBS — ponawianie wysyłki do Fakturowni dotyczy tylko faktur VAT' },
+      { status: 400 },
+    );
+  }
 
   const { data: order } = await supabase
     .from('voucher_orders').select('id, company_id, amount_pln').eq('id', doc.linked_order_id).single();

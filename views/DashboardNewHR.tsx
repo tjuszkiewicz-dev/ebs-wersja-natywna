@@ -2166,7 +2166,7 @@ export const DashboardNewHR: React.FC<Props> = ({
                 </>
               ) : (
                 <>
-                  <p><strong>Faktura VAT</strong> za obsługę serwisową wystawiana jest jednocześnie z notą.</p>
+                  <p><strong>Faktura VAT</strong> za obsługę serwisową wystawiana jest <strong>po opłaceniu noty obciążeniowej</strong> (w Fakturowni, z automatyczną wysyłką do KSeF).</p>
                   <p>Obejmuje opłatę za udostępnienie i dystrybucję voucherów pracownikom. Stawka VAT: <strong>23%</strong>.</p>
                 </>
               )}

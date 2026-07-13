@@ -282,7 +282,7 @@ const FinancialDocsPanel: React.FC<{ company: Company; onClose: () => void; onPa
                           Zapłać
                         </a>
                       )}
-                      {doc.fakturownia_sync_status === 'failed' && (
+                      {tab === 'faktura_vat' && doc.fakturownia_sync_status === 'failed' && (
                         <button
                           onClick={() => retryFakturownia(doc.id)}
                           disabled={busyId === doc.id}

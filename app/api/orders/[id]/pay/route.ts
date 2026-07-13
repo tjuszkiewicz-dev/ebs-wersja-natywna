@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { calculateAndSaveCommissions } from '@/lib/vouchers';
+import { getFakturowniaClient } from '@/lib/fakturownia/factory';
+import { issueFakturaForOrder } from '@/lib/fakturownia/invoiceService';
 
 function parsePlannedAmount(entry: any): number {
   const raw = entry?.final_netto_voucher ?? entry?.voucherPartNet ?? entry?.amount ?? 0;
@@ -100,6 +102,28 @@ export async function PATCH(
       .eq('id', orderId);
 
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
+  }
+
+  // 1b. Zamówienie opłacone = nota (lokalna) opłacona → oznacz ją i wystaw w FA fakturę VAT za obsługę
+  //     (auto-KSeF po stronie konta FA). Idempotentne; awaria FA nie blokuje potwierdzenia płatności.
+  try {
+    const nowIso = new Date().toISOString();
+    const { data: notaDoc } = await supabase
+      .from('financial_documents')
+      .select('id, status')
+      .eq('linked_order_id', orderId)
+      .eq('type', 'nota')
+      .maybeSingle();
+    if (notaDoc && notaDoc.status !== 'paid') {
+      await supabase
+        .from('financial_documents')
+        .update({ status: 'paid', payment_confirmed_at: nowIso, updated_at: nowIso })
+        .eq('id', notaDoc.id);
+    }
+    const fa = getFakturowniaClient();
+    if (fa) await issueFakturaForOrder(supabase, fa, orderId);
+  } catch (err) {
+    console.error('[fakturownia] orders/pay: nota→faktura po opłacie nie powiodła się', orderId, err);
   }
 
   // 2. Emit vouchers — minted to the HR user (company account owner)

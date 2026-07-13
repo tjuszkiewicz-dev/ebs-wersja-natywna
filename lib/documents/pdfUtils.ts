@@ -1,19 +1,22 @@
 import { supabaseServer } from '@/lib/supabase';
 
 export const ISSUER = {
-  name:    process.env.ISSUER_NAME  ?? 'Stratton Prime sp. z o.o.',
-  nip:     process.env.ISSUER_NIP   ?? '5842867357',
-  krs:     process.env.ISSUER_KRS   ?? '0001169520',
-  regon:   process.env.ISSUER_REGON ?? '541537557',
-  address: 'ul. Junony 23/11, 80-299 Gdańsk',
+  name:    process.env.ISSUER_NAME    ?? 'Stratton Prime sp. z o.o.',
+  nip:     process.env.ISSUER_NIP     ?? '5842867357',
+  krs:     process.env.ISSUER_KRS     ?? '0001169520',
+  regon:   process.env.ISSUER_REGON   ?? '541537557',
+  address: process.env.ISSUER_ADDRESS?.trim() || 'ul. Junony 23/11, 80-299 Gdańsk',
+  // UWAGA: celowo BEZ env — ISSUER_BANK na Vercelu to placeholder "PL00 0000...".
+  // Prawdziwy rachunek (Millennium) wprowadzono hardcodem w ab2de2a; env wciąż trzyma zera.
   bank:    'PL66 1160 2202 0000 0006 6619 4064',
-  email:   process.env.ISSUER_EMAIL ?? 'faktury@strattonprime.pl',
+  email:   process.env.ISSUER_EMAIL   ?? 'faktury@strattonprime.pl',
 };
 
 /** Wysyła HTML do PDF-serwera (Puppeteer), zwraca Buffer lub null jeśli serwer niedostępny */
 export async function generatePdfBuffer(html: string, pdfOptions?: Record<string, unknown>): Promise<Buffer | null> {
   try {
-    const serverUrl = process.env.PDF_SERVER_URL ?? 'http://localhost:3015';
+    // .trim(): PDF_SERVER_URL na Vercelu miał trailing newline → fetch na "…app\n/api/…" padał po cichu
+    const serverUrl = (process.env.PDF_SERVER_URL ?? 'http://localhost:3015').trim();
     const body: Record<string, unknown> = { html };
     if (pdfOptions) body.pdfOptions = pdfOptions;
     const res = await fetch(`${serverUrl}/api/generate-pdf-raw`, {

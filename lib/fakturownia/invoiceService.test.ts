@@ -4,6 +4,7 @@ import {
   buildNotaInput,
   buildFakturaInput,
   issueDocumentsForOrder,
+  issueFakturaForOrder,
 } from './invoiceService';
 
 function fakeSupabase(companyRow: any, updateSpy = vi.fn()) {
@@ -126,6 +127,45 @@ describe('issueDocumentsForOrder', () => {
     // próbował zapisać synced payload (3 razy), ale NIGDY nie zapisał 'failed'
     expect(updates.every(u => u.fakturownia_sync_status === 'synced')).toBe(true);
     expect(res).toEqual({ issued: 0, failed: 1, skipped: 0 });
+  });
+
+  it('issueFakturaForOrder: null gdy zamówienie nie istnieje', async () => {
+    const supa = { from: () => ({ select() { return this; }, eq() { return this; }, single: () => Promise.resolve({ data: null }) }) };
+    const res = await issueFakturaForOrder(supa as any, {} as any, 'missing');
+    expect(res).toBeNull();
+  });
+
+  it('issueFakturaForOrder: wystawia TYLKO fakturę, brutto z fee_percent firmy', async () => {
+    const fa = {
+      createInvoice: vi.fn().mockResolvedValue({ id: 77, number: 'FV/7', token: 'tf', status: 'issued' }),
+      invoiceUrl: (t: string) => `https://d/invoice/${t}`, invoicePdfUrl: (t: string) => `https://d/invoice/${t}.pdf`,
+    };
+    const updates: any[] = [];
+    const supa = {
+      from(table: string) {
+        if (table === 'voucher_orders') return { select() { return this; }, eq() { return this; },
+          single: () => Promise.resolve({ data: { id: 'o1', company_id: 'c1', amount_pln: 5000 } }) };
+        if (table === 'companies') return { select() { return this; }, eq() { return this; },
+          single: () => Promise.resolve({ data: { id: 'c1', nip: '5842867357', name: 'X', fee_percent: 15,
+            fakturownia_client_id: 7, custom_payment_terms_days: null } }) };
+        if (table === 'financial_documents') return {
+          select() { return this; }, eq() { return this; },
+          order: () => Promise.resolve({ data: [
+            { type: 'nota', fakturownia_invoice_id: null, id: 'd1' },          // lokalna — musi zostać pominięta
+            { type: 'faktura_vat', fakturownia_invoice_id: null, id: 'd2' },
+          ] }),
+          update(p: any) { updates.push(p); return { eq: () => Promise.resolve({ error: null }) }; },
+        };
+        return { select() { return this; }, eq() { return this; }, single: () => Promise.resolve({ data: {} }) };
+      },
+    };
+    const res = await issueFakturaForOrder(supa as any, fa as any, 'o1');
+    expect(fa.createInvoice).toHaveBeenCalledTimes(1);
+    const input = fa.createInvoice.mock.calls[0][0];
+    expect(input.kind).toBe('vat');
+    // 5000 × 15% = 750 netto → 922,50 brutto (23% VAT)
+    expect(input.positions[0].total_price_gross).toBeCloseTo(922.5, 2);
+    expect(res).toEqual({ issued: 1, failed: 0, skipped: 0 });
   });
 
   it('only="nota" wystawia tylko notę, pomija fakturę (odroczenie)', async () => {
