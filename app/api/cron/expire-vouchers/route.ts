@@ -90,36 +90,28 @@ export async function GET(req: NextRequest) {
 
   console.log(`[cron/expire-vouchers] expired=${expired} buybacks=${buybacks}`);
 
-  // ── SP5: nowe umowy odkupu (bez pdf_url) — PDF + mail do pracownika + paczki per firma ──
+  // ── SP5: odkup — Faza A (PDF+mail, idempotentne po pdf_url), Faza B (paczki, guard transfer_batched_at) ──
   let buybackEmails = 0;
-  type Agg = { items: TransferItem[]; count: number; total: number };
-  const byCompany = new Map<string, Agg>();
+  let batchesCreated = 0;
   try {
-    const { data: newAgr } = await supabase
+    // Faza A: umowy bez pdf_url → generuj PDF (ustawia pdf_url) + mail. PDF fail → pomiń (retry następnym razem).
+    const { data: pendingPdf } = await supabase
       .from('buyback_agreements')
-      .select('id, user_id, voucher_count, total_value_pln')
+      .select('id, user_id')
       .is('pdf_url', null)
       .eq('status', 'pending_approval')
       .limit(500);
-    for (const agr of (newAgr ?? []) as any[]) {
+    for (const agr of (pendingPdf ?? []) as any[]) {
       const pdfUrl = await createBuybackAgreementPdf(agr.id);
+      if (!pdfUrl) continue; // PDF-serwer padł — nie mailuj, nie paczkuj; ponowimy (pdf_url dalej null)
       const { data: prof } = await supabase.from('user_profiles')
-        .select('full_name, contact_email, iban, company_id').eq('id', agr.user_id).single();
+        .select('full_name, contact_email, iban').eq('id', agr.user_id).single();
       const p = (prof as any) ?? {};
-      const amount = Number(agr.total_value_pln) || 0;
-      const vcount = Number(agr.voucher_count) || 0;
-      if (p.company_id && p.iban) {
-        const agg = byCompany.get(p.company_id) ?? { items: [], count: 0, total: 0 };
-        agg.items.push({ recipientName: p.full_name ?? 'Pracownik', recipientIban: p.iban, amountPln: amount, title: `Odkup voucherów EBS ${String(agr.id).slice(-8).toUpperCase()}` });
-        agg.count += vcount; agg.total += amount;
-        byCompany.set(p.company_id, agg);
-      }
-      if (p.contact_email) {
+      // mail o wypłacie tylko gdy jest na co zapłacić (jest IBAN)
+      if (p.contact_email && p.iban) {
         let attachments: { filename: string; content: Buffer }[] | undefined;
-        if (pdfUrl) {
-          try { const r = await fetch(pdfUrl); if (r.ok) attachments = [{ filename: 'umowa-odkupu.pdf', content: Buffer.from(await r.arrayBuffer()) }]; }
-          catch { /* brak załącznika nie blokuje maila */ }
-        }
+        try { const r = await fetch(pdfUrl); if (r.ok) attachments = [{ filename: 'umowa-odkupu.pdf', content: Buffer.from(await r.arrayBuffer()) }]; }
+        catch { /* brak załącznika nie blokuje maila */ }
         const res = await sendEmail({
           to: p.contact_email,
           subject: 'EBS — Umowa odkupu voucherów',
@@ -129,6 +121,25 @@ export async function GET(req: NextRequest) {
         if (res.ok || res.skipped) buybackEmails += 1;
       }
     }
+    // Faza B: umowy z pdf_url, jeszcze niezpaczkowane → paczki per firma; oznacz transfer_batched_at PO wstawieniu.
+    const { data: toBatch } = await supabase
+      .from('buyback_agreements')
+      .select('id, user_id, voucher_count, total_value_pln')
+      .not('pdf_url', 'is', null)
+      .is('transfer_batched_at', null)
+      .limit(1000);
+    const byCompany = new Map<string, { ids: string[]; items: TransferItem[]; count: number; total: number }>();
+    for (const agr of (toBatch ?? []) as any[]) {
+      const { data: prof } = await supabase.from('user_profiles')
+        .select('full_name, iban, company_id').eq('id', agr.user_id).single();
+      const p = (prof as any) ?? {};
+      if (!p.company_id || !p.iban) continue; // bez firmy/IBAN nie da się zbudować przelewu — do ręcznej obsługi
+      const agg = byCompany.get(p.company_id) ?? { ids: [], items: [], count: 0, total: 0 };
+      agg.ids.push(agr.id);
+      agg.items.push({ recipientName: p.full_name ?? 'Pracownik', recipientIban: p.iban, amountPln: Number(agr.total_value_pln) || 0, title: `Odkup voucherów EBS ${String(agr.id).slice(-8).toUpperCase()}` });
+      agg.count += Number(agr.voucher_count) || 0; agg.total += Number(agr.total_value_pln) || 0;
+      byCompany.set(p.company_id, agg);
+    }
     const sender = { name: ISSUER.name, iban: ISSUER.bank.replace(/\s+/g, '') };
     const nowB = new Date();
     const periodLabel = nowB.toISOString().slice(0, 7);
@@ -137,6 +148,9 @@ export async function GET(req: NextRequest) {
         { company_id: companyId, period_label: periodLabel, total_amount: agg.total, voucher_count: agg.count, status: 'generated', format: 'elixir0',    file_csv: buildElixir0(agg.items, sender, nowB) },
         { company_id: companyId, period_label: periodLabel, total_amount: agg.total, voucher_count: agg.count, status: 'generated', format: 'millennium', file_csv: buildMillenniumCsv(agg.items, sender, nowB) },
       ]);
+      // oznacz umowy tej firmy jako zpaczkowane NATYCHMIAST po wstawieniu (minimalizuje okno duplikatu)
+      await supabase.from('buyback_agreements').update({ transfer_batched_at: new Date().toISOString() }).in('id', agg.ids);
+      batchesCreated += 2;
     }
   } catch (e: any) {
     console.error('[cron/expire-vouchers] odkup:', e?.message);
@@ -148,7 +162,7 @@ export async function GET(req: NextRequest) {
     buybacks,
     remindersSent,
     buybackEmails,
-    batches:  byCompany.size * 2,
+    batches:  batchesCreated,
     ran_at:   new Date().toISOString(),
   });
 }
