@@ -757,7 +757,7 @@ export const DashboardNewHR: React.FC<Props> = ({
       if (existingRows.length > 0) {
         const normalizeText = (v?: string | null) => (v ?? '').trim();
         const normalizePhone = (v?: string | null) => digitsFromPhone(v ?? '');
-        const normalizeIban = (v?: string | null) => (v ?? '').replace(/\s+/g, '').toUpperCase();
+        const normalizeIban = (v?: string | null) => normalizeIBAN(v ?? '');
         const normalizeContractType = (v?: string | null): 'UOP' | 'UZ' | undefined => {
           const s = normalizeText(v).toUpperCase();
           if (!s) return undefined;
