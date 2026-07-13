@@ -14,6 +14,7 @@ import { EmpDetailRow } from '../components/hr/dashboard/EmployeeCard';
 import { HROrderPickerModal } from '../components/hr/modals/HROrderPickerModal';
 import { HROrderHistoryModal } from '../components/hr/modals/HROrderHistoryModal';
 import { HRAddEmployeeModal } from '../components/hr/modals/HRAddEmployeeModal';
+import { isValidIBAN, normalizeIBAN } from '@/lib/iban';
 import {
   Upload, Download, FileSpreadsheet, Users, FileText, CreditCard, ClipboardList,
   Search, X, CheckCircle2, AlertCircle, AlertTriangle, Clock, ChevronRight,
@@ -945,16 +946,6 @@ export const DashboardNewHR: React.FC<Props> = ({
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  function validateIBAN(raw: string): boolean {
-    const s = raw.replace(/\s+/g, '').toUpperCase();
-    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(s)) return false;
-    const moved = s.slice(4) + s.slice(0, 4);
-    const digits = moved.split('').map(c => c >= 'A' ? String(c.charCodeAt(0) - 55) : c).join('');
-    let rem = 0;
-    for (const ch of digits) { rem = (rem * 10 + parseInt(ch, 10)) % 97; }
-    return rem === 1;
-  }
-
   const openEdit = (emp: User, section: 'kontakt' | 'adres' | 'iban' | 'zatrudnienie' | 'dostep') => {
     setEditError(null);
     let values: Record<string, string> = {};
@@ -1029,10 +1020,10 @@ export const DashboardNewHR: React.FC<Props> = ({
 
       } else if (section === 'iban') {
         const ibanVal = values.iban.replace(/\s+/g, '').toUpperCase();
-        if (ibanVal && !validateIBAN(ibanVal)) { setEditError('Nieprawidłowy numer IBAN (weryfikacja mod97)'); return; }
+        if (ibanVal && !isValidIBAN(normalizeIBAN(ibanVal))) { setEditError('Nieprawidłowy numer IBAN (weryfikacja mod97)'); return; }
         const res = await fetch(`/api/users/${empId}/finance`, {
           method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ iban: ibanVal, iban_verified: false }),
+          body: JSON.stringify({ iban: ibanVal ? normalizeIBAN(ibanVal) : '', iban_verified: false }),
         });
         if (!res.ok) { const b = await res.json().catch(() => ({})); setEditError(toErrMsg(b.error, 'Błąd zapisu IBAN')); return; }
         actions.setUsers(prev => prev.map(u => u.id === empId ? {
