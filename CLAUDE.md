@@ -181,6 +181,13 @@ Produkcyjna baza: `ramedybmybcpqvelsmxd.supabase.co` — zawiera 12 auth users, 
 
 Consumers import from `../types` or `@/types`. `types/database.ts` pozostaje osobnym plikiem Supabase schema (nie przez barrel).
 
+### Umowa odkupu (buyback) — edytowalny szablon + serwerowy PDF (SP3)
+
+- **Szablon** trzymany w tabeli `document_templates(key, html, updated_by, updated_at)`; wiersz `key='buyback_agreement'` (migracja 041). Edytowalny w panelu: **Admin → „Szablony dokumentów"** (`components/adminNew/AdminSzablony.tsx`, tab `admin-szablony`) przez `GET/PATCH /api/admin/document-templates/[key]` (superadmin).
+- **Pola-zmienne** `{{…}}` podstawiane przez `lib/documents/templateEngine.renderTemplate`: `imie_nazwisko, pesel_nip, adres, nr_ilustracji, liczba_voucherow, wartosc_pln, iban_zbywajacego, email_zbywajacego, data`.
+- **PDF** generowany serwerowo przez `lib/documents/buybackAgreementService.createBuybackAgreementPdf(agreementId)` (szablon + `buyback_agreements` + `user_profiles` → `generatePdfBuffer`+`uploadPdf`), URL zapisywany w `buyback_agreements.pdf_url`.
+- `document_templates` nie jest jeszcze w `types/database.ts` — zapytania używają `(supabase as any)` (konwencja repo). Wpięcie generacji PDF w automat odkupu + wypełnienie snapshotu danymi pracownika = SP5.
+
 ### AI Integration
 
 `DashboardEmployee` includes an AI Legal Assistant powered by Google Gemini (`@google/generative-ai`). The API key is loaded from `VITE_GEMINI_API_KEY` in `.env.local`.
