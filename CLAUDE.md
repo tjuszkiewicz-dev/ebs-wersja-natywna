@@ -165,6 +165,8 @@ Produkcyjna baza: `ramedybmybcpqvelsmxd.supabase.co` — zawiera 12 auth users, 
 
 > Kolumna `temp_password` w `user_profiles` przechowuje hasło jednorazowe generowane przy tworzeniu konta pracownika (plaintext — do zmiany przy pierwszym logowaniu).
 
+> **IBAN pracownika** (SP2): walidowany mod-97 i normalizowany przez `lib/iban` (`isValidIBAN` + `normalizeIBAN`; 26-cyfrowy NRB → `PL…`) we WSZYSTKICH ścieżkach wejścia — `PATCH /api/users/[id]/finance`, `bulk-import`, parsery Excel (`utils/excelHr.ts`), edycja inline w `DashboardNewHR`. Każdy nowo wprowadzony/zmieniony IBAN ustawia `iban_verified=false` (weryfikacja to osobny krok). `services/payrollService.validatePLIBAN` pozostaje, ale używany wyłącznie przez martwe komponenty.
+
 ### Key Types
 
 `types.ts` is a barrel that re-exports all domain type files from `types/`:
