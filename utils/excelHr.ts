@@ -4,6 +4,7 @@
 // Parse pliku wejściowego nadal przez SheetJS (lżejszy, tylko odczyt).
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
+import { isValidIBAN, normalizeIBAN } from '@/lib/iban';
 
 export interface HrExcelRow {
   rowIndex: number;
@@ -524,6 +525,8 @@ export async function parseExcelFile(file: File): Promise<HrExcelRow[]> {
     const amount = parseAmount(amountRaw);
     if (amount <= 0) errors.push('Kwota voucherów musi być większa od zera');
 
+    if (iban && !isValidIBAN(normalizeIBAN(iban))) errors.push('Nieprawidłowy numer IBAN (weryfikacja mod-97)');
+
     return {
       rowIndex: idx + 2, // 1-indexed, skipping header
       firstName,
@@ -603,6 +606,8 @@ export async function parseKartotekaFile(file: File): Promise<HrExcelRow[]> {
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errors.push('Nieprawidłowy format adresu email');
     }
+
+    if (iban && !isValidIBAN(normalizeIBAN(iban))) errors.push('Nieprawidłowy numer IBAN (weryfikacja mod-97)');
 
     return {
       rowIndex: idx + 2,
