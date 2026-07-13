@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
+import { isValidIBAN } from '@/lib/iban';
 
 const AddCompanySchema = z.object({
   name:                     z.string().min(2),
@@ -22,6 +23,8 @@ const AddCompanySchema = z.object({
   address_street:           z.string().optional(),
   address_city:             z.string().optional(),
   address_zip:              z.string().optional(),
+  bank_account:      z.string().trim().optional().refine(v => !v || isValidIBAN(v), 'Nieprawidłowy numer rachunku (IBAN)'),
+  bank_account_desc: z.string().optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -88,6 +91,8 @@ export async function POST(req: NextRequest) {
       address_street:             d.address_street ?? null,
       address_city:               d.address_city ?? null,
       address_zip:                d.address_zip ?? null,
+      bank_account:      d.bank_account ?? null,
+      bank_account_desc: d.bank_account_desc ?? null,
       origin:                     'NATIVE',
     })
     .select()

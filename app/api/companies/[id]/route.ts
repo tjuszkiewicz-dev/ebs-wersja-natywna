@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
+import { isValidIBAN } from '@/lib/iban';
 
 const PatchSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('archive') }),
@@ -22,6 +23,8 @@ const PatchSchema = z.discriminatedUnion('action', [
     voucher_expiry_day:          z.number().int().min(1).max(31).optional(),
     voucher_expiry_hour:         z.number().int().min(0).max(23).optional(),
     voucher_expiry_minute:       z.number().int().min(0).max(59).optional(),
+    bank_account:      z.string().trim().optional().nullable().refine(v => v == null || v === '' || isValidIBAN(v), 'Nieprawidłowy numer rachunku (IBAN)'),
+    bank_account_desc: z.string().optional().nullable(),
   }),
 ]);
 
@@ -77,6 +80,8 @@ export async function PATCH(req: NextRequest, { params: __paramsP }: Params) {
     if ((d as any).address_street   !== undefined)     updatePayload.address_street = (d as any).address_street;
     if ((d as any).address_city     !== undefined)     updatePayload.address_city = (d as any).address_city;
     if ((d as any).address_zip      !== undefined)     updatePayload.address_zip = (d as any).address_zip;
+    if (d.bank_account      !== undefined) updatePayload.bank_account = d.bank_account === '' ? null : d.bank_account;
+    if (d.bank_account_desc !== undefined) updatePayload.bank_account_desc = d.bank_account_desc;
   } else {
     updatePayload.archived_at = parsed.data.action === 'archive' ? new Date().toISOString() : null;
   }
