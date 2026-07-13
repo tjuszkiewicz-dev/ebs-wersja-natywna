@@ -233,14 +233,14 @@ Audyt repo. **Faza 1 (wykonana)** — usunięto śmieci i martwe zależności:
 **Faza 3 (do zrobienia) — martwy kod (zweryfikowany, 0 importów)**, kandydaci do usunięcia:
 - `app/actions/auth.ts` (`loginAction` nieużywany — login idzie przez `supabaseBrowser` + `/api/auth/role`)
 - `hooks/useStrattonSystem.ts` (duplikat — realny w `context/StrattonContext.tsx`)
-- Stary, rozbity panel HR osierocony przez monolit `views/DashboardNewHR.tsx` (3016 linii):
-  - cały `components/hr/dashboard/` (`HRPageHeader`, `HRDocumentBinder`, `HRCommandCenter`, `HREmployeeTable`, `HRDistributionWidget`, `HRShortcuts`, `HRDashboardGuide`, `HREmployeeGuide`, `SettlementGuide`, `HRImportHistoryTable`)
-  - `components/hr/modals/` (`EmployeeEditModal`, `EmployeeHistoryModal`, `DistributionModal`, `DistributionChoiceModal`, `DistributionEvidenceModal`, `BulkTransferModal`)
-  - `components/hr/` (`EmployeeImportModal`, `HRIntegrationsManager`, `HRReportCenter`)
+- Osierocone przez monolit `views/DashboardNewHR.tsx` fragmenty starego panelu HR:
+  - `components/hr/dashboard/`: `HRPageHeader`, `HRDocumentBinder`, `HRCommandCenter`, `HREmployeeTable`, `HRDistributionWidget`, `HRShortcuts`, `HRDashboardGuide`, `HREmployeeGuide`, `SettlementGuide`, `HRImportHistoryTable`
+  - `components/hr/modals/`: `EmployeeEditModal`, `EmployeeHistoryModal`, `DistributionModal`, `DistributionChoiceModal`, `DistributionEvidenceModal`, `BulkTransferModal`
+  - `components/hr/`: `EmployeeImportModal`, `HRIntegrationsManager`, `HRReportCenter`
   - inne: `components/DocumentModal.tsx`, `components/ui/Orb.tsx`, `components/employee/dashboard/EmployeeStats.tsx`, `OrangeOfferSection`, `PZUServiceSection`, `components/employee/mobile/MobileNav.tsx`, `components/ui/EmptyState.tsx`, `components/notifications/NotificationPreferences.tsx`, `MarketplaceHero`, `ElitonBanner`, `CaseListView`
   - `services/payrollService.test.ts` (brak test runnera)
 
-> ⚠️ Sekcja „Extracted Sub-Components & Helpers" powyżej wymienia część komponentów HR, które są teraz osierocone — przed użyciem sprawdź, czy nie są na powyższej liście Fazy 3.
+> 🔴 **ŻYWE — NIE usuwać** (mimo że leżą w `components/hr/**`; importowane przez działający panel): `components/hr/dashboard/EmployeeCard` (`EmpDetailRow`), `components/hr/KartotekaImportZone`, `components/hr/HRSettingsModal` (import w `EmployerDashboardClient`), `components/hr/modals/HROrderPickerModal`, `HROrderHistoryModal`, `HRAddEmployeeModal` (import w `DashboardNewHR`). Usunięcie „całego `components/hr/dashboard/`" **zepsuje build** — kasuj wyłącznie po imienne pliki z listy powyżej i sprawdź `grep -r` przed usunięciem.
 
 **Bezpieczeństwo (osobno)**: `npm audit` zgłasza 18 podatności (1 krytyczna) — głównie `xlsx`. Rozważ migrację z `xlsx` na `exceljs` (już w projekcie).
 
