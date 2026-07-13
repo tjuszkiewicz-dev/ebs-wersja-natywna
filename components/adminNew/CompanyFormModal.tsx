@@ -13,6 +13,7 @@ const Schema = z.object({
   address_city:   z.string().optional(),
   address_zip:    z.string().optional(),
   fee_percent:    z.number().min(15, 'Min. 15%').max(31, 'Max. 31%').default(20),
+  bank_account:   z.string().optional(),
 });
 
 type FormData = z.infer<typeof Schema>;
@@ -34,6 +35,7 @@ export const CompanyFormModal: React.FC<Props> = ({ onClose, onCreated }) => {
     address_city:   '',
     address_zip:    '',
     fee_percent:    20,
+    bank_account:   '',
   });
   const [fieldErrors, setFieldErrors]  = useState<Partial<Record<keyof FormData, string>>>({});
   const [serverError, setServerError]  = useState<string | null>(null);
@@ -257,6 +259,8 @@ export const CompanyFormModal: React.FC<Props> = ({ onClose, onCreated }) => {
             {field('address_city', 'Miasto', 'Warszawa')}
             {field('address_zip', 'Kod pocztowy', '00-000')}
           </div>
+
+          {field('bank_account', 'Nr rachunku na nocie (subkonto)', 'PL.. .... .... ....')}
 
           {/* Opłata serwisowa */}
           <div>

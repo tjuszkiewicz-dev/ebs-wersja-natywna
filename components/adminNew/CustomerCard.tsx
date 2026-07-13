@@ -28,6 +28,7 @@ export interface CustomerCompany {
   voucher_expiry_day:    number | null;
   voucher_expiry_hour:   number | null;
   voucher_expiry_minute: number | null;
+  bank_account:       string | null;
 }
 
 interface Props {
@@ -55,6 +56,12 @@ export const CustomerCard: React.FC<Props> = ({ company, onClose }) => {
   const [feeValue,   setFeeValue]   = useState<string>(String(company.fee_percent ?? 20));
   const [feeSaving,  setFeeSaving]  = useState(false);
   const [feeError,   setFeeError]   = useState<string | null>(null);
+
+  // bank_account edit state
+  const [bankEdit,   setBankEdit]   = useState(false);
+  const [bankValue,  setBankValue]  = useState<string>(company.bank_account ?? '');
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankError,  setBankError]  = useState<string | null>(null);
 
   // voucher expiry (day + hour + minute) edit state
   const [expiryEdit,    setExpiryEdit]    = useState(false);
@@ -89,6 +96,27 @@ export const CustomerCard: React.FC<Props> = ({ company, onClose }) => {
       setFeeSaving(false);
     }
   }, [company.id, feeValue]);
+
+  const handleBankSubmit = useCallback(async () => {
+    setBankSaving(true);
+    setBankError(null);
+    try {
+      const res = await fetch(`/api/companies/${company.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_settings', bank_account: bankValue.trim() }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error?.fieldErrors?.bank_account?.[0] ?? d.error ?? `HTTP ${res.status}`);
+      }
+      setBankEdit(false);
+    } catch (e: any) {
+      setBankError(e.message ?? 'Błąd zapisu');
+    } finally {
+      setBankSaving(false);
+    }
+  }, [company.id, bankValue]);
 
   const handleExpirySubmit = useCallback(async () => {
     const dayNum    = parseInt(expiryDay, 10);
@@ -299,6 +327,46 @@ export const CustomerCard: React.FC<Props> = ({ company, onClose }) => {
                   <span className="text-sm font-bold text-slate-800">{feeValue}%</span>
                   <button
                     onClick={() => setFeeEdit(true)}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Edytuj
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Bank account — inline edit */}
+            <div className="col-span-2 pt-3 border-t border-slate-100">
+              <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">Nr rachunku na nocie</p>
+              {bankEdit ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={bankValue}
+                    onChange={e => { setBankValue(e.target.value); setBankError(null); }}
+                    className="w-64 px-2 py-1 border border-blue-300 rounded-lg text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleBankSubmit}
+                    disabled={bankSaving}
+                    className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
+                  >
+                    {bankSaving ? 'Zapisuję...' : 'Zapisz'}
+                  </button>
+                  <button
+                    onClick={() => { setBankEdit(false); setBankValue(company.bank_account ?? ''); setBankError(null); }}
+                    className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 transition"
+                  >
+                    Anuluj
+                  </button>
+                  {bankError && <span className="text-red-500 text-xs">{bankError}</span>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-slate-800">{company.bank_account ?? '—'}</span>
+                  <button
+                    onClick={() => setBankEdit(true)}
                     className="text-xs text-blue-600 hover:underline"
                   >
                     Edytuj
