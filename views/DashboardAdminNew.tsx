@@ -7,9 +7,10 @@ import { AdminVouchery } from '../components/adminNew/AdminVouchery';
 import { AdminBuyback } from '../components/adminNew/AdminBuyback';
 import { AdminUsers } from '../components/adminNew/AdminUsers';
 import AdminSzablony from '../components/adminNew/AdminSzablony';
-import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText } from 'lucide-react';
+import AdminLogi from '../components/adminNew/AdminLogi';
+import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -20,6 +21,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-buyback':   'buyback',
   'admin-uzytkowniczy': 'uzytkowniczy',
   'admin-szablony':  'szablony',
+  'admin-logi':      'logi',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -31,6 +33,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   buyback:   'admin-buyback',
   uzytkowniczy: 'admin-uzytkowniczy',
   szablony:  'admin-szablony',
+  logi:      'admin-logi',
 };
 
 interface Props {
@@ -60,6 +63,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
     { id: 'buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={16} /> },
     { id: 'uzytkowniczy', label: 'Użytkownicy',      icon: <Lock size={16} /> },
     { id: 'szablony',  label: 'Szablony',            icon: <FileText size={16} /> },
+    { id: 'logi',      label: 'Logi',                icon: <ScrollText size={16} /> },
   ];
 
   return (
@@ -107,6 +111,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'buyback'   && <AdminBuyback />}
         {tab === 'uzytkowniczy' && <AdminUsers />}
         {tab === 'szablony' && <AdminSzablony />}
+        {tab === 'logi' && <AdminLogi />}
       </div>
     </div>
   );
