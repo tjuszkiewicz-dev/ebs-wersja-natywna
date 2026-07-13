@@ -7,7 +7,7 @@
 
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { getAuthUser, unauthorized, badRequest, serverError } from '@/lib/apiAuth';
+import { getAuthUserWithRole, unauthorized, badRequest, serverError, forbidden } from '@/lib/apiAuth';
 import { getAgentCommissions } from '@/lib/vouchers';
 
 const QuerySchema = z.object({
@@ -15,7 +15,7 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthUser();
+  const user = await getAuthUserWithRole();
   if (!user) return unauthorized();
 
   const { searchParams } = request.nextUrl;
@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
   }
 
   const targetId = parsed.data.agentId ?? user.id;
+
+  // Agent widzi tylko WŁASNE prowizje; cudze — wyłącznie superadmin (IDOR fix)
+  if (targetId !== user.id && user.role !== 'superadmin') {
+    return forbidden();
+  }
 
   const result = await getAgentCommissions(targetId);
   if (result.error) return serverError(result.error.message);

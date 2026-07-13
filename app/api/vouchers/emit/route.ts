@@ -22,27 +22,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { amount, description } = parsed.data;
-  const supabase = supabaseServer();
-  const emissionId = `EMISJA-MANUAL-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
-
-  // Użyj fikcyjnego company_id dla puli platformy lub własnego konta admina
-  const { error } = await supabase.rpc('mint_vouchers', {
-    p_order_id:     emissionId,   // order_id jako referencja emisji
-    p_company_id:   auth.id,      // superadmin jako właściciel puli
-    p_owner_id:     auth.id,
-    p_quantity:     amount,
-    p_valid_months: 24,
-  });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Powiadomienie do wszystkich adminów
-  await supabase.from('notifications').insert({
-    user_id: 'ALL_ADMINS',
-    message: `Nowa emisja manualna: ${amount} pkt. ID: ${emissionId}. Powód: ${description}`,
-    type:    'INFO',
-  });
-
-  return NextResponse.json({ emitted: amount, emissionId }, { status: 201 });
+  // UWAGA: funkcja świadomie WYŁĄCZONA (501). Poprzednia implementacja rzucała 500 przy każdym
+  // wywołaniu: `mint_vouchers` wymaga p_order_id UUID i p_company_id → companies(id), a przekazywano
+  // string `EMISJA-MANUAL-…` oraz `auth.id` (id usera, nie firmy) → błąd castu / naruszenie FK.
+  // „Emisja do puli platformy" nie ma odzwierciedlenia w schemacie (voucher wymaga realnej firmy
+  // i zamówienia). Do włączenia trzeba decyzji produktowej: wybór firmy docelowej + realne zamówienie.
+  void parsed.data;
+  return NextResponse.json(
+    { error: 'Ręczna emisja voucherów jest tymczasowo niedostępna — wymaga wyboru firmy docelowej (w przygotowaniu).' },
+    { status: 501 },
+  );
 }

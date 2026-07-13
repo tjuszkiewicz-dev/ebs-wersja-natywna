@@ -62,6 +62,15 @@ export async function GET(request: NextRequest) {
   const { companyId } = parsed.data;
   const supabase = supabaseServer() as any;
 
+  // Pracodawca widzi wyłącznie kartotekę WŁASNEJ firmy (dane wrażliwe: PESEL/IBAN/temp_password)
+  if (auth.role === 'pracodawca') {
+    const { data: callerProfile } = await supabase
+      .from('user_profiles').select('company_id').eq('id', auth.id).single();
+    if (callerProfile?.company_id !== companyId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
   // Pobierz profile pracowników tej firmy
   const { data: profiles, error } = await supabase
     .from('user_profiles')

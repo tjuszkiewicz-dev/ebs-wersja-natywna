@@ -37,6 +37,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Pracodawca widzi wyłącznie vouchery WŁASNEJ firmy
+    if (auth.role === 'pracodawca') {
+      const { data: callerProfile } = await supabase
+        .from('user_profiles').select('company_id').eq('id', auth.id).single();
+      if (callerProfile?.company_id !== companyId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     // Run expiry sweep before returning — marks distributed past valid_until as expired
     await supabase.rpc('expire_overdue_vouchers', { p_company_id: companyId } as any);
 

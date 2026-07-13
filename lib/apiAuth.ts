@@ -94,6 +94,11 @@ export function unauthorized() {
   return Response.json({ data: null, error: { message: 'Unauthorized' } }, { status: 401 });
 }
 
+/** Odpowiedź 403 Forbidden */
+export function forbidden() {
+  return Response.json({ data: null, error: { message: 'Forbidden' } }, { status: 403 });
+}
+
 /** Odpowiedź 400 Bad Request z błędami Zod */
 export function badRequest(message: string) {
   return Response.json({ data: null, error: { message } }, { status: 400 });

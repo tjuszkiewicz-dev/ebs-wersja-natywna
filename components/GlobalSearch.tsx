@@ -45,16 +45,15 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose, onN
 
     // --- 1. NAVIGATION (MENU) ---
     const navItems = [
-       // Admin
-       { role: Role.SUPERADMIN, id: 'admin-dashboard', label: 'Centrum Dowodzenia', desc: 'Statystyki i przegląd', icon: <Shield size={18}/> },
-       { role: Role.SUPERADMIN, id: 'admin-orders', label: 'Rejestr Zamówień', desc: 'Zatwierdzanie i płatności', icon: <FileText size={18}/> },
-       { role: Role.SUPERADMIN, id: 'admin-buybacks', label: 'Odkupy Voucherów', desc: 'Proces zwrotu środków', icon: <Wallet size={18}/> },
-       // HR
-       { role: Role.HR, id: 'hr-dashboard', label: 'Pulpit HR', desc: 'Podsumowanie kadrowe', icon: <Layout size={18}/> },
+       // Admin — id muszą istnieć w VIEW_TO_TAB (DashboardAdminNew), inaczej nawigacja jest no-opem
+       { role: Role.SUPERADMIN, id: 'admin-pulpit', label: 'Pulpit', desc: 'Statystyki i przegląd', icon: <Shield size={18}/> },
+       { role: Role.SUPERADMIN, id: 'admin-platnosci', label: 'Płatności i faktury', desc: 'Zatwierdzanie i płatności', icon: <FileText size={18}/> },
+       { role: Role.SUPERADMIN, id: 'admin-buyback', label: 'Anulowanie subskrypcji', desc: 'Proces zwrotu środków', icon: <Wallet size={18}/> },
+       // HR — id muszą odpowiadać widokom DashboardNewHR (hr-order/hr-history/hr-employees/hr-payments)
+       { role: Role.HR, id: 'hr-order', label: 'Nowe zamówienie', desc: 'Zamów vouchery', icon: <Layout size={18}/> },
        { role: Role.HR, id: 'hr-employees', label: 'Baza Pracowników', desc: 'Zarządzanie personelem', icon: <User size={18}/> },
-       { role: Role.HR, id: 'hr-orders', label: 'Finanse', desc: 'Faktury i doładowania', icon: <CreditCard size={18}/> },
-       { role: Role.HR, id: 'hr-reports', label: 'Raporty i Analizy', desc: 'Centrum danych', icon: <BarChart3 size={18}/> },
-       { role: Role.HR, id: 'hr-integrations', label: 'Integracje', desc: 'Konfiguracja API', icon: <Settings2 size={18}/> },
+       { role: Role.HR, id: 'hr-payments', label: 'Płatności i faktury', desc: 'Noty i faktury VAT', icon: <CreditCard size={18}/> },
+       { role: Role.HR, id: 'hr-history', label: 'Historia zamówień', desc: 'Złożone zamówienia', icon: <BarChart3 size={18}/> },
        // Employee
        { role: Role.EMPLOYEE, id: 'emp-dashboard', label: 'Mój Portfel', desc: 'Saldo i usługi', icon: <Wallet size={18}/> },
        { role: Role.EMPLOYEE, id: 'emp-history', label: 'Historia', desc: 'Transakcje i umowy', icon: <Calendar size={18}/> },
@@ -156,8 +155,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose, onN
                             </div>
                         ),
                         action: () => {
-                            if(currentUser.role === Role.SUPERADMIN) onNavigate('admin-orders');
-                            else onNavigate('hr-orders');
+                            if(currentUser.role === Role.SUPERADMIN) onNavigate('admin-platnosci');
+                            else onNavigate('hr-history');
                         }
                     });
                 });
@@ -191,8 +190,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose, onN
                         </div>
                     ),
                     action: () => {
-                        // In a real app, navigate to company details
-                        if (currentUser.role === Role.SUPERADMIN) onNavigate('admin-dashboard'); 
+                        if (currentUser.role === Role.SUPERADMIN) onNavigate('admin-klienci');
                     }
                 });
             });

@@ -23,6 +23,9 @@ const PlaceOrderSchema = z.object({
 export async function GET(request: NextRequest) {
   const auth = await getAuthUserWithRole();
   if (!auth) return unauthorized();
+  if (!['superadmin', 'pracodawca'].includes(auth.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
 
   const { searchParams } = request.nextUrl;
   const parsed = QuerySchema.safeParse({ companyId: searchParams.get('companyId') });
@@ -32,6 +35,16 @@ export async function GET(request: NextRequest) {
   }
 
   const companyId = parsed.data.companyId;
+
+  // Pracodawca widzi wyłącznie zamówienia WŁASNEJ firmy
+  if (auth.role === 'pracodawca') {
+    const { data: callerProfile } = await supabaseServer()
+      .from('user_profiles').select('company_id').eq('id', auth.id).single();
+    if (callerProfile?.company_id !== companyId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
   const result = await getCompanyOrders(companyId);
   if (result.error) return serverError(result.error.message);
 
@@ -81,6 +94,16 @@ export async function POST(request: NextRequest) {
 
   const { companyId, hrUserId, amount, distributionPlan, snapshots } = parsed.data;
   const supabase = supabaseServer();
+
+  // Pracodawca składa zamówienia wyłącznie dla WŁASNEJ firmy
+  if (auth.role === 'pracodawca') {
+    const { data: callerProfile } = await supabase
+      .from('user_profiles').select('company_id').eq('id', auth.id).single();
+    if (callerProfile?.company_id !== companyId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  }
+
   const year = new Date().getFullYear();
   const uniqueSuffix = Math.random().toString(36).slice(2, 8).toUpperCase();
 

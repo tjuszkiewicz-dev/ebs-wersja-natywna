@@ -29,6 +29,18 @@ export async function PATCH(
     const canEdit = isSelf || ['superadmin', 'pracodawca'].includes(auth.role);
     if (!canEdit) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+    // Pracodawca może edytować tylko użytkowników WŁASNEJ firmy (wzór z users/[id]/email i /finance)
+    if (!isSelf && auth.role === 'pracodawca') {
+      const supa = supabaseServer();
+      const [{ data: callerProfile }, { data: targetProfile }] = await Promise.all([
+        supa.from('user_profiles').select('company_id').eq('id', auth.id).single(),
+        supa.from('user_profiles').select('company_id').eq('id', params.id).single(),
+      ]);
+      if (!callerProfile?.company_id || callerProfile.company_id !== targetProfile?.company_id) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const body = await req.json();
     const parsed = UpdateSchema.safeParse(body);
     if (!parsed.success) {
