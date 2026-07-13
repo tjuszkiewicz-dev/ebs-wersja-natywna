@@ -96,7 +96,7 @@ export async function PATCH(
     // Pobierz dane firmy do dokumentu
     const { data: companyRaw5 } = await supabase
       .from('companies')
-      .select('name, nip, fee_percent, address_street, address_city, address_zip')
+      .select('name, nip, fee_percent, address_street, address_city, address_zip, bank_account')
       .eq('id', order.company_id)
       .single();
     const company = companyRaw5 as any;
@@ -119,6 +119,7 @@ export async function PATCH(
       companyName:        company?.name ?? 'Firma',
       companyNip:         company?.nip ?? '—',
       companyAddress:     address,
+      sellerBankAccount:  (company as any)?.bank_account ?? undefined,
       voucherAmount:      Number(order.amount_pln),
       feeNet:             totals.feeNet,
       feeVat:             totals.feeVat,

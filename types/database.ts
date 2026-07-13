@@ -125,6 +125,8 @@ export interface Database {
           external_crm_id:              string | null;
           is_sync_managed:              boolean;
           fakturownia_client_id:        number | null;
+          bank_account:                 string | null;
+          bank_account_desc:            string | null;
           created_at:                   string;
           updated_at:                   string;
         };
@@ -149,6 +151,8 @@ export interface Database {
           external_crm_id?:              string | null;
           is_sync_managed?:              boolean;
           fakturownia_client_id?:        number | null;
+          bank_account?:                 string | null;
+          bank_account_desc?:            string | null;
           created_at?:                   string;
           updated_at?:                   string;
         };

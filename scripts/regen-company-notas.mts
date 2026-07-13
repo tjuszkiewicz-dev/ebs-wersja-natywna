@@ -20,7 +20,7 @@ if (!url || !serviceKey) { console.error('Brak env Supabase (.env.local)'); proc
 const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
 const { data: company } = await supabase.from('companies')
-  .select('id, name, nip, fee_percent, address_street, address_city, address_zip')
+  .select('id, name, nip, fee_percent, address_street, address_city, address_zip, bank_account')
   .eq('nip', NIP).single();
 if (!company) { console.error('Firma o NIP', NIP, 'nie znaleziona'); process.exit(1); }
 console.log(`Firma: ${company.name} (NIP ${company.nip}), fee ${company.fee_percent}%`);
@@ -45,6 +45,7 @@ for (const order of orders) {
     companyName: company.name,
     companyNip: company.nip ?? '',
     companyAddress: [company.address_street, company.address_zip, company.address_city].filter(Boolean).join(', '),
+    sellerBankAccount: (company as any).bank_account ?? undefined,
     voucherAmount: Number(order.amount_pln),
     feeNet: totals.feeNet, feeVat: totals.feeVat, feeGross: totals.feeGross,
     issuedAt: order.created_at,

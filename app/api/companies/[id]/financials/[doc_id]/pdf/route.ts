@@ -69,7 +69,7 @@ export async function POST(_req: NextRequest, { params: paramsPromise }: Params)
       .single(),
     supabase
       .from('companies')
-      .select('id, name, nip, address_street, address_city, address_zip')
+      .select('id, name, nip, address_street, address_city, address_zip, bank_account')
       .eq('id', params.id)
       .single(),
   ]);
@@ -119,6 +119,7 @@ export async function POST(_req: NextRequest, { params: paramsPromise }: Params)
     companyName:        company.name,
     companyNip:         company.nip ?? '',
     companyAddress,
+    sellerBankAccount:  (company as any).bank_account ?? undefined,
     voucherAmount:      amountPln,
     feeNet,
     feeVat,
