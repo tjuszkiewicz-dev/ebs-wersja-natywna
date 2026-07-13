@@ -27,7 +27,9 @@ export default function AdminLogi() {
       const res = await fetch(`/api/admin/logs?${qs.toString()}`);
       const d = await res.json();
       if (res.ok) { setRows(Array.isArray(d.rows) ? d.rows : []); setTotal(d.total ?? 0); }
-    } finally { setLoading(false); }
+      else { setRows([]); setTotal(0); }
+    } catch { setRows([]); setTotal(0); }
+    finally { setLoading(false); }
   }, [offset, table, operation]);
 
   useEffect(() => { load(); }, [load]);

@@ -35,7 +35,8 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({
-    rows: rows.map(r => ({ ...r, changed_by_name: r.changed_by ? (nameById.get(r.changed_by) ?? '—') : 'system' })),
+    // `|| '—'` (nie `??`): profil z full_name=NULL trafia do mapy jako '', a pusty string ma być '—'
+    rows: rows.map(r => ({ ...r, changed_by_name: r.changed_by ? (nameById.get(r.changed_by) || '—') : 'system' })),
     total: count ?? 0,
     limit, offset,
   });
