@@ -31,6 +31,8 @@ export interface DocumentContext {
   docNotaNumber: string;   // np. NK/2026/04/0001
   docFakturaNumber: string; // np. FV/2026/04/0001
   distributionSummary: string; // np. "Emisja 800 voucherów dla 8 pracowników"
+  /** Dedykowany rachunek firmy drukowany na nocie; brak = fallback ISSUER.bank */
+  sellerBankAccount?: string;
 }
 
 // ── Helper: kwota słownie (format polski) ────────────────────────────────────
@@ -102,6 +104,8 @@ export function buildPolishInvoiceHtml(ctx: DocumentContext, type: 'nota' | 'fak
   // Miasto z adresu wystawcy: "ul. Junony 23/11, 80-299 Gdańsk" → "Gdańsk"
   const city = ISSUER.address.split(',').pop()?.trim().replace(/^\d{2}-\d{3}\s+/, '') ?? 'Gdańsk';
 
+  const bankAccount = ctx.sellerBankAccount?.trim() || ISSUER.bank;
+
   const amountGross = isNota ? ctx.voucherAmount : ctx.feeGross;
   const amountNet   = isNota ? ctx.voucherAmount : ctx.feeNet;
   const vatAmount   = isNota ? 0                 : ctx.feeVat;
@@ -113,7 +117,7 @@ export function buildPolishInvoiceHtml(ctx: DocumentContext, type: 'nota' | 'fak
     : 'Obsługa serwisowa — udostępnienie i dystrybucja voucherów EBS';
 
   // QR code: numer dokumentu + kwota (zewnętrzne API, Puppeteer może pobrać)
-  const qrData = encodeURIComponent(`${docNumber}|${fmtPl(amountGross)} PLN|${ISSUER.bank}`);
+  const qrData = encodeURIComponent(`${docNumber}|${fmtPl(amountGross)} PLN|${bankAccount}`);
   const qrUrl  = `https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${qrData}`;
 
   const slownie = kwotaSlownie(amountGross);
@@ -221,7 +225,7 @@ export function buildPolishInvoiceHtml(ctx: DocumentContext, type: 'nota' | 'fak
   <td style="width:50%;border:1px solid #bbb;padding:10px 14px;vertical-align:top">
     <p class="f"><span style="color:#555">Sposób płatności:</span> przelew</p>
     <p style="margin-top:5px;margin-bottom:2px;font-size:10.5px"><span style="color:#555">Numer konta:</span></p>
-    <p class="f" style="font-family:monospace;font-size:10px;letter-spacing:0.03em">${ISSUER.bank}</p>
+    <p class="f" style="font-family:monospace;font-size:10px;letter-spacing:0.03em">${bankAccount}</p>
     <p style="margin-top:5px" class="f"><span style="color:#555">Tytuł przelewu:</span> ${docNumber} / ${ctx.companyNip}</p>
     <p class="f"><span style="color:#555">Termin płatności:</span> ${dueDate}</p>
   </td>
