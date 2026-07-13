@@ -46,6 +46,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'admin-archiwum',  label: 'Archiwum',            icon: <FolderOpen size={20} /> },
           { id: 'admin-vouchery',  label: 'Vouchery',                icon: <Ticket size={20} /> },
           { id: 'admin-buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={20} /> },
+          { id: 'admin-szablony',  label: 'Szablony dokumentów', icon: <FileText size={20} /> },
         ];
       case Role.HR:
         return [
