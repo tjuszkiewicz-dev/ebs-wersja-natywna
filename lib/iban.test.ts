@@ -23,3 +23,21 @@ describe('formatIBAN', () => {
     expect(formatIBAN('PL61109010140000071219812874')).toBe('PL61 1090 1014 0000 0712 1981 2874');
   });
 });
+
+import { normalizeIBAN } from './iban';
+
+describe('normalizeIBAN', () => {
+  it('dokleja PL do 26-cyfrowego NRB', () => {
+    expect(normalizeIBAN('61 1090 1014 0000 0712 1981 2874')).toBe('PL61109010140000071219812874');
+  });
+  it('zostawia IBAN z kodem kraju (usuwa spacje, upper-case)', () => {
+    expect(normalizeIBAN('pl61 1090 1014 0000 0712 1981 2874')).toBe('PL61109010140000071219812874');
+  });
+  it('nie zmienia wartości niebędącej 26-cyfrowym NRB', () => {
+    expect(normalizeIBAN('GB82WEST12345698765432')).toBe('GB82WEST12345698765432');
+    expect(normalizeIBAN('')).toBe('');
+  });
+  it('znormalizowany 26-cyfrowy NRB przechodzi isValidIBAN', () => {
+    expect(isValidIBAN(normalizeIBAN('61 1090 1014 0000 0712 1981 2874'))).toBe(true);
+  });
+});

@@ -18,3 +18,12 @@ export function isValidIBAN(raw: string): boolean {
 export function formatIBAN(raw: string): string {
   return (raw || '').replace(/\s+/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim();
 }
+
+/**
+ * Normalizuje numer konta do postaci IBAN: usuwa spacje, wielkie litery,
+ * a polski 26-cyfrowy NRB (bez kodu kraju) poprzedza „PL".
+ */
+export function normalizeIBAN(raw: string): string {
+  const s = (raw || '').replace(/\s+/g, '').toUpperCase();
+  return /^\d{26}$/.test(s) ? `PL${s}` : s;
+}
