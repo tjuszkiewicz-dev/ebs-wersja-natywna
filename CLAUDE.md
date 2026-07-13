@@ -114,6 +114,8 @@ Faktury VAT i noty księgowe są wystawiane w **Fakturowni** (źródło prawdy),
 - `VIEW_TO_TAB` mapping syncs Sidebar navigation with tab state
 - `-m-4 md:-m-8` to compensate parent padding
 - Each tab is a standalone component in `components/adminNew/` — fetches own data from API routes (`/api/companies`, `/api/vouchers`, etc.)
+- **Szablony dokumentów** (tab `admin-szablony`, `AdminSzablony.tsx`) — edytor szablonu umowy odkupu (SP3).
+- **Logi systemowe** (tab `admin-logi`, `AdminLogi.tsx`) — czyta `audit_log` przez `GET /api/admin/logs` (superadmin, filtry `table`/`operation` + paginacja). `audit_log` wypełniany automatycznie przez triggery `fn_audit_log` (SP6).
 
 ### Sidebar (`components/Sidebar.tsx`)
 
