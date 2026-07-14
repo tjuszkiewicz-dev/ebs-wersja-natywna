@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
-import { Resend } from 'resend';
+import { sendEmail } from '@/lib/mailer';
 import { z } from 'zod';
 
 const BodySchema = z.object({
@@ -43,23 +43,9 @@ export async function POST(req: NextRequest) {
     INNE:              'Inne',
   };
 
-  const resendKey = process.env.RESEND_API_KEY;
-  if (!resendKey) {
-    // Fallback — loguj wiadomość, nie blokuj użytkownika
-    console.warn('[contact-bok] RESEND_API_KEY not set — message not sent but logged:', {
-      from: senderEmail,
-      subject,
-      category,
-      message,
-    });
-    return NextResponse.json({ ok: true, warning: 'Email provider not configured' });
-  }
-
-  const resend = new Resend(resendKey);
-
-  const { error } = await resend.emails.send({
-    from: 'EBS System <noreply@elitonbenefits.pl>',
-    to:   ['bok@stratton-prime.pl'],
+  // Wysyłka ze skrzynki Stratton (SMTP); odpowiedź trafia do pracownika (replyTo).
+  const res = await sendEmail({
+    to: 'bok@stratton-prime.pl',
     replyTo: senderEmail,
     subject: `[EBS BOK] ${categoryLabels[category]}: ${subject}`,
     html: `
@@ -91,8 +77,16 @@ export async function POST(req: NextRequest) {
     `,
   });
 
-  if (error) {
-    console.error('[contact-bok] Resend error:', error);
+  if (res.skipped) {
+    // Fallback — loguj wiadomość, nie blokuj użytkownika
+    console.warn('[contact-bok] SMTP nieustawiony — wiadomość zalogowana, nie wysłana:', {
+      from: senderEmail, subject, category, message,
+    });
+    return NextResponse.json({ ok: true, warning: 'Email provider not configured' });
+  }
+
+  if (!res.ok) {
+    console.error('[contact-bok] błąd wysyłki:', res.error);
     return NextResponse.json({ error: 'Nie udało się wysłać wiadomości' }, { status: 500 });
   }
 
