@@ -58,6 +58,8 @@ Szczegółowe uprawnienia (fundament pod E2): `lib/permissions/*` + tabele `app_
 `role_permissions`/`user_permissions`/`admin_view_config` (migracja 045); superadmin zawsze
 ma wszystko. Spec: `docs/superpowers/specs/2026-07-16-e1-shell-launcher-design.md`.
 
+Uwaga: role sieciowe (`partner`/`menedzer`/`dyrektor`) nie mają appek w E1 — po zalogowaniu lądują na `/launcher` z komunikatem o braku dostępu (dawniej `/dashboard/network`). W produkcyjnej bazie nikt tych ról nie ma.
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:

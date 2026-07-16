@@ -31,9 +31,14 @@ export async function getViewerApps(): Promise<ViewerApps> {
     cookies: {
       getAll() { return cookieStore.getAll(); },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) =>
-          cookieStore.set(name, value, options)
-        );
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Server Component nie może zapisywać ciasteczek podczas renderu —
+          // odświeżenie tokenu i tak robi middleware (oficjalny wzorzec @supabase/ssr).
+        }
       },
     },
   });
