@@ -7,6 +7,9 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { DB_TO_ROLE, ROLE_DASHBOARD } from '@/lib/roleMap';
 import type { DbRole, Database } from '@/types/database';
+import { appsForUser } from '@/lib/apps/access';
+import { getEntitlements } from '@/lib/apps/getEntitlements';
+import { resolvePostLogin } from '@/lib/auth/postLoginRedirect';
 
 export async function GET(req: NextRequest) {
   const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -75,9 +78,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Konto jest nieaktywne.' }, { status: 403 });
   }
 
-  const role       = DB_TO_ROLE[profile.role as DbRole];
-  const redirectUrl = role ? ROLE_DASHBOARD[role] : '/dashboard/employee';
+  const role = DB_TO_ROLE[profile.role as DbRole];
 
-  console.log('[role] redirectUrl:', redirectUrl);
-  return NextResponse.json({ redirectUrl });
+  // E1 shell: cel logowania zależy od liczby dostępnych appek
+  // (1 appka → jej dashboard jak dotąd; >1 → /launcher). Fallback: stare zachowanie.
+  let redirectUrl = role ? ROLE_DASHBOARD[role] : '/dashboard/employee';
+  let apps: string[] = [];
+  if (role) {
+    const entitlements = await getEntitlements(admin, user.id);
+    apps = appsForUser(role, entitlements);
+    redirectUrl = resolvePostLogin(role, apps as Parameters<typeof resolvePostLogin>[1]);
+  }
+
+  console.log('[role] redirectUrl:', redirectUrl, '| apps:', apps);
+  return NextResponse.json({ redirectUrl, apps });
 }
