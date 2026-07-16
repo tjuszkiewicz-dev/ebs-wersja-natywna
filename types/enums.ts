@@ -4,7 +4,12 @@ export enum Role {
   EMPLOYEE = 'EMPLOYEE',
   DIRECTOR = 'DIRECTOR',
   MANAGER = 'MANAGER',
-  ADVISOR = 'ADVISOR'
+  ADVISOR = 'ADVISOR',
+  // E2a (agencja pracy, port z BBS-Unified):
+  HR_PANEL = 'HR_PANEL',       // delegowany kadrowiec (DB: 'hr')
+  COORDINATOR = 'COORDINATOR', // koordynator agencji (DB: 'koordynator')
+  PAYROLL = 'PAYROLL',         // płatnik (DB: 'platnik')
+  TEMP_WORKER = 'TEMP_WORKER'  // pracownik tymczasowy (DB: 'pracownik_tymczasowy')
 }
 
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'ANONYMIZED';

@@ -11,7 +11,13 @@ export type DbRole =
   | 'pracownik'
   | 'partner'
   | 'menedzer'
-  | 'dyrektor';
+  | 'dyrektor'
+  // E2a (agencja):
+  | 'hr'
+  | 'koordynator'
+  | 'szef_koordynatorow'
+  | 'platnik'
+  | 'pracownik_tymczasowy';
 
 /** TypeScript Role → wartość w kolumnie user_profiles.role */
 export const ROLE_TO_DB: Record<Role, DbRole> = {
@@ -21,6 +27,10 @@ export const ROLE_TO_DB: Record<Role, DbRole> = {
   [Role.ADVISOR]:    'partner',
   [Role.MANAGER]:    'menedzer',
   [Role.DIRECTOR]:   'dyrektor',
+  [Role.HR_PANEL]:    'hr',
+  [Role.COORDINATOR]: 'koordynator',
+  [Role.PAYROLL]:     'platnik',
+  [Role.TEMP_WORKER]: 'pracownik_tymczasowy',
 };
 
 /** Wartość DB → TypeScript Role enum */
@@ -31,6 +41,11 @@ export const DB_TO_ROLE: Record<DbRole, Role> = {
   partner:    Role.ADVISOR,
   menedzer:   Role.MANAGER,
   dyrektor:   Role.DIRECTOR,
+  hr:                   Role.HR_PANEL,
+  koordynator:          Role.COORDINATOR,
+  szef_koordynatorow:   Role.COORDINATOR, // rola własna — zachowuje się jak koordynator
+  platnik:              Role.PAYROLL,
+  pracownik_tymczasowy: Role.TEMP_WORKER,
 };
 
 /** Polska nazwa wyświetlana w UI */
@@ -41,6 +56,10 @@ export const ROLE_LABEL: Record<Role, string> = {
   [Role.ADVISOR]:    'Doradca',
   [Role.MANAGER]:    'Manager',
   [Role.DIRECTOR]:   'Dyrektor',
+  [Role.HR_PANEL]:    'Panel HR',
+  [Role.COORDINATOR]: 'Koordynator',
+  [Role.PAYROLL]:     'Płatnik',
+  [Role.TEMP_WORKER]: 'Pracownik Tymczasowy',
 };
 
 /** Ścieżka dashboardu dla danej roli — po zalogowaniu */
@@ -51,4 +70,8 @@ export const ROLE_DASHBOARD: Record<Role, string> = {
   [Role.ADVISOR]:    '/dashboard/network',
   [Role.MANAGER]:    '/dashboard/network',
   [Role.DIRECTOR]:   '/dashboard/network',
+  [Role.HR_PANEL]:    '/dashboard/employer',
+  [Role.COORDINATOR]: '/dashboard/admin',
+  [Role.PAYROLL]:     '/dashboard/admin',
+  [Role.TEMP_WORKER]: '/dashboard/agencja',
 };

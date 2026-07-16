@@ -12,6 +12,10 @@ const VIEW_PREFIX: Record<Role, string> = {
   [Role.DIRECTOR]:   'sales-',
   [Role.MANAGER]:    'sales-',
   [Role.ADVISOR]:    'sales-',
+  [Role.HR_PANEL]:    'hr-',
+  [Role.COORDINATOR]: 'admin-',
+  [Role.PAYROLL]:     'admin-',
+  [Role.TEMP_WORKER]: 'agencja-',
 };
 
 /**
