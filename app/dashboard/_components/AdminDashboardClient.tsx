@@ -23,6 +23,12 @@ function AdminLayout() {
   const [isSearchOpen,         setSearchOpen]         = useState(false);
   const [isHistoryModalOpen,   setHistoryModalOpen]   = useState(false);
 
+  // 'admin-uprawnienia' to osobna strona shell (/admin/uprawnienia), nie tab admina
+  const handleViewChange = (view: string) => {
+    if (view === 'admin-uprawnienia') { window.location.href = '/admin/uprawnienia'; return; }
+    setCurrentView(view);
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -53,7 +59,7 @@ function AdminLayout() {
       <GlobalSearch
         isOpen={isSearchOpen}
         onClose={() => setSearchOpen(false)}
-        onNavigate={(view) => { setCurrentView(view); setSearchOpen(false); }}
+        onNavigate={(view) => { handleViewChange(view); setSearchOpen(false); }}
         onInspectUser={() => {}}
         onLogout={handleLogout}
       />
@@ -61,7 +67,7 @@ function AdminLayout() {
       <Sidebar
         currentUser={currentUser}
         currentView={currentView}
-        onChangeView={setCurrentView}
+        onChangeView={handleViewChange}
         isOpen={isMobileSidebarOpen}
         onClose={() => setMobileSidebarOpen(false)}
         onToggleDesktop={() => setDesktopSidebarOpen(prev => !prev)}
@@ -139,7 +145,7 @@ function AdminLayout() {
         <main className="flex-1 overflow-y-auto scroll-smooth p-4 md:p-6">
           <DashboardAdminNew
             currentView={currentView}
-            onViewChange={setCurrentView}
+            onViewChange={handleViewChange}
           />
         </main>
       </div>
