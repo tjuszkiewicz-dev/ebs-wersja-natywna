@@ -47,6 +47,17 @@ Supabase SSR (`@supabase/ssr`) + cookie-based sessions.
 
 Dashboard clients (`app/dashboard/_components/`) bridge Supabase session ↔ StrattonContext via `DashboardBootstrap`.
 
+### Shell / Launcher (E1, port z BBS-Unified — 2026-07-16)
+
+Architektura super-appa: `/launcher` (kafelki appek), `/app/[appId]` (host z guardem),
+`/admin/uprawnienia` (panel entitlements, superadmin). Rejestr appek: `lib/apps/registry.ts`
+(E1: tylko `benefity`; CRM wykluczony — osobny CRM Stratton Prime). Dostęp = defaultRoles
+per appka + wyjątki `user_app_entitlements` (migracja 044). Po zalogowaniu `/api/auth/role`
+kieruje: 1 appka → jej dashboard (zero zmiany UX), >1 → `/launcher` (`lib/auth/postLoginRedirect`).
+Szczegółowe uprawnienia (fundament pod E2): `lib/permissions/*` + tabele `app_roles`/
+`role_permissions`/`user_permissions`/`admin_view_config` (migracja 045); superadmin zawsze
+ma wszystko. Spec: `docs/superpowers/specs/2026-07-16-e1-shell-launcher-design.md`.
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
