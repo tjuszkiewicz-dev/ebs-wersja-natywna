@@ -3,7 +3,7 @@
 // Zwraca user lub null — obsługa błędu po stronie route handlera.
 
 import { createServerClient } from '@supabase/ssr';
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import type { User } from '@supabase/supabase-js';
 import type { Database } from '../types/database';
 
@@ -14,21 +14,8 @@ export interface AuthUserWithRole {
   companyId?: string;
 }
 
-/** Sprawdza czy żądanie pochodzi od Vite dev proxy (x-internal-key) */
-async function isInternalRequest(): Promise<boolean> {
-  const internalKey = process.env.INTERNAL_API_KEY;
-  if (!internalKey) return false;
-  const reqHeaders = await headers();
-  return reqHeaders.get('x-internal-key') === internalKey;
-}
-
 /** Pobiera zalogowanego użytkownika wraz z rolą z user_profiles */
 export async function getAuthUserWithRole(): Promise<AuthUserWithRole | null> {
-  // Żądania z Vite dev proxy — traktuj jako superadmin (dev mode)
-  if (await isInternalRequest()) {
-    return { id: 'dev-vite', email: 'dev@ebs.local', role: 'superadmin' };
-  }
-
   const user = await getAuthUser();
   if (!user) return null;
 
@@ -54,10 +41,6 @@ export async function getAuthUserWithRole(): Promise<AuthUserWithRole | null> {
 }
 
 export async function getAuthUser(): Promise<User | null> {
-  if (await isInternalRequest()) {
-    return { id: 'dev-vite', email: 'dev@ebs.local', app_metadata: {}, user_metadata: {}, aud: 'authenticated', created_at: '' } as unknown as User;
-  }
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnon) return null;
