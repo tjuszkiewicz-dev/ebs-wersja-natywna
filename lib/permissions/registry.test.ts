@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_PERMISSIONS, PERMISSION_GROUPS, DEFAULT_ROLE_PERMS } from './registry';
+import { ALL_PERMISSIONS, PERMISSION_GROUPS, DEFAULT_ROLE_PERMS, AGENCJA_TABS } from './registry';
 
 describe('permissions registry (EBS E1)', () => {
   it('klucze unikalne', () => {
@@ -14,7 +14,19 @@ describe('permissions registry (EBS E1)', () => {
       for (const p of perms) expect(all.has(p)).toBe(true);
     }
   });
-  it('grupy: Panel systemowy i Benefity', () => {
-    expect(PERMISSION_GROUPS.map(g => g.name)).toEqual(['Panel systemowy', 'Benefity']);
+  it('grupy: Panel systemowy, Benefity i Agencja Pracy', () => {
+    expect(PERMISSION_GROUPS.map(g => g.name)).toEqual(['Panel systemowy', 'Benefity', 'Agencja Pracy']);
+  });
+  it('AGENCJA_TABS = 14 kluczy tab (bez mapa i delete)', () => {
+    expect(AGENCJA_TABS).toHaveLength(14);
+    expect(AGENCJA_TABS.every(k => k.startsWith('agencja.'))).toBe(true);
+    expect(AGENCJA_TABS).not.toContain('agencja.mapa');
+    expect(AGENCJA_TABS).not.toContain('agencja.delete');
+  });
+  it('koordynator domyślnie: AGENCJA_TABS + mapa; pracodawca/dyrektor/hr NIC z agencji (EBS-adaptacja)', () => {
+    expect(DEFAULT_ROLE_PERMS['koordynator']).toEqual([...AGENCJA_TABS, 'agencja.mapa']);
+    for (const r of ['pracodawca', 'dyrektor', 'hr']) {
+      expect((DEFAULT_ROLE_PERMS[r] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
+    }
   });
 });

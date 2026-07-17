@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { ALL_PERMISSIONS, DEFAULT_ROLE_PERMS } from '@/lib/permissions/registry';
+import { syncAgencyPermsForCustomizedRoles } from '@/lib/permissions/server';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -11,6 +12,8 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const auth = await getAuthUserWithRole();
   if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza uprawnieniami' }, { status: 403 });
+  // auto-uzupełnienie nowych zakładek agencji dla ról customized (idempotentne)
+  await syncAgencyPermsForCustomizedRoles().catch(() => {});
   const sb = supabaseServer() as any;
   const [roles, perms, profiles] = await Promise.all([
     sb.from('app_roles').select('*').order('is_system', { ascending: false }).order('label'),

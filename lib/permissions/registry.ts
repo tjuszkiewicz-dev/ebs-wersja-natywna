@@ -27,12 +27,38 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'benefity.szablony', label: 'Szablony dokumentów', kind: 'tab' },
     ],
   },
+  {
+    name: 'Agencja Pracy',
+    perms: [
+      { key: 'agencja.pulpit', label: 'Pulpit Agencji (KPI + alerty)', kind: 'tab' },
+      { key: 'agencja.poczekalnia', label: 'Poczekalnia (kandydaci do pracy)', kind: 'tab' },
+      { key: 'agencja.kontrakty', label: 'Kontrakty i pracownicy', kind: 'tab' },
+      { key: 'agencja.dokumenty', label: 'Dokumenty pracowników', kind: 'tab' },
+      { key: 'agencja.raporty', label: 'Raporty agencji', kind: 'tab' },
+      { key: 'agencja.rozliczenia', label: 'Rozliczenia pracowników (stawki, zaliczki, wypłaty)', kind: 'tab' },
+      { key: 'agencja.noclegi', label: 'Baza Noclegowa', kind: 'tab' },
+      { key: 'agencja.generator', label: 'Generator dokumentów (szablony, PDF)', kind: 'tab' },
+      { key: 'agencja.archiwum', label: 'Archiwum pracowników', kind: 'tab' },
+      { key: 'agencja.tlumacz', label: 'Tłumacz (komunikacja z pracownikami)', kind: 'tab' },
+      { key: 'agencja.flota', label: 'Flota (pojazdy agencji)', kind: 'tab' },
+      { key: 'agencja.dowoz', label: 'Plan dowozu (busy, przydział miejsc)', kind: 'tab' },
+      { key: 'agencja.bhp', label: 'Magazyn BHP / sprzętu', kind: 'tab' },
+      { key: 'agencja.legalizacja', label: 'Legalizacja pobytu (wnioski, terminy)', kind: 'tab' },
+      { key: 'agencja.mapa', label: 'Mapa Pracowników (lokalizacja na żywo)', kind: 'tab' },
+      { key: 'agencja.delete', label: 'Usuwanie pracowników / kontraktów / noclegów', kind: 'action' },
+    ],
+  },
 ];
 
 export const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap(g => g.perms.map(p => p.key));
 
-// Domyślne zestawy per rola DB (E1: panel admina używa tylko superadmin — role puste;
-// wypełnią się przy E2, gdy dojdą role koordynatorów itd.)
+export const AGENCJA_TABS = ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.kontrakty', 'agencja.dokumenty', 'agencja.raporty', 'agencja.rozliczenia', 'agencja.noclegi', 'agencja.generator', 'agencja.archiwum', 'agencja.tlumacz', 'agencja.flota', 'agencja.dowoz', 'agencja.bhp', 'agencja.legalizacja'];
+
+// Domyślne zestawy per rola DB. ADAPTACJA EBS vs BBS: agencja jest modułem
+// wewnętrznym Strattona — pracodawcy-klienci EBS ani role sieciowe NIE dostają
+// agencji domyślnie (w BBS dostawali). Wyjątki nadaje panel Uprawnienia.
 export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
-  pracodawca: [], pracownik: [], partner: [], menedzer: [], dyrektor: [],
+  pracodawca: [], pracownik: [], partner: [], menedzer: [], dyrektor: [], hr: [],
+  koordynator: [...AGENCJA_TABS, 'agencja.mapa'],
+  platnik: [], pracownik_tymczasowy: [],
 };
