@@ -12,12 +12,18 @@ describe('appsForUser (EBS E1: tylko benefity w rejestrze)', () => {
   });
 
   it('SUPERADMIN → wszystkie zarejestrowane', () => {
-    expect(appsForUser(Role.SUPERADMIN, [])).toEqual(['benefity']);
+    expect(appsForUser(Role.SUPERADMIN, []).sort()).toEqual(['agencja', 'benefity']);
   });
 
   it('SUPERADMIN: revoke ignorowany', () => {
-    expect(appsForUser(Role.SUPERADMIN, [{ app_id: 'benefity', effect: 'revoke' }]))
-      .toEqual(['benefity']);
+    expect(appsForUser(Role.SUPERADMIN, [{ app_id: 'benefity', effect: 'revoke' }]).sort())
+      .toEqual(['agencja', 'benefity']);
+  });
+
+  it('COORDINATOR → agencja; TEMP_WORKER → agencja; EMPLOYEE bez agencji', () => {
+    expect(appsForUser(Role.COORDINATOR, [])).toEqual(['agencja']);
+    expect(appsForUser(Role.TEMP_WORKER, [])).toEqual(['agencja']);
+    expect(appsForUser(Role.EMPLOYEE, [])).toEqual(['benefity']);
   });
 
   it('ADVISOR bez defaultów → pusto', () => {

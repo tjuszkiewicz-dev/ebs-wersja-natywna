@@ -20,6 +20,13 @@ export const APPS: readonly AppDef[] = [
     route: '/app/benefity',
     defaultRoles: [Role.EMPLOYEE, Role.HR, Role.SUPERADMIN],
   },
+  {
+    id: 'agencja',
+    name: 'Agencja Pracy',
+    icon: 'hard-hat',
+    route: '/app/agencja',
+    defaultRoles: [Role.COORDINATOR, Role.PAYROLL, Role.TEMP_WORKER, Role.SUPERADMIN],
+  },
 ] as const;
 
 export const APP_IDS = APPS.map(a => a.id) as AppId[];

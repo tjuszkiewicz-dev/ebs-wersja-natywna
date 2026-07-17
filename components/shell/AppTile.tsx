@@ -13,6 +13,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
 // Krótkie opisy kafelków (Partial — przyszłe appki dopisują swoje w E2+)
 const DESCRIPTIONS: Partial<Record<AppId, string>> = {
   benefity: 'Vouchery i benefity pracownicze w jednym miejscu.',
+  agencja: 'Pracownicy tymczasowi, kontrakty, noclegi i rozliczenia.',
 };
 
 interface AppTileProps {
