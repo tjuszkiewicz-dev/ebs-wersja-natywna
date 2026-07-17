@@ -60,6 +60,15 @@ ma wszystko. Spec: `docs/superpowers/specs/2026-07-16-e1-shell-launcher-design.m
 
 Uwaga: role sieciowe (`partner`/`menedzer`/`dyrektor`) nie mają appek w E1 — po zalogowaniu lądują na `/launcher` z komunikatem o braku dostępu (dawniej `/dashboard/network`). W produkcyjnej bazie nikt tych ról nie ma.
 
+**E2a (2026-07-17):** appka `agencja` w rejestrze (placeholder `/app/agencja` do czasu E2b);
+role agencji w DB/enum: `hr`, `koordynator`, `szef_koordynatorow`, `platnik`,
+`pracownik_tymczasowy` (migracja 049); schemat 22 tabel `hr_*` z introspekcji żywej bazy BBS
+(migracja 048); grupa uprawnień „Agencja Pracy" (16 kluczy; ADAPTACJA EBS: domyślnie tylko
+koordynator — pracodawcy/role sieciowe nie dostają agencji); silnik płacowy
+`lib/agencja/tax-engine`, renderer PDF `lib/pdf/renderer.ts` (puppeteer-core+@sparticuz).
+Backdoor `INTERNAL_API_KEY` usunięty z `lib/apiAuth.ts`. Buckety: `hr-documents`,
+`accommodation-photos`, `vehicle-photos` (private).
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
