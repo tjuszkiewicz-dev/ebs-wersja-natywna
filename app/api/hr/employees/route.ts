@@ -9,7 +9,7 @@ import { coordinatorGrantedContractIds } from '@/lib/hr/coordinatorScope';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export const HR_ROLES = ['superadmin', 'dyrektor', 'hr', 'hr_panel', 'pracodawca', 'koordynator'];
+const HR_ROLES = ['superadmin', 'dyrektor', 'hr', 'hr_panel', 'pracodawca', 'koordynator'];
 
 // Role, które widzą WSZYSTKICH pracowników i akceptują kandydatów z Poczekalni.
 // Zwykły koordynator widzi tylko swoich (coordinator_id = on) — wszędzie w Agencji.
