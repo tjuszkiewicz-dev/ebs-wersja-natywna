@@ -9,8 +9,10 @@ import { HrArchiwum } from './HrArchiwum';
 import { HrPulpit } from './HrPulpit';
 import { HrRozliczenia } from './HrRozliczenia';
 import { HrBazaNoclegowa } from './HrBazaNoclegowa';
-// HrRaporty, HrDowoz, HrBhp, HrLegalizacja nie zostały jeszcze przeniesione
-// do EBS (E2b) — taby zostają, renderują placeholder. T9 podmienia.
+import { HrRaporty } from './HrRaporty';
+import { HrDowoz } from './HrDowoz';
+import { HrBhp } from './HrBhp';
+import { HrLegalizacja } from './HrLegalizacja';
 
 type HrTab = 'pulpit' | 'poczekalnia' | 'kontrakty' | 'dokumenty' | 'raporty' | 'rozliczenia' | 'noclegi' | 'dowoz' | 'bhp' | 'legalizacja' | 'archiwum';
 
@@ -73,12 +75,12 @@ export const HrDashboard: React.FC = () => {
       {tab === 'poczekalnia' && <HrPoczekalnia />}
       {tab === 'kontrakty'   && <HrKontrakty onGoToNoclegi={() => setTab('noclegi')} />}
       {tab === 'dokumenty'   && <HrDokumenty />}
-      {tab === 'raporty'     && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
+      {tab === 'raporty'     && <HrRaporty />}
       {tab === 'rozliczenia' && <HrRozliczenia />}
       {tab === 'noclegi'     && <HrBazaNoclegowa />}
-      {tab === 'dowoz'       && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
-      {tab === 'bhp'         && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
-      {tab === 'legalizacja' && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
+      {tab === 'dowoz'       && <HrDowoz />}
+      {tab === 'bhp'         && <HrBhp />}
+      {tab === 'legalizacja' && <HrLegalizacja />}
       {tab === 'archiwum'    && <HrArchiwum />}
     </div>
   );
