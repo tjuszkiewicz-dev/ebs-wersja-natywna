@@ -10,9 +10,10 @@ import AdminSzablony from '../components/adminNew/AdminSzablony';
 import AdminLogi from '../components/adminNew/AdminLogi';
 import { HrDashboard } from '../components/agencja/HrDashboard';
 import { HrFlota } from '../components/agencja/HrFlota';
+import { HrGeneratorDokumentow } from '../components/agencja/HrGeneratorDokumentow';
 import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -26,6 +27,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-logi':      'logi',
   'hr-pracownicy':   'hr-pracownicy',
   'hr-flota':        'hr-flota',
+  'hr-generator':    'hr-generator',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -40,6 +42,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   logi:      'admin-logi',
   'hr-pracownicy': 'hr-pracownicy',
   'hr-flota':      'hr-flota',
+  'hr-generator':  'hr-generator',
 };
 
 interface Props {
@@ -120,6 +123,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'logi' && <AdminLogi />}
         {tab === 'hr-pracownicy' && <HrDashboard />}
         {tab === 'hr-flota' && <HrFlota />}
+        {tab === 'hr-generator' && <HrGeneratorDokumentow />}
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import { ROLE_LABEL } from '../lib/roleMap';
 const PERMISSION_MENU_ICONS: Record<string, React.ReactNode> = {
   users: <Users size={20} />,
   car: <Car size={20} />,
+  file: <FileText size={20} />,
 };
 
 interface SidebarProps {
@@ -78,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'admin-uprawnienia', label: 'Uprawnienia', icon: <ShieldCheck size={20} /> },
           { id: 'hr-pracownicy', label: 'Agencja — Pracownicy', icon: <HardHat size={20} /> },
           { id: 'hr-flota',      label: 'Agencja — Flota',      icon: <Car size={20} /> },
+          { id: 'hr-generator',  label: 'Agencja — Generator',  icon: <FileText size={20} /> },
         ];
       case Role.HR:
         return [

@@ -69,4 +69,5 @@ export const PERMISSION_MENU: MenuDef[] = [
   { view: 'hr-pracownicy', label: 'Pracownicy', section: 'Agencja Pracy', icon: 'users',
     anyOf: ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.kontrakty', 'agencja.dokumenty', 'agencja.raporty', 'agencja.rozliczenia', 'agencja.noclegi', 'agencja.archiwum', 'agencja.dowoz', 'agencja.bhp', 'agencja.legalizacja'] },
   { view: 'hr-flota', label: 'Flota', section: 'Agencja Pracy', icon: 'car', anyOf: ['agencja.flota'] },
+  { view: 'hr-generator', label: 'Generator dokumentów', section: 'Agencja Pracy', icon: 'file', anyOf: ['agencja.generator'] },
 ];
