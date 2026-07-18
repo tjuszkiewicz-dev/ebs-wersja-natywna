@@ -103,6 +103,23 @@ regexem `znmp-logo`→`ebs-neon-no-bg`) — **do przeglądu/edycji w panelu**: c
 zwykły tekst nagłówka firmowego BBS (`www.znmp.pl`, `zp@znmp.pl`) niezwiązany z logo-obrazkiem,
 świadomie nieusunięty (nie jest to logo, tylko dane kontaktowe do ewentualnej ręcznej korekty).
 
+**E2d (2026-07-18):** moduły AI agencji. Widoki `hr-tlumacz` → `components/agencja/HrTlumacz`
+(gate `agencja.tlumacz`) i `hr-mapa` → `HrMapa` (gate `agencja.mapa`, Leaflet+markercluster
+przez `next/dynamic {ssr:false}` — leaflet jest browser-only). API: `hr/ocr` (Claude Vision —
+`lib/hr/ocr` + `lib/anthropic`), `hr/translate` (+`/voice` Whisper, `/tts`, `/rt-session` OpenAI
+Realtime, `/usage` heartbeat limitu 10 min/dzień `lib/hr/translatorLimit`), `hr/map` (odczyt
+`hr_locations`), `hr/candidates/from-passport` i `hr/vehicles/[id]/license` (odblokowane OCR z
+E2b). **`lib/hr/geo` = REALNE** (Nominatim/OSM, bez klucza — odstubowane; kontrakty/noclegi teraz
+geokodują; UA nagłówek EBS). **ŁAGODNA DEGRADACJA:** brak `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` →
+route zwraca 200 `{ok:false, disabled:true, error}` (Claude) / `{ok:true,ocr:null,disabled:true}`
+(license — upload zostaje), a UI pokazuje komunikat „funkcja wyłączona" (obsłużone w HrEmployeeDocs/
+HrPoczekalnia/HrTlumacz) — **zero crashy bez kluczy**. Klucze OpenAI wołane przez `fetch` (bez
+pakietu npm). Deps: `@anthropic-ai/sdk`, `leaflet`+`leaflet.markercluster` (+typy). **Aby OCR/tłumacz
+działały: wpisać `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` (opcj. `AI_MODEL`) w `.env.local` i na Vercel**
+(skopiować z BBS `.env.local`); mapa i geokodowanie działają od razu bez kluczy. Świadomie odłożone:
+`translate` przycisk „Przetwórz rozmowę" woła `/api/notes/from-text` (moduł notatek → E3, degraduje
+gracefully); żywe pingi GPS pracownika (`me/location`, `tracking`) → E2e.
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
