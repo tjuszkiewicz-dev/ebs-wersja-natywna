@@ -69,6 +69,26 @@ koordynator — pracodawcy/role sieciowe nie dostają agencji); silnik płacowy
 Backdoor `INTERNAL_API_KEY` usunięty z `lib/apiAuth.ts`. Buckety: `hr-documents`,
 `accommodation-photos`, `vehicle-photos` (private).
 
+**E2b (2026-07-18):** core HR agencji działa. Widoki w `views/DashboardAdminNew.tsx`:
+`hr-pracownicy` → `components/agencja/HrDashboard` (11 pod-zakładek filtrowanych uprawnieniami
+`agencja.*`: Pulpit/Poczekalnia/Kontrakty/Dokumenty/Raporty/Rozliczenia/Noclegi/Dowóz/BHP/
+Legalizacja/Archiwum) i `hr-flota` → `HrFlota`. Wejście z sidebara: superadmin statycznie,
+role agencyjne (`koordynator`/`platnik`) dynamicznie z `PERMISSION_MENU` (`lib/permissions/registry`)
++ `GET /api/me/permissions`. API: `app/api/hr/*` (~33 route'y, service-role za `can()/canAny()`;
+brak sesji → **403** nie 401 — wzorzec BBS). **UI agencji jest w `components/agencja/*` — NIE mylić
+z niezwiązanym, benefitowym `components/hr/*`.** Helpery: `lib/hr/*` (`docPlaceholders`, `readiness`,
+`rentShare`, `accommodations`, `coordinatorScope`, `driveImport`, `vehicles`; **`lib/hr/geo` = stub
+zwracający null do E2d**); `lib/supabaseAdmin.admin` = alias `supabaseServer` (BBS-owe `admin()` z
+`lib/crm/visibility` — CRM wykluczony). Tabele `hr_*` nie są w `types/database.ts` → kod używa
+`(admin() as any).from('hr_...')` (konwencja repo). Audyt: **triggery DB**, nie `logEvent` (usunięte
+przy porcie). **Świadomie odłożone (stuby w kodzie):** `settlements/pdf` + generator dokumentów →
+**E2c**; OCR (Claude Vision) w `vehicles/[id]/license` i `candidates` → zwraca `ocr:null`,
+`candidates/from-passport` nieportowany → **E2d**; auto-księgowanie kosztów do `acc_entries`
+(`vehicles/costs`, `bhp/issues`) za guardem `if (accCompanyId)` (=null) → **E4**; portal pracownika
++ tracking GPS + czat → **E2e**. Write-gate floty zawężony do `agencja.flota` (spójność z zakładką);
+`vehicles/{people,license,photos}` na szerszym `canAny(AGENCJA_TABS)` — do zawężenia w E2c.
+Dep: `heic-convert` (konwersja zdjęć HEIC z telefonów w `lib/images.ts`).
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
