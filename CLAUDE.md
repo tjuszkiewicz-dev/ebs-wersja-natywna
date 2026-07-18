@@ -120,6 +120,19 @@ działały: wpisać `ANTHROPIC_API_KEY` + `OPENAI_API_KEY` (opcj. `AI_MODEL`) w 
 `translate` przycisk „Przetwórz rozmowę" woła `/api/notes/from-text` (moduł notatek → E3, degraduje
 gracefully); żywe pingi GPS pracownika (`me/location`, `tracking`) → E2e.
 
+**E2e (2026-07-18) — E2 (agencja) KOMPLETNE:** portal pracownika tymczasowego
+`/dashboard/agencja` (`components/worker/TempWorkerDashboard`, gate `pracownik_tymczasowy`
++ superadmin do testów; wzorzec auth jak `app/dashboard/employee/page.tsx`): profil, dokumenty,
+rozliczenia, grafik z GPS auto-clock-in (ping co 2 min, geofence), zmiana konta bankowego
+(walidacja IBAN + podwójne potwierdzenie), tłumacz. API `me/worker`(+`bank`), `me/location`
+(GPS ping → `hr_locations`, zasila mapę E2d), `lib/hr/tracking` (geofence). `lib/apps/appTargets`:
+appka `agencja` kieruje `pracownik_tymczasowy` → `/dashboard/agencja`, koordynator/płatnik/
+superadmin → `/dashboard/admin` (naprawia placeholder z E2a). Digest wygasania dokumentów/
+najmów/floty **doklejony do crona `expire-vouchers`** (sekcja w izolowanym `try/catch`, EBS
+`sendEmail`; adresaci superadmin/dyrektor/szef_koordynatorow) — bez nowego crona (Vercel Hobby).
+**Odłożone: czat pracownik↔koordynator (`me/worker/chat` + panel „Komunikator" ukryty za
+`{false &&}`) → E3; auto-księgowanie kosztów → E4.**
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
