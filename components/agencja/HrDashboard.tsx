@@ -6,9 +6,11 @@ import { HrPoczekalnia } from './HrPoczekalnia';
 import { HrKontrakty } from './HrKontrakty';
 import { HrDokumenty } from './HrDokumenty';
 import { HrArchiwum } from './HrArchiwum';
-// HrPulpit, HrRaporty, HrRozliczenia, HrBazaNoclegowa, HrDowoz, HrBhp, HrLegalizacja
-// nie zostały jeszcze przeniesione do EBS (E2b) — taby zostają, renderują placeholder.
-// T7/T9 podmienia
+import { HrPulpit } from './HrPulpit';
+import { HrRozliczenia } from './HrRozliczenia';
+import { HrBazaNoclegowa } from './HrBazaNoclegowa';
+// HrRaporty, HrDowoz, HrBhp, HrLegalizacja nie zostały jeszcze przeniesione
+// do EBS (E2b) — taby zostają, renderują placeholder. T9 podmienia.
 
 type HrTab = 'pulpit' | 'poczekalnia' | 'kontrakty' | 'dokumenty' | 'raporty' | 'rozliczenia' | 'noclegi' | 'dowoz' | 'bhp' | 'legalizacja' | 'archiwum';
 
@@ -67,16 +69,16 @@ export const HrDashboard: React.FC = () => {
         ))}
       </div>
 
-      {tab === 'pulpit'      && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
+      {tab === 'pulpit'      && <HrPulpit />}
       {tab === 'poczekalnia' && <HrPoczekalnia />}
       {tab === 'kontrakty'   && <HrKontrakty onGoToNoclegi={() => setTab('noclegi')} />}
       {tab === 'dokumenty'   && <HrDokumenty />}
-      {tab === 'raporty'     && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
-      {tab === 'rozliczenia' && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
-      {tab === 'noclegi'     && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
-      {tab === 'dowoz'       && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
-      {tab === 'bhp'         && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
-      {tab === 'legalizacja' && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T7/T9 podmienia */}
+      {tab === 'raporty'     && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
+      {tab === 'rozliczenia' && <HrRozliczenia />}
+      {tab === 'noclegi'     && <HrBazaNoclegowa />}
+      {tab === 'dowoz'       && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
+      {tab === 'bhp'         && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
+      {tab === 'legalizacja' && <div className="p-6 text-slate-400">Wkrótce (E2b)</div> /* T9 podmienia */}
       {tab === 'archiwum'    && <HrArchiwum />}
     </div>
   );
