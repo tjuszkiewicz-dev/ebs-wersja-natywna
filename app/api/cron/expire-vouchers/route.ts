@@ -14,6 +14,7 @@ import { buildElixir0, type TransferItem } from '@/lib/bank/elixir0';
 import { buildMillenniumCsv } from '@/lib/bank/millenniumCsv';
 import { createBuybackAgreementPdf } from '@/lib/documents/buybackAgreementService';
 import { ISSUER } from '@/lib/documents/pdfUtils';
+import { fullName } from '@/lib/hr/docPlaceholders';
 
 export const dynamic = 'force-dynamic';
 
@@ -156,6 +157,102 @@ export async function GET(req: NextRequest) {
     console.error('[cron/expire-vouchers] odkup:', e?.message);
   }
 
+  // E2e: digest wygasania (dawniej osobny cron expiry-alerts w BBS)
+  let expiryAlerts = 0;
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const soon = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const leaseSoon = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
+
+    const DOC_FIELDS: [string, string][] = [
+      ['passport_expiry', 'paszport'],
+      ['visa_expiry', 'wiza'],
+      ['residence_card_expiry', 'karta pobytu'],
+      ['work_permit_expiry', 'pozwolenie na pracę'],
+    ];
+    const VEH_FIELDS: [string, string][] = [
+      ['insurance_until', 'ubezpieczenie OC'],
+      ['inspection_until', 'przegląd techniczny'],
+      ['license_expiry', 'prawo jazdy'],
+    ];
+
+    const [{ data: emps }, { data: accs }, { data: vehicles }] = await Promise.all([
+      (supabase as any).from('hr_employees')
+        .select('first_name, second_name, last_name, second_last_name, passport_expiry, visa_expiry, residence_card_expiry, work_permit_expiry, contract:hr_contracts(name)')
+        .eq('archived', false).eq('candidate', false),
+      (supabase as any).from('hr_accommodations')
+        .select('name, lease_end_date, hr_employees(count)')
+        .not('lease_end_date', 'is', null).lte('lease_end_date', leaseSoon),
+      (supabase as any).from('hr_vehicles')
+        .select('make, model, registration, insurance_until, inspection_until, license_expiry, main_user_name, driver_name, license_name, contract:hr_contracts(name)')
+        .neq('status', 'wycofany'),
+    ]);
+
+    const docAlerts: { name: string; contract: string; what: string; date: string; expired: boolean }[] = [];
+    for (const e of emps || []) {
+      for (const [f, label] of DOC_FIELDS) {
+        const v = (e as any)[f];
+        if (v && v <= soon) docAlerts.push({ name: fullName(e), contract: (e as any).contract?.name || '—', what: label, date: v, expired: v < today });
+      }
+    }
+    docAlerts.sort((a, b) => a.date.localeCompare(b.date));
+    const leaseAlerts = (accs || []).map((a: any) => ({ name: a.name, date: a.lease_end_date, people: a.hr_employees?.[0]?.count ?? 0 }));
+
+    const fleetAlerts: { vehicle: string; contract: string; what: string; date: string; expired: boolean }[] = [];
+    for (const v of vehicles || []) {
+      const label = [(v as any).make, (v as any).model].filter(Boolean).join(' ') + ((v as any).registration ? ` (${(v as any).registration})` : '');
+      for (const [f, what] of VEH_FIELDS) {
+        const val = (v as any)[f];
+        if (val && val <= soon) {
+          const who = what === 'prawo jazdy' ? ` — ${(v as any).license_name || (v as any).main_user_name || (v as any).driver_name || 'kierowca'}` : '';
+          fleetAlerts.push({ vehicle: label || '—', contract: (v as any).contract?.name || '—', what: what + who, date: val, expired: val < today });
+        }
+      }
+    }
+    fleetAlerts.sort((a, b) => a.date.localeCompare(b.date));
+
+    if (docAlerts.length || leaseAlerts.length || fleetAlerts.length) {
+      const { data: profiles } = await supabase.from('user_profiles')
+        .select('id, role').in('role', ['superadmin', 'dyrektor', 'szef_koordynatorow']);
+      const ids = new Set((profiles ?? []).map((p: any) => p.id));
+      const { data: usersPage } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const recipients = (usersPage?.users ?? []).filter((u: any) => ids.has(u.id) && u.email).map((u: any) => u.email as string);
+
+      if (recipients.length) {
+        const d = (s: string) => new Date(s).toLocaleDateString('pl-PL');
+        const html = `
+          <div style="font-family:Arial,sans-serif;font-size:14px;color:#111">
+            <h2 style="margin:0 0 12px">⚠️ EBS — dokumenty wymagające uwagi (${d(today)})</h2>
+            ${docAlerts.length ? `
+              <h3 style="margin:14px 0 6px;font-size:15px">Dokumenty pracowników (wygasłe lub ≤30 dni): ${docAlerts.length}</h3>
+              <table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#ddd;font-size:13px">
+                <tr style="background:#f1f3f5"><th align="left">Pracownik</th><th align="left">Kontrakt</th><th align="left">Dokument</th><th align="left">Termin</th></tr>
+                ${docAlerts.map(a => `<tr${a.expired ? ' style="background:#fdecec"' : ''}><td>${a.name}</td><td>${a.contract}</td><td>${a.what}</td><td><strong>${d(a.date)}${a.expired ? ' — WYGASŁ' : ''}</strong></td></tr>`).join('')}
+              </table>` : ''}
+            ${leaseAlerts.length ? `
+              <h3 style="margin:14px 0 6px;font-size:15px">Kończące się najmy (≤7 dni): ${leaseAlerts.length}</h3>
+              <ul>${leaseAlerts.map((a: any) => `<li><strong>${a.name}</strong> — koniec najmu ${d(a.date)} (mieszka ${a.people} os.)</li>`).join('')}</ul>` : ''}
+            ${fleetAlerts.length ? `
+              <h3 style="margin:14px 0 6px;font-size:15px">Flota — OC / przegląd / prawo jazdy (wygasłe lub ≤30 dni): ${fleetAlerts.length}</h3>
+              <table cellpadding="6" cellspacing="0" border="1" style="border-collapse:collapse;border-color:#ddd;font-size:13px">
+                <tr style="background:#f1f3f5"><th align="left">Pojazd</th><th align="left">Projekt</th><th align="left">Co</th><th align="left">Termin</th></tr>
+                ${fleetAlerts.map(a => `<tr${a.expired ? ' style="background:#fdecec"' : ''}><td>${a.vehicle}</td><td>${a.contract}</td><td>${a.what}</td><td><strong>${d(a.date)}${a.expired ? ' — WYGASŁ' : ''}</strong></td></tr>`).join('')}
+              </table>` : ''}
+            <p style="color:#888;font-size:12px;margin-top:16px">Automatyczny raport EBS — szczegóły w panelu: Agencja Pracy → Pracownicy, Baza Noclegowa i Flota.</p>
+          </div>`;
+
+        await sendEmail({
+          to: recipients,
+          subject: `⚠️ EBS: ${docAlerts.length} dokumentów do uwagi${leaseAlerts.length ? ` + ${leaseAlerts.length} najmów` : ''}${fleetAlerts.length ? ` + ${fleetAlerts.length} floty` : ''} — ${d(today)}`,
+          html,
+        });
+        expiryAlerts = docAlerts.length + leaseAlerts.length + fleetAlerts.length;
+      }
+    }
+  } catch (e: any) {
+    console.error('[cron/expire-vouchers] digest wygasania:', e?.message);
+  }
+
   return NextResponse.json({
     ok:       true,
     expired,
@@ -163,6 +260,7 @@ export async function GET(req: NextRequest) {
     remindersSent,
     buybackEmails,
     batches:  batchesCreated,
+    expiryAlerts,
     ran_at:   new Date().toISOString(),
   });
 }
