@@ -89,6 +89,20 @@ przy porcie). **Świadomie odłożone (stuby w kodzie):** `settlements/pdf` + ge
 `vehicles/{people,license,photos}` na szerszym `canAny(AGENCJA_TABS)` — do zawężenia w E2c.
 Dep: `heic-convert` (konwersja zdjęć HEIC z telefonów w `lib/images.ts`).
 
+**E2c (2026-07-18):** generator dokumentów działa. Widok `hr-generator` →
+`components/agencja/HrGeneratorDokumentow` (top-level w `HrDashboard`, gate `agencja.generator`).
+API: `hr/doc-templates` (CRUD szablonów HTML), `hr/doc-generate` (render HTML→PDF przez
+`lib/pdf/renderer`, druk formularza PESEL osobną ścieżką `lib/hr/peselForm` przez `pdf-lib`),
+`hr/settlements/pdf` (PDF listy płac — odblokowany przycisk „Pobierz PDF" w `HrRozliczenia`).
+Nagłówek generowanych dokumentów: `public/ebs-neon-no-bg.png` (zamiast BBS-owego `znmp-logo`).
+Assety: `public/templates/pesel-elw1.pdf` (formularz wniosku o PESEL) + `public/fonts/noto-deva.woff2`
+(font do hindi). Deps: `pdf-lib` + `jszip` (jawnie w `package.json`, było tranzytywne — poprawka
+phantom-dep). Szablony (35 szt.) zaimportowane z BBS przez `scripts/import-bbs-doc-templates.mts`
+(upsert po `name`, bez unikalnego constraintu w DB więc ręczny insert-lub-update; logo podmienione
+regexem `znmp-logo`→`ebs-neon-no-bg`) — **do przeglądu/edycji w panelu**: część szablonów zawiera
+zwykły tekst nagłówka firmowego BBS (`www.znmp.pl`, `zp@znmp.pl`) niezwiązany z logo-obrazkiem,
+świadomie nieusunięty (nie jest to logo, tylko dane kontaktowe do ewentualnej ręcznej korekty).
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
