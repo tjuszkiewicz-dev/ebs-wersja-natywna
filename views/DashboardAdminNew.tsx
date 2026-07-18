@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { AdminPulpit } from '../components/adminNew/AdminPulpit';
 import { AdminBazaKlientow } from '../components/adminNew/AdminBazaKlientow';
 import { AdminPlatnosci } from '../components/adminNew/AdminPlatnosci';
@@ -11,9 +12,13 @@ import AdminLogi from '../components/adminNew/AdminLogi';
 import { HrDashboard } from '../components/agencja/HrDashboard';
 import { HrFlota } from '../components/agencja/HrFlota';
 import { HrGeneratorDokumentow } from '../components/agencja/HrGeneratorDokumentow';
+import { HrTlumacz } from '../components/agencja/HrTlumacz';
 import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator';
+// Leaflet (HrMapa) jest browser-only — dynamic import ssr:false, żeby nie wysadzić `next build`.
+const HrMapa = dynamic(() => import('../components/agencja/HrMapa').then(m => m.HrMapa), { ssr: false });
+
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -28,6 +33,8 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'hr-pracownicy':   'hr-pracownicy',
   'hr-flota':        'hr-flota',
   'hr-generator':    'hr-generator',
+  'hr-tlumacz':      'hr-tlumacz',
+  'hr-mapa':         'hr-mapa',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -43,6 +50,8 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'hr-pracownicy': 'hr-pracownicy',
   'hr-flota':      'hr-flota',
   'hr-generator':  'hr-generator',
+  'hr-tlumacz':    'hr-tlumacz',
+  'hr-mapa':       'hr-mapa',
 };
 
 interface Props {
@@ -124,6 +133,8 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'hr-pracownicy' && <HrDashboard />}
         {tab === 'hr-flota' && <HrFlota />}
         {tab === 'hr-generator' && <HrGeneratorDokumentow />}
+        {tab === 'hr-tlumacz' && <HrTlumacz />}
+        {tab === 'hr-mapa' && <HrMapa />}
       </div>
     </div>
   );

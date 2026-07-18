@@ -70,4 +70,6 @@ export const PERMISSION_MENU: MenuDef[] = [
     anyOf: ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.kontrakty', 'agencja.dokumenty', 'agencja.raporty', 'agencja.rozliczenia', 'agencja.noclegi', 'agencja.archiwum', 'agencja.dowoz', 'agencja.bhp', 'agencja.legalizacja'] },
   { view: 'hr-flota', label: 'Flota', section: 'Agencja Pracy', icon: 'car', anyOf: ['agencja.flota'] },
   { view: 'hr-generator', label: 'Generator dokumentów', section: 'Agencja Pracy', icon: 'file', anyOf: ['agencja.generator'] },
+  { view: 'hr-tlumacz', label: 'Tłumacz', section: 'Agencja Pracy', icon: 'languages', anyOf: ['agencja.tlumacz'] },
+  { view: 'hr-mapa', label: 'Mapa Pracowników', section: 'Agencja Pracy', icon: 'mappin', anyOf: ['agencja.mapa'] },
 ];

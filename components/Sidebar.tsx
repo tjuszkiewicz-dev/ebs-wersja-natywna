@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Role, User } from '../types';
-import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, ScrollText, HardHat, Car } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, ScrollText, HardHat, Car, Languages, MapPin } from 'lucide-react';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
 import { ROLE_LABEL } from '../lib/roleMap';
 
@@ -9,6 +9,8 @@ const PERMISSION_MENU_ICONS: Record<string, React.ReactNode> = {
   users: <Users size={20} />,
   car: <Car size={20} />,
   file: <FileText size={20} />,
+  languages: <Languages size={20} />,
+  mappin: <MapPin size={20} />,
 };
 
 interface SidebarProps {
@@ -80,6 +82,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'hr-pracownicy', label: 'Agencja — Pracownicy', icon: <HardHat size={20} /> },
           { id: 'hr-flota',      label: 'Agencja — Flota',      icon: <Car size={20} /> },
           { id: 'hr-generator',  label: 'Agencja — Generator',  icon: <FileText size={20} /> },
+          { id: 'hr-tlumacz',    label: 'Agencja — Tłumacz',    icon: <Languages size={20} /> },
+          { id: 'hr-mapa',       label: 'Agencja — Mapa Pracowników', icon: <MapPin size={20} /> },
         ];
       case Role.HR:
         return [
