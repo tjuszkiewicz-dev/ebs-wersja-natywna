@@ -8,6 +8,7 @@ import { AdminBuyback } from '../components/adminNew/AdminBuyback';
 import { AdminUsers } from '../components/adminNew/AdminUsers';
 import AdminSzablony from '../components/adminNew/AdminSzablony';
 import AdminLogi from '../components/adminNew/AdminLogi';
+import { HrDashboard } from '../components/agencja/HrDashboard';
 import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
 
 type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota';
@@ -116,7 +117,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'uzytkowniczy' && <AdminUsers />}
         {tab === 'szablony' && <AdminSzablony />}
         {tab === 'logi' && <AdminLogi />}
-        {tab === 'hr-pracownicy' && <div className="p-8 text-slate-500">Moduł Agencji — w budowie (E2b)</div>}
+        {tab === 'hr-pracownicy' && <HrDashboard />}
         {tab === 'hr-flota' && <div className="p-8 text-slate-500">Moduł Agencji — w budowie (E2b)</div>}
       </div>
     </div>
