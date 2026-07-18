@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Role, User } from '../types';
 import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, ScrollText, HardHat, Car } from 'lucide-react';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
+import { ROLE_LABEL } from '../lib/roleMap';
 
 const PERMISSION_MENU_ICONS: Record<string, React.ReactNode> = {
   users: <Users size={20} />,
@@ -54,6 +55,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case Role.SUPERADMIN: return 'Administrator';
       case Role.HR: return 'Księgowość / HR';
       case Role.EMPLOYEE: return 'Pracownik';
+      case Role.COORDINATOR: return ROLE_LABEL[Role.COORDINATOR];
+      case Role.PAYROLL: return ROLE_LABEL[Role.PAYROLL];
+      case Role.TEMP_WORKER: return ROLE_LABEL[Role.TEMP_WORKER];
+      case Role.HR_PANEL: return ROLE_LABEL[Role.HR_PANEL];
       default: return 'Partner / Sprzedaż';
     }
   }, [currentUser.role]);

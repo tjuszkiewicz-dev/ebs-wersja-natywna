@@ -9,8 +9,6 @@ import { isUuid } from '@/lib/uuid';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const MANAGER_ROLES = ['superadmin', 'dyrektor', 'szef_koordynatorow', 'hr', 'hr_panel'];
-
 // EBS nie ma rozróżnienia superadmin/owner z BBS (auth.isOwner) — najwyższa rola to 'superadmin'.
 export async function GET() {
   const auth = await getAuthUserWithRole();

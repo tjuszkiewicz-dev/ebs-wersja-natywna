@@ -1,8 +1,7 @@
 // PATCH/DELETE /api/hr/vehicles/[id] — edycja i usunięcie pojazdu
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
-import { can, canAny } from '@/lib/permissions/server';
-import { AGENCJA_TABS } from '@/lib/permissions/registry';
+import { can } from '@/lib/permissions/server';
 import { admin } from '@/lib/supabaseAdmin';
 import { buildVehicleRow } from '@/lib/hr/vehicles';
 
@@ -11,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getAuthUserWithRole();
-  if (!auth || !(await canAny(auth, AGENCJA_TABS))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!auth || !(await can(auth, 'agencja.flota'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
   const b = await request.json().catch(() => ({}));
   const patch = buildVehicleRow(b, { updated_at: new Date().toISOString() });

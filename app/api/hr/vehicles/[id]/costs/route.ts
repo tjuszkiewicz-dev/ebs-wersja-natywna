@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getAuthUserWithRole();
-  if (!auth || !(await canAny(auth, AGENCJA_TABS))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!auth || !(await can(auth, 'agencja.flota'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const { id } = await params;
   const sb = admin() as any;
   const { data: v } = await sb.from('hr_vehicles').select('make, registration, mileage').eq('id', id).single();

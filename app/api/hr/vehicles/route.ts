@@ -2,7 +2,7 @@
 // POST — nowy pojazd
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
-import { canAny } from '@/lib/permissions/server';
+import { can, canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
 import { buildVehicleRow } from '@/lib/hr/vehicles';
@@ -27,7 +27,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || !(await canAny(auth, AGENCJA_TABS))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!auth || !(await can(auth, 'agencja.flota'))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   const b = await request.json().catch(() => ({}));
   if (!String(b.make || '').trim()) return NextResponse.json({ error: 'Marka jest wymagana' }, { status: 400 });
   const row = buildVehicleRow(b, {});
