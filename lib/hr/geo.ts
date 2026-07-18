@@ -1,14 +1,27 @@
-// STUB E2b — realne geokodowanie (Nominatim) wchodzi w E2d; sygnatury 1:1 z BBS.
 // ── Geokodowanie adresów + odległość/czas dojazdu (nocleg → magazyn projektu) ──
-// BBS: Nominatim (OpenStreetMap), wynik cache'owany w lat/lng/geocoded_at, czas dojazdu
-// szacowany (odległość w linii prostej × 1.3 drogi, średnio 60 km/h). Tu: geocodeAddress
-// zawsze zwraca null (brak wywołań sieciowych w E2b); haversineKm zostaje czystą funkcją.
+// Nominatim (OpenStreetMap) — bez klucza; wołane rzadko (przy zapisie adresu),
+// wynik cache'owany w kolumnach lat/lng/geocoded_at. Czas dojazdu = szacunek
+// (odległość w linii prostej × 1.3 drogi, średnio 60 km/h).
 
 export interface GeoPoint { lat: number; lng: number }
 
 export async function geocodeAddress(address: string): Promise<GeoPoint | null> {
-  void address;
-  return null;
+  const q = address.trim();
+  if (!q) return null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pl&q=${encodeURIComponent(q)}`, {
+      headers: { 'User-Agent': 'EBS-Stratton-Prime/1.0 (eliton-benefits.com)' },
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (!Array.isArray(data) || !data.length) return null;
+    const lat = Number(data[0].lat), lng = Number(data[0].lon);
+    return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  } catch { return null; }
 }
 
 export function haversineKm(a: GeoPoint, b: GeoPoint): number {
@@ -20,8 +33,7 @@ export function haversineKm(a: GeoPoint, b: GeoPoint): number {
 }
 
 // Szacunek jazdy: droga ≈ 1.3 × linia prosta, średnia 60 km/h
-export function driveEstimate(a: GeoPoint, b: GeoPoint): { distance_km: number; drive_min: number } | null {
-  void a;
-  void b;
-  return null;
+export function driveEstimate(a: GeoPoint, b: GeoPoint): { distance_km: number; drive_min: number } {
+  const roadKm = haversineKm(a, b) * 1.3;
+  return { distance_km: Math.round(roadKm * 10) / 10, drive_min: Math.round((roadKm / 60) * 60) };
 }
