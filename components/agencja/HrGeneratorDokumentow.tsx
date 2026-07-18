@@ -560,7 +560,7 @@ function TemplateEditor({ template, defaultCategory, onClose, onSaved }: { templ
 
         {/* Edytor */}
         <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-5">
-          {letterhead && <div className="mx-auto mb-3 max-w-[720px] text-center"><img src="/znmp-logo.png" alt="" className="inline-block h-12" /></div>}
+          {letterhead && <div className="mx-auto mb-3 max-w-[720px] text-center"><img src="/ebs-neon-no-bg.png" alt="" className="inline-block h-12" /></div>}
           <div ref={editorRef} contentEditable suppressContentEditableWarning
             className="doc-editor mx-auto max-w-[720px] rounded-xl border border-slate-200 bg-white p-8 text-[15px] leading-relaxed text-slate-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-200 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-slate-400 [&_td]:p-1.5 [&_th]:border [&_th]:border-slate-400 [&_h1]:text-lg [&_h1]:font-bold [&_p]:mb-2 [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6" />
         </div>
