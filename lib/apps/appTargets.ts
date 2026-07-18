@@ -12,6 +12,11 @@ export function existingAppTarget(appId: AppId, role: Role): string | null {
       if (role === Role.HR) return '/dashboard/employer';
       if (role === Role.SUPERADMIN) return '/dashboard/admin';
       return null;
+    case 'agencja':
+      if (role === Role.TEMP_WORKER) return '/dashboard/agencja';
+      // koordynator/płatnik/superadmin → panel admina z zakładkami agencji
+      if (role === Role.COORDINATOR || role === Role.PAYROLL || role === Role.SUPERADMIN) return '/dashboard/admin';
+      return null;
     default:
       return null; // przyszłe appki (E2+) dostaną własne trasy
   }

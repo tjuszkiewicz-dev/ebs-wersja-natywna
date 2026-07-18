@@ -22,6 +22,19 @@ describe('existingAppTarget (benefity → dashboardy EBS)', () => {
     expect(existingAppTarget('benefity', Role.ADVISOR)).toBe(null));
 });
 
+describe('existingAppTarget (agencja → dashboardy EBS)', () => {
+  it('TEMP_WORKER → /dashboard/agencja', () =>
+    expect(existingAppTarget('agencja', Role.TEMP_WORKER)).toBe('/dashboard/agencja'));
+  it('COORDINATOR → /dashboard/admin', () =>
+    expect(existingAppTarget('agencja', Role.COORDINATOR)).toBe('/dashboard/admin'));
+  it('PAYROLL → /dashboard/admin', () =>
+    expect(existingAppTarget('agencja', Role.PAYROLL)).toBe('/dashboard/admin'));
+  it('SUPERADMIN → /dashboard/admin', () =>
+    expect(existingAppTarget('agencja', Role.SUPERADMIN)).toBe('/dashboard/admin'));
+  it('EMPLOYEE → null (brak dostępu do agencji)', () =>
+    expect(existingAppTarget('agencja', Role.EMPLOYEE)).toBe(null));
+});
+
 describe('resolvePostLogin (final URL po zalogowaniu)', () => {
   it('EMPLOYEE z samymi benefitami → od razu dashboard (bez hopu przez /app)', () =>
     expect(resolvePostLogin(Role.EMPLOYEE, ['benefity'])).toBe('/dashboard/employee'));
