@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ALL_PERMISSIONS, PERMISSION_GROUPS, DEFAULT_ROLE_PERMS, AGENCJA_TABS } from './registry';
+import { ALL_PERMISSIONS, PERMISSION_GROUPS, DEFAULT_ROLE_PERMS, AGENCJA_TABS, PERMISSION_MENU } from './registry';
 
 describe('permissions registry (EBS E1)', () => {
   it('klucze unikalne', () => {
@@ -27,6 +27,15 @@ describe('permissions registry (EBS E1)', () => {
     expect(DEFAULT_ROLE_PERMS['koordynator']).toEqual([...AGENCJA_TABS, 'agencja.mapa']);
     for (const r of ['pracodawca', 'dyrektor', 'hr']) {
       expect((DEFAULT_ROLE_PERMS[r] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
+    }
+  });
+  it('PERMISSION_MENU: sekcja Agencja Pracy pokrywa hr-pracownicy i hr-flota', () => {
+    const views = PERMISSION_MENU.map(m => m.view);
+    expect(views).toContain('hr-pracownicy');
+    expect(views).toContain('hr-flota');
+    for (const m of PERMISSION_MENU) {
+      expect(m.anyOf.length).toBeGreaterThan(0);
+      for (const p of m.anyOf) expect(ALL_PERMISSIONS).toContain(p);
     }
   });
 });

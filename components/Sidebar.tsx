@@ -1,7 +1,13 @@
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Role, User } from '../types';
-import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, ScrollText } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, ScrollText, HardHat, Car } from 'lucide-react';
+import { PERMISSION_MENU } from '../lib/permissions/registry';
+
+const PERMISSION_MENU_ICONS: Record<string, React.ReactNode> = {
+  users: <Users size={20} />,
+  car: <Car size={20} />,
+};
 
 interface SidebarProps {
   currentUser: User;
@@ -27,6 +33,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isLogout = false
 }) => {
   
+  const [agencyPermissions, setAgencyPermissions] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (currentUser.role !== Role.COORDINATOR && currentUser.role !== Role.PAYROLL) return;
+    let cancelled = false;
+    fetch('/api/me/permissions')
+      .then(res => (res.ok ? res.json() : { permissions: [] }))
+      .then(data => {
+        if (!cancelled) setAgencyPermissions(Array.isArray(data.permissions) ? data.permissions : []);
+      })
+      .catch(() => {
+        if (!cancelled) setAgencyPermissions([]);
+      });
+    return () => { cancelled = true; };
+  }, [currentUser.role]);
+
   const roleLabel = useMemo(() => {
     switch(currentUser.role) {
       case Role.SUPERADMIN: return 'Administrator';
@@ -49,6 +71,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'admin-szablony',  label: 'Szablony dokumentów', icon: <FileText size={20} /> },
           { id: 'admin-logi',      label: 'Logi systemowe',      icon: <ScrollText size={20} /> },
           { id: 'admin-uprawnienia', label: 'Uprawnienia', icon: <ShieldCheck size={20} /> },
+          { id: 'hr-pracownicy', label: 'Agencja — Pracownicy', icon: <HardHat size={20} /> },
+          { id: 'hr-flota',      label: 'Agencja — Flota',      icon: <Car size={20} /> },
         ];
       case Role.HR:
         return [
@@ -77,10 +101,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'sales-dashboard', label: 'Panel Sprzedaży', icon: <DollarSign size={20} /> },
           { id: 'sales-commissions', label: 'Moje Prowizje', icon: <FileText size={20} /> },
         ];
+      case Role.COORDINATOR:
+      case Role.PAYROLL:
+        return PERMISSION_MENU
+          .filter(m => m.anyOf.some(p => agencyPermissions.includes(p)))
+          .map(m => ({ id: m.view, label: m.label, icon: PERMISSION_MENU_ICONS[m.icon] ?? <Grid size={20} /> }));
       default:
         return [];
     }
-  }, [currentUser.role]);
+  }, [currentUser.role, agencyPermissions]);
 
   return (
     <>

@@ -10,7 +10,7 @@ import AdminSzablony from '../components/adminNew/AdminSzablony';
 import AdminLogi from '../components/adminNew/AdminLogi';
 import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -22,6 +22,8 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-uzytkowniczy': 'uzytkowniczy',
   'admin-szablony':  'szablony',
   'admin-logi':      'logi',
+  'hr-pracownicy':   'hr-pracownicy',
+  'hr-flota':        'hr-flota',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -34,6 +36,8 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   uzytkowniczy: 'admin-uzytkowniczy',
   szablony:  'admin-szablony',
   logi:      'admin-logi',
+  'hr-pracownicy': 'hr-pracownicy',
+  'hr-flota':      'hr-flota',
 };
 
 interface Props {
@@ -112,6 +116,8 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'uzytkowniczy' && <AdminUsers />}
         {tab === 'szablony' && <AdminSzablony />}
         {tab === 'logi' && <AdminLogi />}
+        {tab === 'hr-pracownicy' && <div className="p-8 text-slate-500">Moduł Agencji — w budowie (E2b)</div>}
+        {tab === 'hr-flota' && <div className="p-8 text-slate-500">Moduł Agencji — w budowie (E2b)</div>}
       </div>
     </div>
   );

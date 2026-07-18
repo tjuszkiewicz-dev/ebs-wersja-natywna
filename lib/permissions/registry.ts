@@ -62,3 +62,11 @@ export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
   koordynator: [...AGENCJA_TABS, 'agencja.mapa'],
   platnik: [], pracownik_tymczasowy: [],
 };
+
+// Mapowanie uprawnień → pozycje menu panelu (dynamiczny sidebar dla ról agencyjnych).
+export interface MenuDef { view: string; label: string; section: string; icon: string; anyOf: string[] }
+export const PERMISSION_MENU: MenuDef[] = [
+  { view: 'hr-pracownicy', label: 'Pracownicy', section: 'Agencja Pracy', icon: 'users',
+    anyOf: ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.kontrakty', 'agencja.dokumenty', 'agencja.raporty', 'agencja.rozliczenia', 'agencja.noclegi', 'agencja.archiwum', 'agencja.dowoz', 'agencja.bhp', 'agencja.legalizacja'] },
+  { view: 'hr-flota', label: 'Flota', section: 'Agencja Pracy', icon: 'car', anyOf: ['agencja.flota'] },
+];
