@@ -61,6 +61,10 @@ export function HrEmployeeDocs({ employeeId }: { employeeId: string }) {
         });
         res = await r.json();
         if (!r.ok) throw new Error((res as any).error || 'Błąd odczytu');
+        if ((res as any).ok === false || (res as any).disabled) {
+          setError((res as any).error || 'Funkcja OCR wyłączona — skonfiguruj ANTHROPIC_API_KEY');
+          return;
+        }
         if (res.pending) setOcrNote(`Czytanie dokumentów… (pozostało ${res.pending})`);
       } while (res.pending && ++guard < 10);
       setOcr(res); setChosen(new Set());

@@ -100,6 +100,7 @@ export const HrPoczekalnia: React.FC = () => {
         return;
       }
       if (!r.ok) throw new Error(d.error || 'Błąd odczytu paszportu');
+      if (d.ok === false || d.disabled) { setError(d.error || 'OCR paszportu wyłączone — brak ANTHROPIC_API_KEY'); return; }
       setShowForm(false); setForm(emptyForm);
       await load();
       if (d.warning) window.alert(d.warning);

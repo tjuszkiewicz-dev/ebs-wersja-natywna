@@ -14,7 +14,7 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || !(await canAny(auth, AGENCJA_TABS))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!auth || (auth.role !== 'pracownik_tymczasowy' && !(await canAny(auth, AGENCJA_TABS)))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   // AI-guard E2d: łagodna degradacja bez klucza
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ ok: false, disabled: true, error: 'Tłumacz głosowy wyłączony — brak OPENAI_API_KEY' });
 

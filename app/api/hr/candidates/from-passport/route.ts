@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   const auth = await getAuthUserWithRole();
   if (!auth || !(await canAny(auth, AGENCJA_TABS))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   // AI-guard E2d: łagodna degradacja bez klucza (cała ścieżka zależy od odczytu OCR)
-  if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ ok: true, ocr: null, disabled: true });
+  if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ ok: false, disabled: true, error: 'OCR paszportu wyłączone — brak ANTHROPIC_API_KEY' });
 
   const form = await request.formData().catch(() => null);
   const file = form?.get('file');

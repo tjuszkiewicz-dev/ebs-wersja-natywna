@@ -288,6 +288,7 @@ export function HrTlumacz() {
         const r = await fetch('/api/hr/translate/voice', { method: 'POST', body: fd, credentials: 'same-origin' });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || 'Błąd tłumaczenia głosu');
+        if (j.disabled || j.ok === false) throw new Error(j.error || 'Funkcja AI wyłączona — skonfiguruj klucz API');
         if (j.skip) return;
         setLiveError(null);
         if (limitInfo?.limited) refreshLimit();
@@ -407,6 +408,7 @@ export function HrTlumacz() {
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Błąd tłumaczenia');
+      if (j.disabled || j.ok === false) throw new Error(j.error || 'Funkcja AI wyłączona — skonfiguruj klucz API');
       if (j.remaining_s != null) setLimitInfo({ limited: true, remaining: Number(j.remaining_s) });
       setResult({ translation: j.translation, detected: j.detected, target: j.target });
       setHistory(h => [{ id: idRef.current++, source: text.trim(), translation: j.translation, detected: j.detected, target: j.target }, ...h].slice(0, 30));

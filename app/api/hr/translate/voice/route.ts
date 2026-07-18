@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
   if (!auth || (auth.role !== 'pracownik_tymczasowy' && !(await canAny(auth, AGENCJA_TABS)))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   // AI-guard E2d: łagodna degradacja bez klucza
   if (!process.env.OPENAI_API_KEY) return NextResponse.json({ ok: false, disabled: true, error: 'Tłumacz głosowy wyłączony — brak OPENAI_API_KEY' });
-  const limit = await consumeTranslator(auth, VOICE_UTTER_COST_S);
-  if (!limit.ok) return NextResponse.json({ error: 'Dzienny limit tłumacza wyczerpany — spróbuj jutro' }, { status: 429 });
   // AI-guard E2d: łagodna degradacja bez klucza
   if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ ok: false, disabled: true, error: 'Funkcja AI wyłączona — brak ANTHROPIC_API_KEY' });
+  const limit = await consumeTranslator(auth, VOICE_UTTER_COST_S);
+  if (!limit.ok) return NextResponse.json({ error: 'Dzienny limit tłumacza wyczerpany — spróbuj jutro' }, { status: 429 });
 
   const form = await request.formData().catch(() => null);
   const file = form?.get('file') as File | null;
