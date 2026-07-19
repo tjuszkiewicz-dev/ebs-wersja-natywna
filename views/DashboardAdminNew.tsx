@@ -13,6 +13,7 @@ import { HrDashboard } from '../components/agencja/HrDashboard';
 import { HrFlota } from '../components/agencja/HrFlota';
 import { HrGeneratorDokumentow } from '../components/agencja/HrGeneratorDokumentow';
 import { HrTlumacz } from '../components/agencja/HrTlumacz';
+import { AdminKsiegowosc } from '../components/adminNew/AdminKsiegowosc';
 import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
 
 // Leaflet (HrMapa) jest browser-only — dynamic import ssr:false, żeby nie wysadzić `next build`.
@@ -137,7 +138,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'hr-generator' && <HrGeneratorDokumentow />}
         {tab === 'hr-tlumacz' && <HrTlumacz />}
         {tab === 'hr-mapa' && <HrMapa />}
-        {tab === 'admin-ksiegowosc' && <div className="p-8 text-slate-500">Księgowość — w budowie (E4)</div>}
+        {tab === 'admin-ksiegowosc' && <AdminKsiegowosc />}
       </div>
     </div>
   );
