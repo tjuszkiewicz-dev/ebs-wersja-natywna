@@ -18,7 +18,7 @@ import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, Refre
 // Leaflet (HrMapa) jest browser-only — dynamic import ssr:false, żeby nie wysadzić `next build`.
 const HrMapa = dynamic(() => import('../components/agencja/HrMapa').then(m => m.HrMapa), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -35,6 +35,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'hr-generator':    'hr-generator',
   'hr-tlumacz':      'hr-tlumacz',
   'hr-mapa':         'hr-mapa',
+  'admin-ksiegowosc': 'admin-ksiegowosc',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -52,6 +53,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'hr-generator':  'hr-generator',
   'hr-tlumacz':    'hr-tlumacz',
   'hr-mapa':       'hr-mapa',
+  'admin-ksiegowosc': 'admin-ksiegowosc',
 };
 
 interface Props {
@@ -135,6 +137,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'hr-generator' && <HrGeneratorDokumentow />}
         {tab === 'hr-tlumacz' && <HrTlumacz />}
         {tab === 'hr-mapa' && <HrMapa />}
+        {tab === 'admin-ksiegowosc' && <div className="p-8 text-slate-500">Księgowość — w budowie (E4)</div>}
       </div>
     </div>
   );

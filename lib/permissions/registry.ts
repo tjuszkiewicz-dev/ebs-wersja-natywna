@@ -28,6 +28,13 @@ export const PERMISSION_GROUPS: PermGroup[] = [
     ],
   },
   {
+    name: 'Księgowość',
+    perms: [
+      { key: 'ksiegowosc.faktury', label: 'Księgowość — koszty i wpisy (dodawanie)', kind: 'tab' },
+      { key: 'ksiegowosc.bilans', label: 'Pełny bilans firmy (wszystkie kwoty, edycja/usuwanie)', kind: 'action' },
+    ],
+  },
+  {
     name: 'Agencja Pracy',
     perms: [
       { key: 'agencja.pulpit', label: 'Pulpit Agencji (KPI + alerty)', kind: 'tab' },
@@ -58,8 +65,9 @@ export const AGENCJA_TABS = ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.k
 // wewnętrznym Strattona — pracodawcy-klienci EBS ani role sieciowe NIE dostają
 // agencji domyślnie (w BBS dostawali). Wyjątki nadaje panel Uprawnienia.
 export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
-  pracodawca: [], pracownik: [], partner: [], menedzer: [], dyrektor: [], hr: [],
-  koordynator: [...AGENCJA_TABS, 'agencja.mapa'],
+  pracodawca: [], pracownik: [], partner: [], menedzer: [], hr: [],
+  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans'],
+  koordynator: [...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury'],
   platnik: [], pracownik_tymczasowy: [],
 };
 
@@ -72,4 +80,5 @@ export const PERMISSION_MENU: MenuDef[] = [
   { view: 'hr-generator', label: 'Generator dokumentów', section: 'Agencja Pracy', icon: 'file', anyOf: ['agencja.generator'] },
   { view: 'hr-tlumacz', label: 'Tłumacz', section: 'Agencja Pracy', icon: 'languages', anyOf: ['agencja.tlumacz'] },
   { view: 'hr-mapa', label: 'Mapa Pracowników', section: 'Agencja Pracy', icon: 'mappin', anyOf: ['agencja.mapa'] },
+  { view: 'admin-ksiegowosc', label: 'Księgowość', section: 'Księgowość', icon: 'book', anyOf: ['ksiegowosc.bilans', 'ksiegowosc.faktury'] },
 ];

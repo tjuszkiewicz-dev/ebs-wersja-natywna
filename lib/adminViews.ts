@@ -12,6 +12,7 @@ export const ADMIN_VIEWS: AdminViewDef[] = [
   { id: 'admin-szablony',    label: 'Szablony dokumentów' },
   { id: 'admin-logi',        label: 'Logi systemowe' },
   { id: 'admin-uprawnienia', label: 'Uprawnienia' },
+  { id: 'admin-ksiegowosc',  label: 'Księgowość' },
 ];
 
 export const ADMIN_VIEW_IDS = new Set(ADMIN_VIEWS.map(v => v.id));

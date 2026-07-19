@@ -11,6 +11,7 @@ const PERMISSION_MENU_ICONS: Record<string, React.ReactNode> = {
   file: <FileText size={20} />,
   languages: <Languages size={20} />,
   mappin: <MapPin size={20} />,
+  book: <BookOpen size={20} />,
 };
 
 interface SidebarProps {
@@ -84,6 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'hr-generator',  label: 'Agencja — Generator',  icon: <FileText size={20} /> },
           { id: 'hr-tlumacz',    label: 'Agencja — Tłumacz',    icon: <Languages size={20} /> },
           { id: 'hr-mapa',       label: 'Agencja — Mapa Pracowników', icon: <MapPin size={20} /> },
+          { id: 'admin-ksiegowosc', label: 'Księgowość', icon: <BookOpen size={20} /> },
         ];
       case Role.HR:
         return [
