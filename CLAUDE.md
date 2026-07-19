@@ -222,18 +222,27 @@ Faktury VAT i noty księgowe są wystawiane w **Fakturowni** (źródło prawdy),
 
 ### Sidebar (`components/Sidebar.tsx`)
 
-Auto-themes based on role:
-- `EMPLOYEE` → black theme (`bg-black`, white text)
-- Other roles → white/light theme
+**Układ/struktura 1:1 z BBS-Unified (2026-07-19)**, branding EBS: jeden ciemny motyw dla WSZYSTKICH
+ról (gradient czerń→zieleń jak launcher; poprzednie per-rolowe białe/czarne motywy usunięte),
+nagłówek brandowy (logo `/ebs-black.svg` inverted + „Eliton Benefits" + `roleLabel`), wskaźnik
+aktywności `primary-300`, `sticky md:top-0 md:h-screen`, stopka „Wersja EBS 1.1.0".
 
-**SUPERADMIN menu items**:
-```
-admin-pulpit     Pulpit              LayoutDashboard
-admin-klienci    Baza klientów       Users
-admin-platnosci  Płatności i faktury CreditCard
-admin-archiwum   Archiwum            FolderOpen
-admin-vouchery   Vouchery            Ticket
-```
+Struktura przeniesiona z BBS:
+- **`MENU_ICONS`** — mapa `string→ikona` dla dynamicznego menu z `PERMISSION_MENU`.
+- **`STATIC_MENU_ROLES`** = `{SUPERADMIN, HR, HR_PANEL, EMPLOYEE, ADVISOR, MANAGER, DIRECTOR}` —
+  statyczne menu; **reszta (`koordynator`, `platnik`, role własne) buduje menu DYNAMICZNIE z uprawnień**
+  (`buildPermissionMenu(permKeys)` — `fetch('/api/me/permissions')`, dywidery per `section`).
+- **`roleLabel`** — z `role_label` (app_roles, role własne) albo statyczna per rola.
+- **`hiddenViews?`** (opcjonalny) — filtr „Widoku" per rola; `visibleMenu` = `menuItems` po filtrze (puste dywidery odpadają).
+
+**SUPERADMIN menu (kolejność jak BBS; treść EBS)**: `admin-pulpit`, `admin-ksiegowosc`,
+`admin-uprawnienia`, `admin-szablony`, `admin-logi` (Rejestr zdarzeń) · **── Benefity ──**
+`admin-klienci`, `admin-platnosci`, `admin-archiwum`, `admin-vouchery`, `admin-buyback` ·
+**── Agencja Pracy ──** `hr-pracownicy`, `hr-mapa`, `hr-flota`, `hr-generator`, `hr-tlumacz`.
+
+**Świadome różnice vs BBS** (CRM wykluczony — osobny CRM Stratton Prime): usunięta sekcja CRM
+i pozycje ownera (`owner-panel`/`admin-ustawienia` — EBS nie ma roli `owner`, prop `isOwner`
+usunięty); role sprzedażowe (DIRECTOR/MANAGER/ADVISOR) → Panel Sprzedaży + Moje Prowizje (bez CRM).
 
 ### CSS (`index.css`)
 

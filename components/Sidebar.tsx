@@ -1,18 +1,37 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Role, User } from '../types';
-import { LayoutDashboard, Users, FileText, Wallet, ShieldCheck, DollarSign, X, ChevronRight, LogOut, BarChart3, Settings2, FolderOpen, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, ScrollText, HardHat, Car, Languages, MapPin } from 'lucide-react';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
-import { ROLE_LABEL } from '../lib/roleMap';
+import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen } from 'lucide-react';
 
-const PERMISSION_MENU_ICONS: Record<string, React.ReactNode> = {
-  users: <Users size={20} />,
-  car: <Car size={20} />,
-  file: <FileText size={20} />,
-  languages: <Languages size={20} />,
-  mappin: <MapPin size={20} />,
-  book: <BookOpen size={20} />,
+// Ikony dla dynamicznego menu budowanego z uprawnień (PERMISSION_MENU w registry) — 1:1 z BBS
+const MENU_ICONS: Record<string, React.ReactNode> = {
+  dashboard: <LayoutDashboard size={20} />, usercog: <UserCog size={20} />, book: <BookOpen size={20} />,
+  users: <Users size={20} />, card: <CreditCard size={20} />, folder: <FolderOpen size={20} />,
+  ticket: <Ticket size={20} />, refresh: <RefreshCw size={20} />, kanban: <KanbanSquare size={20} />,
+  mail: <Mail size={20} />, calculator: <Calculator size={20} />, user: <UserRound size={20} />,
+  trophy: <Trophy size={20} />, network: <Network size={20} />,
+  file: <FileText size={20} />, history: <History size={20} />, calendar: <CalendarDays size={20} />,
+  languages: <Languages size={20} />, car: <Car size={20} />, mappin: <MapPin size={20} />,
 };
+
+// Role z własnym, statycznym menu — reszta (koordynator, płatnik, role własne) dostaje menu z uprawnień
+const STATIC_MENU_ROLES = new Set([Role.SUPERADMIN, Role.HR, Role.HR_PANEL, Role.EMPLOYEE, Role.ADVISOR, Role.MANAGER, Role.DIRECTOR]);
+
+function buildPermissionMenu(perms: string[]): any[] {
+  const set = new Set(perms);
+  const items: any[] = [];
+  let lastSection = '';
+  for (const m of PERMISSION_MENU) {
+    if (!m.anyOf.some(p => set.has(p))) continue;
+    if (m.section !== lastSection) {
+      items.push({ id: `div-${m.section}`, label: `── ${m.section} ──`, icon: null, divider: true, section: m.section });
+      lastSection = m.section;
+    }
+    items.push({ id: m.view, label: m.label, icon: MENU_ICONS[m.icon] ?? <Grid size={20} /> });
+  }
+  return items;
+}
 
 interface SidebarProps {
   currentUser: User;
@@ -24,69 +43,56 @@ interface SidebarProps {
   isDesktopOpen: boolean; // Desktop collapse state
   onSwitchUser: () => void; // NOW USED FOR LOGOUT
   isLogout?: boolean; // Prop to style the button as Logout
+  hiddenViews?: string[]; // moduły ukryte danej roli (admin_view_config — pozycje sidebara)
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ 
-  currentUser, 
-  currentView, 
-  onChangeView, 
-  isOpen, 
+export const Sidebar: React.FC<SidebarProps> = ({
+  currentUser,
+  currentView,
+  onChangeView,
+  isOpen,
   onClose,
   onToggleDesktop,
   isDesktopOpen,
   onSwitchUser,
-  isLogout = false
+  isLogout = false,
+  hiddenViews = [],
 }) => {
-  
-  const [agencyPermissions, setAgencyPermissions] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (currentUser.role !== Role.COORDINATOR && currentUser.role !== Role.PAYROLL) return;
-    let cancelled = false;
-    fetch('/api/me/permissions')
-      .then(res => (res.ok ? res.json() : { permissions: [] }))
-      .then(data => {
-        if (!cancelled) setAgencyPermissions(Array.isArray(data.permissions) ? data.permissions : []);
-      })
-      .catch(() => {
-        if (!cancelled) setAgencyPermissions([]);
-      });
-    return () => { cancelled = true; };
-  }, [currentUser.role]);
+  // Etykieta roli z definicji w app_roles (role własne, np. „Szef koordynatorów")
+  const [dbRoleLabel, setDbRoleLabel] = useState<string | null>(null);
 
   const roleLabel = useMemo(() => {
+    if (dbRoleLabel) return dbRoleLabel;
     switch(currentUser.role) {
-      case Role.SUPERADMIN: return 'Administrator';
-      case Role.HR: return 'Księgowość / HR';
-      case Role.EMPLOYEE: return 'Pracownik';
-      case Role.COORDINATOR: return ROLE_LABEL[Role.COORDINATOR];
-      case Role.PAYROLL: return ROLE_LABEL[Role.PAYROLL];
-      case Role.TEMP_WORKER: return ROLE_LABEL[Role.TEMP_WORKER];
-      case Role.HR_PANEL: return ROLE_LABEL[Role.HR_PANEL];
-      default: return 'Partner / Sprzedaż';
+      case Role.SUPERADMIN:  return 'Administrator';
+      case Role.HR:          return 'Księgowość / HR';
+      case Role.HR_PANEL:    return 'Panel HR';
+      case Role.EMPLOYEE:    return 'Pracownik';
+      case Role.COORDINATOR: return 'Koordynator';
+      case Role.PAYROLL:     return 'Płatnik';
+      case Role.TEMP_WORKER: return 'Pracownik Tymczasowy';
+      case Role.DIRECTOR:
+      case Role.MANAGER:
+      case Role.ADVISOR:     return 'Partner / Sprzedaż';
+      default:               return 'Panel';
     }
-  }, [currentUser.role]);
+  }, [currentUser.role, dbRoleLabel]);
+
+  // Dynamiczne menu z uprawnień (koordynator, płatnik + role własne z panelu Uprawnienia)
+  const [permKeys, setPermKeys] = useState<string[]>([]);
+  const needsDynamic = !STATIC_MENU_ROLES.has(currentUser.role as Role);
+  useEffect(() => {
+    if (!needsDynamic) return;
+    fetch('/api/me/permissions', { credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : { permissions: [] }))
+      .then(d => { setPermKeys(d.permissions || []); if (d.role_label) setDbRoleLabel(d.role_label); })
+      .catch(() => {});
+  }, [needsDynamic]);
 
   const menuItems = useMemo(() => {
     switch (currentUser.role) {
-      case Role.SUPERADMIN:
-        return [
-          { id: 'admin-pulpit',    label: 'Pulpit',              icon: <LayoutDashboard size={20} /> },
-          { id: 'admin-klienci',   label: 'Baza klientów',       icon: <Users size={20} /> },
-          { id: 'admin-platnosci', label: 'Płatności i faktury', icon: <CreditCard size={20} /> },
-          { id: 'admin-archiwum',  label: 'Archiwum',            icon: <FolderOpen size={20} /> },
-          { id: 'admin-vouchery',  label: 'Vouchery',                icon: <Ticket size={20} /> },
-          { id: 'admin-buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={20} /> },
-          { id: 'admin-szablony',  label: 'Szablony dokumentów', icon: <FileText size={20} /> },
-          { id: 'admin-logi',      label: 'Logi systemowe',      icon: <ScrollText size={20} /> },
-          { id: 'admin-uprawnienia', label: 'Uprawnienia', icon: <ShieldCheck size={20} /> },
-          { id: 'hr-pracownicy', label: 'Agencja — Pracownicy', icon: <HardHat size={20} /> },
-          { id: 'hr-flota',      label: 'Agencja — Flota',      icon: <Car size={20} /> },
-          { id: 'hr-generator',  label: 'Agencja — Generator',  icon: <FileText size={20} /> },
-          { id: 'hr-tlumacz',    label: 'Agencja — Tłumacz',    icon: <Languages size={20} /> },
-          { id: 'hr-mapa',       label: 'Agencja — Mapa Pracowników', icon: <MapPin size={20} /> },
-          { id: 'admin-ksiegowosc', label: 'Księgowość', icon: <BookOpen size={20} /> },
-        ];
+      case Role.HR_PANEL:
       case Role.HR:
         return [
           { id: 'hr-order',     label: 'Nowe zamówienie',       icon: <Plus size={20} /> },
@@ -94,6 +100,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'hr-employees', label: 'Kartoteka pracowników', icon: <Users size={20} /> },
           { id: 'hr-payments',  label: 'Płatności i faktury',   icon: <CreditCard size={20} /> },
         ];
+      case Role.SUPERADMIN: {
+        // Układ 1:1 z BBS; treść = widoki EBS (CRM wykluczony — osobny CRM Stratton Prime)
+        const superMenu: any[] = [
+          { id: 'admin-pulpit',      label: 'Pulpit',              icon: <LayoutDashboard size={20} /> },
+          { id: 'admin-ksiegowosc',  label: 'Księgowość',          icon: <BookOpen size={20} /> },
+          { id: 'admin-uprawnienia', label: 'Uprawnienia',         icon: <ShieldCheck size={20} /> },
+          { id: 'admin-szablony',    label: 'Szablony dokumentów', icon: <FileText size={20} /> },
+          { id: 'admin-logi',        label: 'Rejestr zdarzeń',     icon: <History size={20} /> },
+          { id: 'benefity-divider',  label: '── Benefity ──', icon: null, divider: true, section: 'Benefity' },
+          { id: 'admin-klienci',   label: 'Baza klientów',       icon: <Users size={20} /> },
+          { id: 'admin-platnosci', label: 'Płatności i faktury', icon: <CreditCard size={20} /> },
+          { id: 'admin-archiwum',  label: 'Archiwum',            icon: <FolderOpen size={20} /> },
+          { id: 'admin-vouchery',  label: 'Vouchery',                icon: <Ticket size={20} /> },
+          { id: 'admin-buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={20} /> },
+          { id: 'hr-divider',     label: '── Agencja Pracy ──', icon: null, divider: true, section: 'Agencja Pracy' },
+          { id: 'hr-pracownicy',  label: 'Pracownicy',      icon: <Users size={20} /> },
+          { id: 'hr-mapa',        label: 'Mapa Pracowników', icon: <MapPin size={20} /> },
+          { id: 'hr-flota',       label: 'Flota',           icon: <Car size={20} /> },
+          { id: 'hr-generator',   label: 'Generator dokumentów', icon: <FileText size={20} /> },
+          { id: 'hr-tlumacz',     label: 'Tłumacz',              icon: <Languages size={20} /> },
+        ];
+        // filtr „Widoku" (hiddenViews) stosowany jednolicie niżej dla wszystkich ról
+        return superMenu;
+      }
       case Role.EMPLOYEE:
         return [
           { id: 'emp-twoje-aplikacje', label: 'Twoje Aplikacje', icon: <Smartphone size={20} /> },
@@ -110,77 +140,114 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case Role.DIRECTOR:
       case Role.MANAGER:
       case Role.ADVISOR:
+        // Bez sekcji CRM (wykluczony w EBS) — panel sprzedaży + prowizje
         return [
-          { id: 'sales-dashboard', label: 'Panel Sprzedaży', icon: <DollarSign size={20} /> },
-          { id: 'sales-commissions', label: 'Moje Prowizje', icon: <FileText size={20} /> },
+          { id: 'sales-dashboard',   label: 'Panel Sprzedaży', icon: <DollarSign size={20} /> },
+          { id: 'sales-commissions', label: 'Moje Prowizje',   icon: <FileText size={20} /> },
         ];
-      case Role.COORDINATOR:
-      case Role.PAYROLL:
-        return PERMISSION_MENU
-          .filter(m => m.anyOf.some(p => agencyPermissions.includes(p)))
-          .map(m => ({ id: m.view, label: m.label, icon: PERMISSION_MENU_ICONS[m.icon] ?? <Grid size={20} /> }));
       default:
-        return [];
+        // koordynator, płatnik + role własne — menu budowane z uprawnień (panel Uprawnienia)
+        return buildPermissionMenu(permKeys);
     }
-  }, [currentUser.role, agencyPermissions]);
+  }, [currentUser.role, permKeys, hiddenViews]);
+
+  // „Widok" roli: ukrywanie modułów per rola (admin_view_config). Puste dywidery odpadają.
+  const visibleMenu = useMemo(() => {
+    if (!hiddenViews.length) return menuItems;
+    const kept = menuItems.filter((it: any) => it.divider || !hiddenViews.includes(it.id));
+    return kept.filter((it: any, i: number) => !it.divider || kept.slice(i + 1).some((n: any) => !n.divider));
+  }, [menuItems, hiddenViews]);
 
   return (
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 z-40 md:hidden backdrop-blur-sm"
+        <div
+          className="fixed inset-0 bg-black/70 z-40 md:hidden backdrop-blur-sm"
           onClick={onClose}
         />
       )}
 
-      {/* Sidebar Container */}
-      <aside className={`
-        fixed inset-y-0 left-0 z-50 text-white shadow-2xl transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 overflow-hidden
-        ${currentUser.role === Role.EMPLOYEE ? 'bg-black' : 'bg-white border-r border-slate-200'}
-        ${isOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72'} 
-        md:translate-x-0 md:sticky md:top-0 md:h-screen md:shadow-none
-        ${isDesktopOpen ? 'md:w-72' : 'md:w-16'}
-      `}>
-        {/* Navigation */}
-        <nav className={`flex-1 py-6 space-y-1 overflow-y-auto no-scrollbar overflow-x-hidden ${currentUser.role === Role.EMPLOYEE ? 'bg-black' : 'bg-white'}`}
-          style={{ padding: isDesktopOpen ? undefined : '24px 0' }}
-        >
+      {/* Sidebar Container — układ/styl 1:1 z BBS, brand EBS (czerń + zieleń jak launcher) */}
+      <aside
+        className={`
+        fixed inset-y-0 left-0 z-50 text-white transition-all duration-300 ease-in-out flex flex-col flex-shrink-0 overflow-hidden
+        border-r border-white/5
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0 md:sticky md:top-0 md:h-screen
+        ${isDesktopOpen ? 'w-72' : 'w-16 md:w-16'}
+      `}
+        style={{
+          background:
+            'radial-gradient(700px 320px at 10% -5%, rgba(48,223,106,.13), transparent 60%),' +
+            'linear-gradient(185deg, #050807 0%, #0a1410 55%, #0d1f16 100%)',
+        }}
+      >
+        {/* Brand */}
+        <div className={`flex items-center gap-3 border-b border-white/8 ${isDesktopOpen ? 'px-5 h-16' : 'justify-center h-16 px-0'}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/ebs-black.svg" alt="" className="h-8 w-auto flex-shrink-0" style={{ filter: 'brightness(0) invert(1)' }} />
           {isDesktopOpen && (
-            <p className={`px-4 text-xs font-semibold uppercase tracking-wider mb-2 whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-500' : 'text-slate-400'}`}>Menu Systemowe</p>
+            <div className="min-w-0">
+              <p className="text-[15px] font-bold leading-tight text-white truncate">Eliton Benefits</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-300">{roleLabel}</p>
+            </div>
           )}
-          {menuItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                onChangeView(item.id);
-                onClose(); 
-              }}
-              title={!isDesktopOpen ? item.label : undefined}
-              className={`w-full flex items-center py-3 text-sm font-medium rounded-xl transition-all duration-200 group ${
-                isDesktopOpen ? 'gap-3 px-4' : 'justify-center px-0'
-              } ${
-                currentUser.role === Role.EMPLOYEE
-                  ? currentView === item.id ? 'text-white bg-slate-800 shadow-sm' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white'
-                  : currentView === item.id ? 'text-slate-900 bg-slate-100 shadow-sm' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <span className={`flex-shrink-0 ${
-                currentUser.role === Role.EMPLOYEE
-                  ? currentView === item.id ? 'text-emerald-400' : 'text-slate-500 group-hover:text-white'
-                  : currentView === item.id ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-900'
-              }`}>
-                {item.icon}
-              </span>
-              {isDesktopOpen && <span className="whitespace-nowrap">{item.label}</span>}
-              {isDesktopOpen && currentView === item.id && <ChevronRight size={16} className="ml-auto opacity-50" />}
-            </button>
-          ))}
+        </div>
+
+        {/* Navigation */}
+        <nav
+          className={`flex-1 overflow-y-auto no-scrollbar overflow-x-hidden ${isDesktopOpen ? 'px-3 py-3 space-y-0.5' : 'px-2 py-3 space-y-0.5'}`}
+        >
+          {isDesktopOpen && !(visibleMenu[0] as { divider?: boolean } | undefined)?.divider && (
+            <p className="px-3 mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white/35 whitespace-nowrap">Menu systemowe</p>
+          )}
+          {visibleMenu.map((item) => {
+            // Divider rendering
+            if ((item as { divider?: boolean }).divider) {
+              const sectionLabel = (item as { section?: string }).section ?? '';
+              return isDesktopOpen ? (
+                <div key={item.id} className="px-3 pt-3 pb-0.5">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">{sectionLabel}</p>
+                </div>
+              ) : (
+                <div key={item.id} className="my-2 mx-2 h-px bg-white/10" />
+              );
+            }
+            const active = currentView === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  onChangeView(item.id);
+                  onClose();
+                }}
+                title={!isDesktopOpen ? item.label : undefined}
+                className={`relative w-full flex items-center py-2 text-sm font-medium rounded-xl transition-all duration-200 group ${
+                  isDesktopOpen ? 'gap-3 px-3' : 'justify-center px-0'
+                } ${
+                  active
+                    ? 'bg-white/[0.10] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.06)]'
+                    : 'text-white/55 hover:bg-white/[0.05] hover:text-white'
+                }`}
+              >
+                {/* lewy wskaźnik aktywności (zieleń EBS) */}
+                {active && isDesktopOpen && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-primary-300" />
+                )}
+                <span className={`flex-shrink-0 transition-colors ${active ? 'text-primary-300' : 'text-white/45 group-hover:text-primary-300'}`}>
+                  {item.icon}
+                </span>
+                {isDesktopOpen && <span className="whitespace-nowrap">{item.label}</span>}
+                {isDesktopOpen && active && <ChevronRight size={15} className="ml-auto text-white/40" />}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Bottom / Collapse */}
-        <div className={`border-t ${currentUser.role === Role.EMPLOYEE ? 'bg-black border-white/10' : 'bg-white border-slate-200'} ${isDesktopOpen ? 'p-4' : 'p-2'}`}>
-          <button 
+        <div className={`border-t border-white/8 ${isDesktopOpen ? 'p-3' : 'p-2'}`}>
+          <button
             onClick={() => {
               if (window.innerWidth >= 768) {
                 if (onToggleDesktop) onToggleDesktop();
@@ -188,26 +255,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClose();
               }
             }}
-            className={`w-full flex items-center justify-center p-3 rounded-xl transition-colors group ${currentUser.role === Role.EMPLOYEE ? 'bg-slate-800/50 hover:bg-slate-700/60' : 'bg-slate-100 hover:bg-slate-200'}`}
+            className="w-full flex items-center justify-center p-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.09] transition-colors group"
           >
             {isDesktopOpen ? (
               <div className="flex items-center gap-3 w-full">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-lg flex-shrink-0 transition-colors ${currentUser.role === Role.EMPLOYEE ? 'bg-slate-700 text-slate-300 group-hover:text-white' : 'bg-slate-200 text-slate-500 group-hover:text-slate-900'}`}>
-                  <ChevronLeft size={20}/>
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-white/10 text-white/70 group-hover:text-white transition-colors">
+                  <ChevronLeft size={18}/>
                 </div>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className={`text-sm font-medium transition-colors whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-300 group-hover:text-white' : 'text-slate-600 group-hover:text-slate-900'}`}>Schowaj pasek</p>
-                  <p className={`text-xs whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-500' : 'text-slate-400'}`}>Zwiń menu boczne</p>
+                  <p className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors whitespace-nowrap">Schowaj pasek</p>
+                  <p className="text-[11px] text-white/40 whitespace-nowrap">Zwiń menu boczne</p>
                 </div>
               </div>
             ) : (
-              <ChevronRight size={20} className={`transition-colors ${currentUser.role === Role.EMPLOYEE ? 'text-slate-400 group-hover:text-white' : 'text-slate-400 group-hover:text-slate-900'}`} />
+              <ChevronRight size={18} className="text-white/50 group-hover:text-white transition-colors" />
             )}
           </button>
           {isDesktopOpen && (
-            <div className="mt-3 text-center">
-            <p className={`text-[10px] whitespace-nowrap ${currentUser.role === Role.EMPLOYEE ? 'text-slate-600' : 'text-slate-400'}`}>Wersja EBS 1.0.9 (Accounting UI)</p>
-            </div>
+            <p className="mt-3 text-center text-[10px] text-white/30 whitespace-nowrap">Wersja EBS 1.1.0</p>
           )}
         </div>
       </aside>
