@@ -7,6 +7,7 @@ import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { can, canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
+import { hrLinkedCompanyId } from '@/lib/accounting/access';
 import { COST_KINDS } from '@/lib/hr/vehicles';
 
 export const runtime = 'nodejs';
@@ -40,9 +41,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   // konto wewnętrzne (testy) nie ma UUID — kolumny uuid dostają wtedy null
   const uid = /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(String(auth.id)) ? auth.id : null;
 
-  // KSIĘGOWANIE (reguła zliczania): koszt pojazdu = koszt firmy w bilansie Baltic
-  // auto-księgowanie: E4
-  const accCompanyId = null;
+  // KSIĘGOWANIE (reguła zliczania): koszt pojazdu = koszt firmy w bilansie
+  const accCompanyId = await hrLinkedCompanyId();
   let accEntryId: string | null = null;
   if (accCompanyId) {
     try {
@@ -78,8 +78,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const sb = admin() as any;
   const { data: cost } = await sb.from('hr_vehicle_costs').select('*').eq('id', costId).eq('vehicle_id', id).single();
   if (!cost) return NextResponse.json({ error: 'Brak kosztu' }, { status: 404 });
-  // auto-księgowanie: E4
-  const accCompanyId = null;
+  const accCompanyId = await hrLinkedCompanyId();
   if (accCompanyId && cost.acc_entry_id) await sb.from('acc_entries').delete().eq('id', cost.acc_entry_id); // spójność z bilansem
   const { error } = await sb.from('hr_vehicle_costs').delete().eq('id', costId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

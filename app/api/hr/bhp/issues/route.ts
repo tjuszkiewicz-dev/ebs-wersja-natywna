@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { can } from '@/lib/permissions/server';
 import { admin } from '@/lib/supabaseAdmin';
+import { hrLinkedCompanyId } from '@/lib/accounting/access';
 import { fullName } from '@/lib/hr/docPlaceholders';
 import { isUuid } from '@/lib/uuid';
 
@@ -43,8 +44,7 @@ export async function POST(request: NextRequest) {
   const who = emp ? fullName(emp) : 'pracownik';
 
   // KSIĘGOWANIE: wydanie BHP = koszt firmy w bilansie (tylko gdy wartość > 0)
-  // auto-księgowanie: E4
-  const accCompanyId = null;
+  const accCompanyId = await hrLinkedCompanyId();
   let accEntryId: string | null = null;
   if (accCompanyId && total > 0) {
     try {
@@ -92,8 +92,7 @@ export async function DELETE(request: NextRequest) {
   if (!isUuid(id)) return NextResponse.json({ error: 'Brak id' }, { status: 400 });
   const sb = admin() as any;
   const { data: issue } = await sb.from('hr_bhp_issues').select('acc_entry_id, amount:unit_cost').eq('id', id).single();
-  // auto-księgowanie: E4
-  const accCompanyId = null;
+  const accCompanyId = await hrLinkedCompanyId();
   if (accCompanyId && issue?.acc_entry_id) await sb.from('acc_entries').delete().eq('id', issue.acc_entry_id); // spójność bilansu
   const { error } = await sb.from('hr_bhp_issues').delete().eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
