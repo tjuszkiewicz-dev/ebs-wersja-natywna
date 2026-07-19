@@ -5,8 +5,10 @@ import { BookOpen, Plus, Loader2, Trash2, FileText, TrendingUp, TrendingDown, Sc
 import { Hint } from '@/components/ui/Hint';
 import { KsiegFirmy, type Company } from './ksiegowosc/KsiegFirmy';
 import { KsiegKontrahenci } from './ksiegowosc/KsiegKontrahenci';
+import { KsiegKpir, KsiegVat } from './ksiegowosc/KsiegKpirVat';
+import { KsiegMagazyn, KsiegSrodkiTrwale } from './ksiegowosc/KsiegMagazynST';
+import { KsiegSprawozdania } from './ksiegowosc/KsiegSprawozdania';
 // faktury sprzedazowe: Fakturownia (E4 bez wlasnego wystawiania/KSeF) — KsiegFaktury swiadomie NIE portowana (WYKLUCZENIA)
-// KsiegKpirVat / KsiegMagazynST / KsiegSprawozdania jeszcze nie istnieją w EBS — placeholder do T8
 
 interface Entry {
   id: string; entry_date: string; kind: 'cost' | 'income' | 'deposit'; category?: string | null;
@@ -45,11 +47,6 @@ const emptyForm = { kind: 'cost', category: 'inne', amount: '', entry_date: '', 
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return <div><p className={LABEL + ' flex items-center gap-1'}>{label}{hint && <Hint text={hint} />}</p><div className="mt-1">{children}</div></div>;
-}
-
-// T8 podmienia: kpir/vat/magazyn/srodki/sprawozdania placeholder do czasu portu tych modułów
-function WkrotcePlaceholder() {
-  return <div className="p-6 text-slate-400">Wkrótce (E4)</div>;
 }
 
 type KsiegTab = 'bilans' | 'kontrahenci' | 'kpir' | 'vat' | 'magazyn' | 'srodki' | 'sprawozdania' | 'firmy';
@@ -199,11 +196,11 @@ export const AdminKsiegowosc: React.FC = () => {
       </div>
 
       {tab === 'kontrahenci' && (companyId ? <KsiegKontrahenci companyId={companyId} /> : <p className="py-8 text-center text-sm italic text-slate-300">Wybierz firmę</p>)}
-      {tab === 'kpir' && <WkrotcePlaceholder />}
-      {tab === 'vat' && <WkrotcePlaceholder />}
-      {tab === 'magazyn' && <WkrotcePlaceholder />}
-      {tab === 'srodki' && <WkrotcePlaceholder />}
-      {tab === 'sprawozdania' && <WkrotcePlaceholder />}
+      {tab === 'kpir' && (companyId ? <KsiegKpir companyId={companyId} /> : <p className="py-8 text-center text-sm italic text-slate-300">Wybierz firmę</p>)}
+      {tab === 'vat' && (companyId ? <KsiegVat companyId={companyId} /> : <p className="py-8 text-center text-sm italic text-slate-300">Wybierz firmę</p>)}
+      {tab === 'magazyn' && (companyId ? <KsiegMagazyn companyId={companyId} /> : <p className="py-8 text-center text-sm italic text-slate-300">Wybierz firmę</p>)}
+      {tab === 'srodki' && (companyId ? <KsiegSrodkiTrwale companyId={companyId} /> : <p className="py-8 text-center text-sm italic text-slate-300">Wybierz firmę</p>)}
+      {tab === 'sprawozdania' && (companyId ? <KsiegSprawozdania companyId={companyId} /> : <p className="py-8 text-center text-sm italic text-slate-300">Wybierz firmę</p>)}
       {tab === 'firmy' && <KsiegFirmy onChanged={loadCompanies} />}
 
       {/* Formularz wpisu */}
