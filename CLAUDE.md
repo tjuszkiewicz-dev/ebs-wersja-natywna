@@ -133,6 +133,23 @@ najmów/floty **doklejony do crona `expire-vouchers`** (sekcja w izolowanym `try
 **Odłożone: czat pracownik↔koordynator (`me/worker/chat` + panel „Komunikator" ukryty za
 `{false &&}`) → E3; auto-księgowanie kosztów → E4.**
 
+**E4 (2026-07-19) — MIGRACJA BBS→EBS KOMPLETNA:** moduł księgowości. Widok `admin-ksiegowosc`
+→ `components/adminNew/AdminKsiegowosc` (sub-taby: bilans/firmy/kontrahenci/KPiR/VAT/magazyn/
+środki trwałe/sprawozdania; gate `ksiegowosc.faktury`/`ksiegowosc.bilans`). Tabele `acc_*`
+(8 szt., migracja 050 z introspekcji żywej bazy BBS): companies, company_members, contractors,
+entries (księga), fixed_assets, invoices(+items), products; bucket `invoices` (private).
+`lib/accounting/{access,assets}`. API `app/api/accounting/*` (service-role za `companyAccess`/
+`can(ksiegowosc.*)`). **Auto-księgowanie kosztów BHP/pojazdów WŁĄCZONE** — `hrLinkedCompanyId()`
+(1 firma `acc_companies.hr_linked=true`) odblokowuje zapis kosztów do `acc_entries` w
+`hr/bhp/issues` + `hr/vehicles/[id]/costs` (E2b guardy aktywne; delete round-trip przez
+`acc_entry_id`). `entries/analyze` (odczyt AI faktury) = AI-guard jak E2d.
+**ŚWIADOME WYKLUCZENIA (decyzja 2026-07-19): BEZ własnego klienta KSeF i BEZ wystawiania faktur
+sprzedażowych — Fakturownia zostaje jedynym fakturującym/KSeF.** `lib/ksef/*`, `accounting/ksef/*`,
+`accounting/invoices/*`, `KsiegFaktury` NIE portowane; kolumny `ksef_*`/`acc_invoices` zostają
+puste. **KPiR/VAT jadą KOSZTOWO** (przychody sprzedażowe w Fakturowni; ewentualny sync
+Fakturownia→`acc_invoices` = przyszły krok, NIE duplikat wystawiania). Follow-up: picker „dodaj
+członka firmy" w `KsiegFirmy` woła `/api/users` (403 dla dyrektora — do domknięcia z E3/katalogiem).
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
