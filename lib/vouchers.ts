@@ -8,6 +8,7 @@
 
 import { supabaseServer } from './supabase';
 import { COMMISSION_RATES } from '../utils/config';
+import { notifyCrmCommission } from './crmWebhook';
 import { ROLE_TO_DB } from './roleMap';
 import { Role } from '../types';
 import type {
@@ -291,5 +292,25 @@ export async function calculateAndSaveCommissions(
 
   const { error } = await db.from('commissions').insert(commissionsToInsert);
   if (error) return { data: null, error: { message: error.message } };
+
+  // Kierunek B (EBS → CRM): powiadom CRM o naliczonej prowizji. CRM sam rozbije
+  // ją po swojej strukturze i pokaże w Rozliczeniach. Gated na env, nieblokujące
+  // (błąd nie wywraca płatności). Wysyłamy doradcę (advisor) jako źródłowego
+  // przedstawiciela — matchowanego po EMAILU.
+  try {
+    let advisorEmail: string | null = null;
+    if (company.advisor_id) {
+      const { data: adv } = await db.auth.admin.getUserById(company.advisor_id);
+      advisorEmail = adv?.user?.email ?? null;
+    }
+    await notifyCrmCommission({
+      ebsInvoiceId: orderId,
+      feeAmount: orderAmountPln,
+      handlowiecEmail: advisorEmail,
+    });
+  } catch (e) {
+    console.warn('[commissions] notifyCrmCommission failed', (e as Error).message);
+  }
+
   return { data: undefined, error: null };
 }
