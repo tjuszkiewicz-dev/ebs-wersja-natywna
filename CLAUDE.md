@@ -262,7 +262,7 @@ Produkcyjna baza: `ramedybmybcpqvelsmxd.supabase.co` — zawiera 12 auth users, 
 | `natalia.kvk@stratton-prime.pl` | `superadmin` | Natalia Kvk | — | — |
 | `j.jablonski@stratton-prime.pl` | `superadmin` | J. Jabłoński | — | — |
 | `m.hagno@stratton-prime.pl` | `pracodawca` | Maciej Hagno | `f03ed36e` (Stratton Prime) | — |
-| `t.juszkiewicz@gmail.com` | `pracodawca` | Tomasz Juszkiewicz | `f03ed36e` (Stratton Prime) | `uz7u2hq9rdpMBJLO37JHLM!` |
+| `t.juszkiewicz@gmail.com` | `owner` | Tomasz Juszkiewicz | `f03ed36e` (Stratton Prime) | `uz7u2hq9rdpMBJLO37JHLM!` |
 | `biuro@aneza.pl` | `pracodawca` | Agnieszka Cięciara | `8dbe726e` (Aneza) | — |
 | `pasek.agnieszka@wp.pl` | `pracownik` | AGNIESZKA PASEK | `8dbe726e` (Aneza) | `u7fjcez88jbGJHVNE6DB64!` |
 | `j.drobnikowska.bazyluk@gmail.com` | `pracownik` | JOANNA DROBNIKOWSKA-BAZYLUK | `8dbe726e` (Aneza) | `pqp51yllud3INZ0MXVDNM!` |
