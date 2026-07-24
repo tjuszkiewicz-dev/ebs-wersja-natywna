@@ -22,8 +22,17 @@ function AdminLayout() {
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [isSearchOpen,         setSearchOpen]         = useState(false);
   const [isHistoryModalOpen,   setHistoryModalOpen]   = useState(false);
+  const [isOwner,              setIsOwner]            = useState(false);
+
+  useEffect(() => {
+    fetch('/api/me/permissions', { credentials: 'same-origin' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setIsOwner(!!d.is_owner); })
+      .catch(() => {});
+  }, []);
 
   // 'admin-uprawnienia' to osobna strona shell (/admin/uprawnienia), nie tab admina
+  // 'owner-panel' i 'admin-ustawienia' są zakładkami DashboardAdminNew (nie osobnymi stronami)
   const handleViewChange = (view: string) => {
     if (view === 'admin-uprawnienia') { window.location.href = '/admin/uprawnienia'; return; }
     setCurrentView(view);
@@ -74,6 +83,7 @@ function AdminLayout() {
         isDesktopOpen={isDesktopSidebarOpen}
         onSwitchUser={handleLogout}
         isLogout={true}
+        isOwner={isOwner}
       />
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10 transition-all duration-300">
@@ -146,6 +156,7 @@ function AdminLayout() {
           <DashboardAdminNew
             currentView={currentView}
             onViewChange={handleViewChange}
+            isOwner={isOwner}
           />
         </main>
       </div>

@@ -18,8 +18,11 @@ import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, Refre
 
 // Leaflet (HrMapa) jest browser-only — dynamic import ssr:false, żeby nie wysadzić `next build`.
 const HrMapa = dynamic(() => import('../components/agencja/HrMapa').then(m => m.HrMapa), { ssr: false });
+// Ekrany wyłączne dla ownera — lazy, żeby nie ładować ich zwykłym adminom.
+const OwnerPanel = dynamic(() => import('../components/adminNew/OwnerPanel').then(m => m.OwnerPanel), { ssr: false });
+const AdminUstawienia = dynamic(() => import('../components/adminNew/AdminUstawienia').then(m => m.AdminUstawienia), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'owner-panel' | 'ustawienia';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -37,6 +40,8 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'hr-tlumacz':      'hr-tlumacz',
   'hr-mapa':         'hr-mapa',
   'admin-ksiegowosc': 'admin-ksiegowosc',
+  'owner-panel':      'owner-panel',
+  'admin-ustawienia': 'ustawienia',
 };
 
 const TAB_TO_VIEW: Record<AdminTab, string> = {
@@ -55,14 +60,17 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'hr-tlumacz':    'hr-tlumacz',
   'hr-mapa':       'hr-mapa',
   'admin-ksiegowosc': 'admin-ksiegowosc',
+  'owner-panel':      'owner-panel',
+  ustawienia:         'admin-ustawienia',
 };
 
 interface Props {
   currentView: string;
   onViewChange?: (view: string) => void;
+  isOwner?: boolean;
 }
 
-export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }) => {
+export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, isOwner = false }) => {
   const [tab, setTab] = useState<AdminTab>(() => VIEW_TO_TAB[currentView] ?? 'pulpit');
 
   useEffect(() => {
@@ -139,6 +147,8 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange }
         {tab === 'hr-tlumacz' && <HrTlumacz />}
         {tab === 'hr-mapa' && <HrMapa />}
         {tab === 'admin-ksiegowosc' && <AdminKsiegowosc />}
+        {tab === 'owner-panel' && isOwner && <OwnerPanel onGoToPermissions={() => onViewChange?.('admin-ustawienia')} />}
+        {tab === 'ustawienia' && isOwner && <AdminUstawienia />}
       </div>
     </div>
   );

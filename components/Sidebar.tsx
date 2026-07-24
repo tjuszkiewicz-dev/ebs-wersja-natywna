@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Role, User } from '../types';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
-import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2 } from 'lucide-react';
 
 // Ikony dla dynamicznego menu budowanego z uprawnień (PERMISSION_MENU w registry) — 1:1 z BBS
 const MENU_ICONS: Record<string, React.ReactNode> = {
@@ -44,6 +44,7 @@ interface SidebarProps {
   onSwitchUser: () => void; // NOW USED FOR LOGOUT
   isLogout?: boolean; // Prop to style the button as Logout
   hiddenViews?: string[]; // moduły ukryte danej roli (admin_view_config — pozycje sidebara)
+  isOwner?: boolean; // właściciel — dodatkowe ekrany wyłączne (owner-panel, admin-ustawienia)
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -57,12 +58,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSwitchUser,
   isLogout = false,
   hiddenViews = [],
+  isOwner = false,
 }) => {
 
   // Etykieta roli z definicji w app_roles (role własne, np. „Szef koordynatorów")
   const [dbRoleLabel, setDbRoleLabel] = useState<string | null>(null);
 
   const roleLabel = useMemo(() => {
+    if (isOwner) return 'Super Admin';
     if (dbRoleLabel) return dbRoleLabel;
     switch(currentUser.role) {
       case Role.SUPERADMIN:  return 'Administrator';
@@ -77,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case Role.ADVISOR:     return 'Partner / Sprzedaż';
       default:               return 'Panel';
     }
-  }, [currentUser.role, dbRoleLabel]);
+  }, [currentUser.role, dbRoleLabel, isOwner]);
 
   // Dynamiczne menu z uprawnień (koordynator, płatnik + role własne z panelu Uprawnienia)
   const [permKeys, setPermKeys] = useState<string[]>([]);
@@ -103,11 +106,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case Role.SUPERADMIN: {
         // Układ 1:1 z BBS; treść = widoki EBS (CRM wykluczony — osobny CRM Stratton Prime)
         const superMenu: any[] = [
+          ...(isOwner ? [{ id: 'owner-panel', label: 'Super Admin — widoki', icon: <ShieldCheck size={20} /> }] : []),
           { id: 'admin-pulpit',      label: 'Pulpit',              icon: <LayoutDashboard size={20} /> },
           { id: 'admin-ksiegowosc',  label: 'Księgowość',          icon: <BookOpen size={20} /> },
           { id: 'admin-uprawnienia', label: 'Uprawnienia',         icon: <ShieldCheck size={20} /> },
           { id: 'admin-szablony',    label: 'Szablony dokumentów', icon: <FileText size={20} /> },
           { id: 'admin-logi',        label: 'Rejestr zdarzeń',     icon: <History size={20} /> },
+          ...(isOwner ? [{ id: 'admin-ustawienia', label: 'Ustawienia', icon: <Settings2 size={20} /> }] : []),
           { id: 'benefity-divider',  label: '── Benefity ──', icon: null, divider: true, section: 'Benefity' },
           { id: 'admin-klienci',   label: 'Baza klientów',       icon: <Users size={20} /> },
           { id: 'admin-platnosci', label: 'Płatności i faktury', icon: <CreditCard size={20} /> },
