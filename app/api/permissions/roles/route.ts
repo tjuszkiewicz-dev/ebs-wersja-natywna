@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   // auto-uzupełnienie nowych zakładek agencji dla ról customized (idempotentne)
   await syncAgencyPermsForCustomizedRoles().catch(() => {});
   const sb = supabaseServer() as any;
@@ -43,7 +43,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const b = await request.json().catch(() => ({}));
   const label = String(b.label || '').trim();
   if (label.length < 2) return NextResponse.json({ error: 'Podaj nazwę roli (min. 2 znaki)' }, { status: 400 });

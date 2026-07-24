@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export async function POST() {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const synced = await syncAgencyPermsForCustomizedRoles();
   return NextResponse.json({ ok: true, synced });
 }

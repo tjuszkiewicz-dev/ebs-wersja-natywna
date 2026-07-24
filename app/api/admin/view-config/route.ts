@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const sb = supabaseServer() as any;
 
   if (new URL(request.url).searchParams.get('manage') === '1') {
-    if (auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin' }, { status: 403 });
+    if (!auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza widokiem ról' }, { status: 403 });
     const [{ data: cfg }, { data: roles }] = await Promise.all([
       sb.from('admin_view_config').select('role, view_id, hidden'),
       sb.from('app_roles').select('role, label').order('is_system', { ascending: false }).order('label'),
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza widokiem ról' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza widokiem ról' }, { status: 403 });
   const b = await request.json().catch(() => ({}));
   const role = String(b.role || '').trim();
   if (!role || role === 'superadmin') return NextResponse.json({ error: 'Wskaż rolę (superadmin nieedytowalny)' }, { status: 400 });

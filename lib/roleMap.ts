@@ -17,7 +17,8 @@ export type DbRole =
   | 'koordynator'
   | 'szef_koordynatorow'
   | 'platnik'
-  | 'pracownik_tymczasowy';
+  | 'pracownik_tymczasowy'
+  | 'owner';
 
 /** TypeScript Role → wartość w kolumnie user_profiles.role */
 export const ROLE_TO_DB: Record<Role, DbRole> = {
@@ -46,6 +47,7 @@ export const DB_TO_ROLE: Record<DbRole, Role> = {
   szef_koordynatorow:   Role.COORDINATOR, // rola własna — zachowuje się jak koordynator
   platnik:              Role.PAYROLL,
   pracownik_tymczasowy: Role.TEMP_WORKER,
+  owner:                Role.SUPERADMIN,
 };
 
 /** Polska nazwa wyświetlana w UI */

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ role: string }> }) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko Super Admin (Właściciel) zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const { role } = await params;
   if (role === 'superadmin' || role === 'owner') return NextResponse.json({ error: 'Administrator i Super Admin mają zawsze pełne uprawnienia — nie podlegają edycji (widok admina ustaw w panelu „Widok Admina")' }, { status: 400 });
 
@@ -33,7 +33,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ role: string }> }) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko Super Admin (Właściciel) zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const { role } = await params;
   const sb = admin();
   const { data: roleRow } = await (sb as any).from('app_roles').select('is_system').eq('role', role).maybeSingle();

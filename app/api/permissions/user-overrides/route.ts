@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const sb = supabaseServer() as any;
   const [ov, profiles] = await Promise.all([
     sb.from('user_permissions').select('*').order('created_at', { ascending: false }),
@@ -29,7 +29,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const b = await request.json().catch(() => ({}));
   if (!b.user_id || !ALL_PERMISSIONS.includes(b.permission)) return NextResponse.json({ error: 'Brak użytkownika lub nieprawidłowe uprawnienie' }, { status: 400 });
   const effect = b.effect === 'revoke' ? 'revoke' : 'grant';
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   const auth = await getAuthUserWithRole();
-  if (!auth || auth.role !== 'superadmin') return NextResponse.json({ error: 'Tylko superadmin zarządza uprawnieniami' }, { status: 403 });
+  if (!auth || !auth.isOwner) return NextResponse.json({ error: 'Tylko właściciel (owner) zarządza uprawnieniami' }, { status: 403 });
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
   const permission = searchParams.get('permission');
