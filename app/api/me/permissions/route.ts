@@ -12,11 +12,13 @@ export async function GET() {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const [perms, roleRow] = await Promise.all([
     getEffectivePermissions(auth.id, auth.role),
-    (supabaseServer() as any).from('app_roles').select('label').eq('role', auth.role).maybeSingle(),
+    (supabaseServer() as any).from('app_roles').select('label').eq('role', auth.dbRole ?? auth.role).maybeSingle(),
   ]);
   return NextResponse.json({
     role: auth.role,
     role_label: roleRow.data?.label ?? null,
+    is_owner: !!auth.isOwner,
+    db_role: auth.dbRole ?? auth.role,
     permissions: [...perms],
   });
 }

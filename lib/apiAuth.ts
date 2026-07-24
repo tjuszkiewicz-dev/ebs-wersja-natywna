@@ -10,7 +10,9 @@ import type { Database } from '../types/database';
 export interface AuthUserWithRole {
   id: string;
   email: string;
-  role: string;       // DB role: superadmin, pracodawca, pracownik, ...
+  role: string;       // rola znormalizowana (owner → 'superadmin', dziedziczy bramki)
+  dbRole?: string;     // rzeczywista rola z user_profiles (np. 'owner')
+  isOwner?: boolean;
   companyId?: string;
 }
 
@@ -32,10 +34,15 @@ export async function getAuthUserWithRole(): Promise<AuthUserWithRole | null> {
     .eq('id', user.id)
     .single();
 
+  const dbRole = data?.role ?? 'pracownik';
+  const isOwner = dbRole === 'owner';
+
   return {
     id:        user.id,
     email:     user.email ?? '',
-    role:      data?.role ?? 'pracownik',
+    role:      isOwner ? 'superadmin' : dbRole,
+    dbRole,
+    isOwner,
     companyId: data?.company_id ?? undefined,
   };
 }
