@@ -91,6 +91,11 @@ export const AdminUsers: React.FC = () => {
   const [purgeConfirmInput, setPurgeConfirmInput] = useState('');
   const [purgeSubmitting, setPurgeSubmitting] = useState(false);
   const [purgeSubmitError, setPurgeSubmitError] = useState<string | null>(null);
+  // Backend zwraca `mode`/`warnings` obok `error` przy niektórych 500 — właśnie
+  // wtedy, gdy operacja (nietransakcyjna) wykonała się częściowo. Nie wolno ich
+  // połknąć razem z błędem.
+  const [purgeSubmitErrorMode, setPurgeSubmitErrorMode] = useState<PurgeMode | null>(null);
+  const [purgeSubmitErrorWarnings, setPurgeSubmitErrorWarnings] = useState<string[]>([]);
   const [purgeResult, setPurgeResult] = useState<PurgeResult | null>(null);
 
   useEffect(() => {
@@ -191,25 +196,37 @@ export const AdminUsers: React.FC = () => {
     [fetchUsers]
   );
 
-  const openPurgeModal = useCallback(async (user: AdminUser) => {
-    setPurgeTarget(user);
-    setPurgeSummary(null);
+  /** Wspólne dla otwarcia modala i odświeżenia po nieudanej próbie DELETE. */
+  const loadPurgeSummary = useCallback(async (userId: string) => {
     setPurgeSummaryError(null);
-    setPurgeConfirmInput('');
-    setPurgeSubmitError(null);
-    setPurgeResult(null);
     setPurgeSummaryLoading(true);
     try {
-      const res = await fetch(`/api/users/${user.id}/purge`);
+      const res = await fetch(`/api/users/${userId}/purge`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
       setPurgeSummary(data as PurgeSummary);
     } catch (e: any) {
+      // Np. konto już nie istnieje (404) — to też jest sygnał o stanie po próbie.
+      setPurgeSummary(null);
       setPurgeSummaryError(e.message ?? 'Błąd pobierania podsumowania');
     } finally {
       setPurgeSummaryLoading(false);
     }
   }, []);
+
+  const openPurgeModal = useCallback(
+    (user: AdminUser) => {
+      setPurgeTarget(user);
+      setPurgeSummary(null);
+      setPurgeConfirmInput('');
+      setPurgeSubmitError(null);
+      setPurgeSubmitErrorMode(null);
+      setPurgeSubmitErrorWarnings([]);
+      setPurgeResult(null);
+      loadPurgeSummary(user.id);
+    },
+    [loadPurgeSummary]
+  );
 
   const closePurgeModal = useCallback(() => {
     if (purgeSubmitting) return; // nie zamykaj w trakcie wysyłki
@@ -218,8 +235,17 @@ export const AdminUsers: React.FC = () => {
     setPurgeSummaryError(null);
     setPurgeConfirmInput('');
     setPurgeSubmitError(null);
+    setPurgeSubmitErrorMode(null);
+    setPurgeSubmitErrorWarnings([]);
     setPurgeResult(null);
   }, [purgeSubmitting]);
+
+  // Klik w tło zamyka modal — ALE NIE po sukcesie: ostrzeżenia (np. o żywym
+  // tokenie sesji do wygaśnięcia) mają wymagać świadomego kliknięcia „Zamknij".
+  const handleBackdropClick = useCallback(() => {
+    if (purgeSubmitting || purgeResult) return;
+    closePurgeModal();
+  }, [purgeSubmitting, purgeResult, closePurgeModal]);
 
   const confirmReady =
     !!purgeSummary && purgeConfirmInput.trim() === purgeSummary.confirmPhrase;
@@ -228,25 +254,42 @@ export const AdminUsers: React.FC = () => {
     if (!purgeTarget || !purgeSummary || purgeSubmitting) return;
     if (purgeConfirmInput.trim() !== purgeSummary.confirmPhrase) return;
 
+    const targetId = purgeTarget.id;
     setPurgeSubmitting(true);
     setPurgeSubmitError(null);
+    setPurgeSubmitErrorMode(null);
+    setPurgeSubmitErrorWarnings([]);
     try {
-      const res = await fetch(`/api/users/${purgeTarget.id}/purge`, {
+      const res = await fetch(`/api/users/${targetId}/purge`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirm: purgeConfirmInput.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      if (!res.ok) {
+        // Operacja NIE jest transakcyjna — 500 tutaj często oznacza, że część
+        // kroków już się wykonała. `mode`/`warnings` z odpowiedzi mówią, co
+        // dokładnie — pokazujemy je obok błędu, nie tylko przy sukcesie.
+        setPurgeSubmitError(data.error ?? `HTTP ${res.status}`);
+        setPurgeSubmitErrorMode(typeof data.mode === 'string' ? (data.mode as PurgeMode) : null);
+        setPurgeSubmitErrorWarnings(Array.isArray(data.warnings) ? data.warnings : []);
+        // Stan mógł się zmienić częściowo — odśwież listę I podsumowanie w oknie,
+        // żeby pokazywały to, co faktycznie jest w bazie teraz, a nie sprzed próby.
+        setPurgeConfirmInput('');
+        await Promise.all([fetchUsers(), loadPurgeSummary(targetId)]);
+        return;
+      }
       setPurgeResult(data as PurgeResult);
       setExpandedUserId(null);
       await fetchUsers();
     } catch (e: any) {
       setPurgeSubmitError(e.message ?? 'Błąd usuwania konta');
+      setPurgeConfirmInput('');
+      await Promise.all([fetchUsers(), loadPurgeSummary(targetId)]).catch(() => {});
     } finally {
       setPurgeSubmitting(false);
     }
-  }, [purgeTarget, purgeSummary, purgeConfirmInput, purgeSubmitting, fetchUsers]);
+  }, [purgeTarget, purgeSummary, purgeConfirmInput, purgeSubmitting, fetchUsers, loadPurgeSummary]);
 
   return (
     <div className="space-y-4">
@@ -483,7 +526,7 @@ export const AdminUsers: React.FC = () => {
       {purgeTarget && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={closePurgeModal}
+          onClick={handleBackdropClick}
         >
           <div
             className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto font-sans"
@@ -521,6 +564,37 @@ export const AdminUsers: React.FC = () => {
                 <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                   <AlertCircle size={16} className="flex-shrink-0" />
                   {purgeSummaryError}
+                </div>
+              )}
+
+              {/* Błąd wykonania DELETE — POKAZANY ZAWSZE, niezależnie od tego, czy
+                  ponowne wczytanie podsumowania niżej powiodło się (operacja nie jest
+                  transakcyjna: część kroków mogła przejść, zanim napotkała błąd). */}
+              {purgeSubmitError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm space-y-2">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={16} className="flex-shrink-0" />
+                    <span>{purgeSubmitError}</span>
+                  </div>
+                  <p className="font-medium">
+                    Operacja nie jest jednym krokiem — mogła wykonać się częściowo, zanim
+                    napotkała błąd
+                    {purgeSubmitErrorMode && (
+                      <> (tryb: {purgeSubmitErrorMode === 'purge' ? 'usunięcie całkowite' : 'anonimizacja'})</>
+                    )}
+                    . Lista użytkowników i podsumowanie w tym oknie zostały odświeżone —
+                    sprawdź aktualny stan konta przed ponowną próbą.
+                  </p>
+                  {purgeSubmitErrorWarnings.length > 0 && (
+                    <div className="pt-1 border-t border-red-200">
+                      <p className="font-semibold">Ostrzeżenia z operacji:</p>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {purgeSubmitErrorWarnings.map((w, i) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -643,13 +717,6 @@ export const AdminUsers: React.FC = () => {
                       className="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50"
                     />
                   </div>
-
-                  {purgeSubmitError && (
-                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-                      <AlertCircle size={16} className="flex-shrink-0" />
-                      {purgeSubmitError}
-                    </div>
-                  )}
 
                   <div className="flex gap-2">
                     <button
