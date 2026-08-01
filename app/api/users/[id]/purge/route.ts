@@ -26,8 +26,10 @@ import { isUuid } from '@/lib/uuid';
 import {
   FINANCIAL_FOOTPRINT,
   OWNED_TABLES,
-  DETACH_TABLES,
+  IMPACT_COUNTS,
+  RETAINED_PERSONAL_DATA,
   DB_HANDLED,
+  detachTablesFor,
   decideMode,
   footprintTotal,
   nonEmptyFootprint,
@@ -114,6 +116,28 @@ async function readFootprint(id: string): Promise<Record<string, number>> {
   return footprint;
 }
 
+/**
+ * Skutki uboczne do pokazania w podsumowaniu — nie decydują o trybie.
+ * Właściciel ma wiedzieć m.in., ile kontraktów zostanie bez koordynatora
+ * i że kartoteka kadrowa nie znika razem z kontem.
+ */
+async function readImpact(id: string): Promise<{ label: string; key: string; count: number }[]> {
+  const sb = supabaseServer() as any;
+  const out: { label: string; key: string; count: number }[] = [];
+
+  for (const ref of IMPACT_COUNTS) {
+    const { count, error } = await sb
+      .from(ref.table)
+      .select('*', { count: 'exact', head: true })
+      .eq(ref.column, id);
+    if (!error && (count ?? 0) > 0) {
+      out.push({ label: ref.label, key: `${ref.table}.${ref.column}`, count: count ?? 0 });
+    }
+  }
+
+  return out;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET — podsumowanie. Właściciel widzi, co się stanie, ZANIM kliknie.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,6 +159,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     detached: plan.detaches,
     kept: plan.keeps,
     dbHandled: DB_HANDLED,
+    impact: await readImpact(id),
+    // Jawne ostrzeżenie: usunięcie konta ≠ usunięcie kartoteki kadrowej.
+    retainedPersonalData: RETAINED_PERSONAL_DATA,
     confirmPhrase: expectedConfirmation(g.profile),
     profile: { full_name: g.profile.full_name, role: g.profile.role },
   });
@@ -205,7 +232,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   // ── Krok 1: odpięcia (najmniej niszczące) ──────────────────────────────────
   // Dane firmowe zostają, znika tylko wskazanie na usuwane konto.
-  for (const ref of DETACH_TABLES) {
+  // Lista zależy od trybu: przy anonimizacji NIE zrywamy `hr_employees.user_id`,
+  // bo to jedyny trop do kartoteki kadrowej, która zostaje (recenzja I2).
+  for (const ref of detachTablesFor(mode)) {
     const { error } = await dyn.from(ref.table).update({ [ref.column]: null }).eq(ref.column, id);
     if (error) warnings.push(`odpięcie ${ref.table}.${ref.column}: ${error.message}`);
   }
@@ -233,11 +262,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     }
 
     // ── Krok 4a: odcięcie logowania ──────────────────────────────────────────
+    // Zmiana hasła na losowe unieważnia w GoTrue wydane tokeny odświeżające
+    // (to jest nasze „wyloguj wszędzie" — patrz komentarz o sesjach niżej).
     const { error: aErr } = await sb.auth.admin.updateUserById(id, {
       email: anonymizedEmail(id),
       password: crypto.randomUUID() + crypto.randomUUID(),
       ban_duration: '876000h',   // 100 lat — Supabase nie ma „na zawsze"
       user_metadata: {},
+      app_metadata: {},
     } as any);
     if (aErr) {
       // Profil już zanonimizowany — zgłaszamy, bo konto logowania nadal żyje.
@@ -251,6 +283,23 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
+    // Numer telefonu w auth.users to osobne dane osobowe, poza user_profiles.
+    // Osobne wywołanie i tylko ostrzeżenie: część instancji GoTrue odrzuca
+    // czyszczenie telefonu, a to nie powód, żeby cofać całą anonimizację.
+    const { error: phoneErr } = await sb.auth.admin.updateUserById(id, { phone: '' } as any);
+    if (phoneErr) warnings.push(`czyszczenie auth.users.phone: ${phoneErr.message}`);
+
+    // OGRANICZENIE, którego nie da się obejść z poziomu service-role:
+    // Supabase udostępnia `auth.admin.signOut(jwt)` — wymaga TOKENU użytkownika,
+    // którego nie mamy, i nie ma wariantu „po identyfikatorze". Ban + zmiana
+    // hasła blokują odświeżenie sesji, ale JUŻ WYDANY access token (JWT) jest
+    // weryfikowany bezstanowo i pozostaje ważny do wygaśnięcia.
+    warnings.push(
+      'Sesje: token dostępu wydany przed anonimizacją pozostaje ważny do wygaśnięcia '
+      + '(Supabase nie ma admin-API do unieważnienia sesji po identyfikatorze). '
+      + 'Odświeżenie sesji jest zablokowane banem i zmianą hasła.'
+    );
+
     return NextResponse.json({ ok: true, mode, footprint, warnings });
   }
 
@@ -258,11 +307,41 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   // Odwrotna kolejność przy awarii zostawia konto logowania bez profilu —
   // użytkownik mógłby się zalogować donikąd.
   const { error: authErr } = await sb.auth.admin.deleteUser(id);
-  if (authErr && !isMissingAuthUserError(authErr.message)) {
-    return NextResponse.json(
-      { error: `Nie udało się usunąć konta logowania: ${authErr.message}`, mode, warnings },
-      { status: 500 }
-    );
+  if (authErr) {
+    if (!isMissingAuthUserError(authErr.message, (authErr as any).status)) {
+      return NextResponse.json(
+        { error: `Nie udało się usunąć konta logowania: ${authErr.message}`, mode, warnings },
+        { status: 500 }
+      );
+    }
+
+    // Błąd wyglądał na „nie ma takiego konta" — ale NIE wierzymy komunikatowi
+    // na słowo (recenzja I3). Potwierdzamy odczytem, zanim skasujemy profil.
+    // Bez tego błąd techniczny usługi uwierzytelniania zostawiłby żywe konto
+    // logowania bez profilu.
+    const { data: still, error: checkErr } = await sb.auth.admin.getUserById(id);
+    if (checkErr && !isMissingAuthUserError(checkErr.message, (checkErr as any).status)) {
+      return NextResponse.json(
+        {
+          error: `Nie udało się potwierdzić, czy konto logowania istnieje — profil NIE został usunięty: ${checkErr.message}`,
+          mode,
+          warnings,
+        },
+        { status: 500 }
+      );
+    }
+    if (still?.user) {
+      return NextResponse.json(
+        {
+          error: 'Konto logowania nadal istnieje mimo zgłoszonego braku — profil NIE został usunięty. '
+               + 'Powtórz operację lub sprawdź stan usługi uwierzytelniania.',
+          mode,
+          warnings,
+        },
+        { status: 500 }
+      );
+    }
+    warnings.push('Konto logowania już nie istniało — pominięto (idempotencja).');
   }
 
   // ── Krok 4b: profil ────────────────────────────────────────────────────────

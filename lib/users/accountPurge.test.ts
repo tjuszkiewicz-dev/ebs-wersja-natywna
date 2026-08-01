@@ -3,6 +3,8 @@ import {
   FINANCIAL_FOOTPRINT,
   OWNED_TABLES,
   DETACH_TABLES,
+  DB_HANDLED,
+  detachTablesFor,
   footprintTotal,
   decideMode,
   nonEmptyFootprint,
@@ -101,6 +103,42 @@ describe('listy operacyjne', () => {
     // FK bez ON DELETE (044_shell_entitlements.sql) — bez odpięcia PURGE padnie
     expect(keys).toContain('user_app_entitlements.granted_by');
   });
+
+  // ── recenzja I1 ──────────────────────────────────────────────────────────
+  it('notifications są KASOWANE jawnie, nie zrzucane na kaskadę bazy', () => {
+    // notifications.user_id jest w żywej bazie typu TEXT i nie ma żadnego FK —
+    // nic nie kaskaduje, a treści zawierają imię, nazwisko i maskę IBAN.
+    expect(OWNED_TABLES.map((t) => `${t.table}.${t.column}`)).toContain('notifications.user_id');
+    expect(DB_HANDLED.some((d) => d.startsWith('notifications'))).toBe(false);
+  });
+
+  it('lista „obsłużone przez bazę" nie deklaruje nic, co i tak kasujemy sami', () => {
+    const ownTables = new Set(OWNED_TABLES.map((t) => t.table));
+    for (const entry of DB_HANDLED) {
+      expect(ownTables.has(entry.split(/[ .]/)[0])).toBe(false);
+    }
+  });
+});
+
+// ── recenzja I2 ────────────────────────────────────────────────────────────
+describe('detachTablesFor — powiązanie z kartoteką kadrową', () => {
+  it('PURGE zrywa hr_employees.user_id (konta już nie ma, byłby wskaźnik-widmo)', () => {
+    expect(detachTablesFor('purge').map((t) => `${t.table}.${t.column}`))
+      .toContain('hr_employees.user_id');
+  });
+
+  it('ANONIMIZACJA zachowuje hr_employees.user_id (jedyny trop do danych kadrowych)', () => {
+    expect(detachTablesFor('anonymize').map((t) => `${t.table}.${t.column}`))
+      .not.toContain('hr_employees.user_id');
+  });
+
+  it('pozostałe odpięcia działają w obu trybach', () => {
+    const anon = detachTablesFor('anonymize').map((t) => `${t.table}.${t.column}`);
+    expect(anon).toContain('user_app_entitlements.granted_by');
+    expect(anon).toContain('hr_employees.coordinator_id');
+    expect(anon).toContain('hr_documents.uploaded_by');
+    expect(detachTablesFor('purge').length).toBe(anon.length + 1);
+  });
 });
 
 describe('nonEmptyFootprint', () => {
@@ -185,14 +223,27 @@ describe('buildPlan', () => {
     expect(plan.keeps).toContain('buyback_agreements.user_id');
   });
 
+  // Asercje na konkretnych nazwach, nie na stałej, z której plan powstaje —
+  // inaczej test przechodzi niezależnie od poprawności (recenzja I4).
   it('oba tryby kasują te same rzeczy prywatne konta', () => {
-    expect(buildPlan('anonymize').deletes).toEqual(OWNED_TABLES.map((t) => `${t.table}.${t.column}`));
-    expect(buildPlan('purge').deletes.slice(0, OWNED_TABLES.length)).toEqual(
-      OWNED_TABLES.map((t) => `${t.table}.${t.column}`)
-    );
+    const expected = [
+      'user_permissions.user_id',
+      'user_app_entitlements.user_id',
+      'acc_company_members.user_id',
+      'hr_coordinator_contracts.coordinator_id',
+      'notifications.user_id',
+    ];
+    expect(buildPlan('anonymize').deletes).toEqual(expected);
+    expect(buildPlan('purge').deletes).toEqual([
+      ...expected,
+      'auth.users (konto logowania)',
+      'user_profiles (profil)',
+    ]);
   });
 
-  it('w planie purge konto logowania idzie PRZED profilem', () => {
+  it('w planie purge konto logowania jest wymienione PRZED profilem', () => {
+    // Kolejność FAKTYCZNYCH wywołań jest sprawdzana w teście endpointu
+    // (app/api/users/[id]/purge/route.test.ts) — tu pilnujemy tylko opisu planu.
     const plan = buildPlan('purge');
     expect(plan.deletes.indexOf('auth.users (konto logowania)')).toBeLessThan(
       plan.deletes.indexOf('user_profiles (profil)')
@@ -213,7 +264,7 @@ describe('anonimizacja — dane', () => {
     for (const col of [
       'pesel', 'pesel_encrypted', 'phone_number', 'iban', 'address_street',
       'address_city', 'address_zip', 'temp_password', 'contact_email',
-      'company_name', 'department', 'position',
+      'company_name', 'department', 'position', 'hire_date', 'contract_type',
     ]) {
       expect(patch[col]).toBeNull();
     }
@@ -231,22 +282,32 @@ describe('anonimizacja — dane', () => {
   });
 });
 
-describe('isMissingAuthUserError', () => {
-  it.each([
-    'User not found',
-    'user not found',
-    'User  not found',
-    'relation does not exist',
-  ])('toleruje %s', (msg) => {
-    expect(isMissingAuthUserError(msg)).toBe(true);
-  });
-
-  it.each(['Database error deleting user', 'permission denied', ''])(
-    'NIE toleruje %s',
+describe('isMissingAuthUserError — zawężone (recenzja I3)', () => {
+  it.each(['User not found', 'user not found', 'User  not found'])(
+    'toleruje jednoznaczny brak konta: %s',
     (msg) => {
-      expect(isMissingAuthUserError(msg)).toBe(false);
+      expect(isMissingAuthUserError(msg)).toBe(true);
     }
   );
+
+  it('toleruje status 404 niezależnie od treści komunikatu', () => {
+    expect(isMissingAuthUserError('cokolwiek', 404)).toBe(true);
+  });
+
+  // To są błędy TECHNICZNE usługi uwierzytelniania, nie brak konta.
+  // Poprzedni wzorzec /does not exist/ łapał je i kasowałby profil przy
+  // żywym koncie logowania.
+  it.each([
+    'relation "users" does not exist',
+    'column "banned_until" does not exist',
+    'function auth.uid() does not exist',
+    'Database error deleting user',
+    'permission denied',
+    'not found',
+    '',
+  ])('NIE toleruje: %s', (msg) => {
+    expect(isMissingAuthUserError(msg)).toBe(false);
+  });
 
   it('nie-string → false', () => {
     expect(isMissingAuthUserError(undefined)).toBe(false);
