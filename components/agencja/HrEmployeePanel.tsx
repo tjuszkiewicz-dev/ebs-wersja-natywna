@@ -8,7 +8,62 @@ import { expiryStatus, TONE_BADGE, fmtDate, schengenDeadline } from './expiry';
 import { fullName } from '@/lib/hr/docPlaceholders';
 import { computeReadiness } from '@/lib/hr/readiness';
 import { Hint } from '@/components/ui/Hint';
-import { HeartPulse, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { HeartPulse, CheckCircle2, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
+import { WORK_STATUSES, workStatusDef } from '@/lib/hr/workStatus';
+
+// Klikalna plakietka statusu pracy — zapis natychmiastowy (bez trybu edycji), jak w BBS.
+function WorkStatusBadge({ employee, onChanged }: { employee: Employee; onChanged: (e: Employee) => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const def = workStatusDef(employee.work_status);
+
+  const pick = async (id: string) => {
+    if (id === employee.work_status) { setOpen(false); return; }
+    setOpen(false); setBusy(true);
+    try {
+      const r = await fetch(`/api/hr/employees/${employee.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ work_status: id }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Błąd');
+      onChanged(d);
+    } catch (e) { alert(e instanceof Error ? e.message : 'Błąd zmiany statusu'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="relative mt-1 inline-block">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setOpen(o => !o)}
+        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${def.badge} disabled:opacity-60`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${def.dot}`} />
+        {def.label}
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            {WORK_STATUSES.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => pick(s.id)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm font-sans text-slate-700 hover:bg-slate-50"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Checklist „gotowy do pracy" — podsumowanie kompletności dokumentów pracownika
 function ReadinessBlock({ employee }: { employee: Employee }) {
@@ -52,6 +107,7 @@ export interface Employee {
   accommodation_id?: string | null; accommodation?: { id: string; name: string } | null;
   archived?: boolean; archived_at?: string | null; archived_from?: string | null; archive_reason?: string | null;
   candidate?: boolean;
+  work_status?: string | null;
 }
 export interface ContractLite { id: string; name: string }
 
@@ -216,6 +272,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">{editing ? 'Edycja pracownika' : 'Karta pracownika'}</p>
             <h3 className="truncate font-sans text-lg font-bold leading-tight">{editing ? fullName(form) : fullName(employee)}</h3>
+            {!editing && <WorkStatusBadge employee={employee} onChanged={onChanged} />}
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-white/15"><X size={18} /></button>
         </div>

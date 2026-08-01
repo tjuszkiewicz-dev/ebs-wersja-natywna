@@ -51,6 +51,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       accommodation_id: null,
       blacklisted,
       blacklist_reason: blacklisted ? blacklistReason : null,
+      work_status: 'zwolniony',
       updated_at: new Date().toISOString(),
     }).eq('id', id).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // przywrócenie = druga szansa: flaga czarnej listy schodzi (decyzja jest świadoma — UI wymaga potwierdzenia)
     blacklisted: false,
     blacklist_reason: null,
+    work_status: 'pracuje',
     updated_at: new Date().toISOString(),
   }).eq('id', id).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
