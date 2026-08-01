@@ -27,6 +27,18 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   let contracts = (data || []).map((c: any) => ({ ...c, employee_count: c.hr_employees?.[0]?.count ?? 0, hr_employees: undefined }));
 
+  // liczniki statusow pracy per kontrakt — jedno zapytanie, grupowanie w pamieci
+  const { data: statusRows } = await sb.from('hr_employees').select('contract_id, work_status').eq('archived', false);
+  const statusCounts = new Map<string, Record<string, number>>();
+  for (const r of statusRows ?? []) {
+    if (!r.contract_id) continue;
+    const bucket = statusCounts.get(r.contract_id) ?? {};
+    const key = r.work_status || 'pracuje';
+    bucket[key] = (bucket[key] ?? 0) + 1;
+    statusCounts.set(r.contract_id, bucket);
+  }
+  contracts = contracts.map((c: any) => ({ ...c, status_counts: statusCounts.get(c.id) ?? {} }));
+
   // koordynator: tylko przegląd; kontrakty, na których ma pracowników LUB jawnie przyznane w Ustawieniach
   if (auth.role === 'koordynator') {
     const [{ data: mine }, granted] = await Promise.all([

@@ -7,10 +7,28 @@ import { HrPermitAlerts } from './HrPermitAlerts';
 import { fullName } from '@/lib/hr/docPlaceholders';
 import { computeReadiness } from '@/lib/hr/readiness';
 import { Hint } from '@/components/ui/Hint';
+import { WORK_STATUSES, workStatusDef, type WorkStatusId } from '@/lib/hr/workStatus';
 
 interface Contract {
   id: string; name: string; employer?: string | null; address?: string | null;
   contact_person?: string | null; phone?: string | null; status: string; notes?: string | null; employee_count: number;
+  status_counts?: Partial<Record<WorkStatusId, number>>;
+}
+
+// Plakietki z licznikami statusów pracy — pomija statusy z zerem, degraduje się cicho przy braku danych
+function StatusCountBadges({ counts }: { counts?: Partial<Record<WorkStatusId, number>> }) {
+  if (!counts) return null;
+  const entries = WORK_STATUSES.map(s => ({ s, n: counts[s.id] ?? 0 })).filter(x => x.n > 0);
+  if (!entries.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {entries.map(({ s, n }) => (
+        <span key={s.id} title={s.label} className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${s.badge}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label} {n}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 const INPUT = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-300';
@@ -347,6 +365,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
                   <div className="min-w-0">
                     <p className="font-sans font-bold text-slate-900">{c.name}</p>
                     <p className="text-xs text-slate-500">{c.employer || '—'}</p>
+                    <div className="mt-1"><StatusCountBadges counts={c.status_counts} /></div>
                   </div>
                 </button>
                 <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"><Users size={13} /> {c.employee_count}</span>
@@ -370,6 +389,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
                           <div key={e.id} className="group flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-lg py-1.5 pl-10 pr-3 text-sm hover:bg-white">
                             <button onClick={() => setSelected(e)} className="flex min-w-0 items-center gap-2 text-left">
                               <User size={14} className="shrink-0 text-slate-400" />
+                              <span title={workStatusDef(e.work_status).label} className={`h-2 w-2 shrink-0 rounded-full ${workStatusDef(e.work_status).dot}`} />
                               <span className="truncate font-medium text-slate-700">{fullName(e)}</span>
                               {((e as any).hr_documents?.[0]?.count ?? 0) > 0 && (
                                 <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500" title={`Dokumenty w teczce: ${(e as any).hr_documents[0].count}`}>

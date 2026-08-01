@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { BedDouble, Plus, Pencil, Trash2, Save, Loader2, MapPin, Copy, Check, ExternalLink, Users, Phone, CalendarClock, AlertTriangle, Search, Route, Building2, X, Camera, Upload, ImageOff } from 'lucide-react';
 import { expiryStatus, fmtDate } from './expiry';
 import { Hint } from '@/components/ui/Hint';
+import { WORK_STATUSES, type WorkStatusId } from '@/lib/hr/workStatus';
 
 interface Contact { name: string; phone: string; role: string }
 interface Accommodation {
@@ -16,6 +17,23 @@ interface Accommodation {
   contacts?: Contact[] | null; contract_id?: string | null; contract?: { id: string; name: string; address?: string | null } | null;
   distance_km?: number | null; drive_min?: number | null;
   assigned_count: number;
+  status_counts?: Partial<Record<WorkStatusId, number>>;
+}
+
+// Plakietki z licznikami statusów pracy na karcie lokalu — pomija statusy z zerem, degraduje się cicho przy braku danych
+function StatusCountBadges({ counts }: { counts?: Partial<Record<WorkStatusId, number>> }) {
+  if (!counts) return null;
+  const entries = WORK_STATUSES.map(s => ({ s, n: counts[s.id] ?? 0 })).filter(x => x.n > 0);
+  if (!entries.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {entries.map(({ s, n }) => (
+        <span key={s.id} title={s.label} className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${s.badge}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label} {n}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 const INPUT = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-300';
@@ -461,6 +479,8 @@ export function HrBazaNoclegowa() {
                   {m.ourFree != null && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${m.over ? 'bg-red-100 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{m.over ? `przekroczono o ${m.used - (m.rented ?? m.total ?? 0)}` : `wolne nasze: ${m.ourFree}`}</span>}
                   {m.potential != null && m.potential > 0 && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-700">potencjalne: {m.potential}</span>}
                 </div>
+
+                <div className="mt-2"><StatusCountBadges counts={a.status_counts} /></div>
 
                 {/* Podsumowanie czynszu — TEN SAM widok co w formularzu edycji, dla każdego lokalu */}
                 {net != null && net > 0 && (
