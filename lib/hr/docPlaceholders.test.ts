@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fullName, fillPlaceholders, displayName } from './docPlaceholders';
+import { fullName, fillPlaceholders, displayName, buildDocData } from './docPlaceholders';
 
 describe('fullName', () => {
   it('zawiera imię i nazwisko', () => {
@@ -49,5 +49,49 @@ describe('fillPlaceholders', () => {
   it('nie duplikuje wpisu w missing[] gdy placeholder powtórzony', () => {
     const { missing } = fillPlaceholders('{{pesel}} i {{pesel}}', { pesel: null });
     expect(missing).toEqual(['pesel']);
+  });
+});
+
+describe('buildDocData — dzis_plus_miesiac', () => {
+  it('zwraca datę przesuniętą o miesiąc (format jak {{dzis}})', () => {
+    const d = buildDocData({}, null, new Date(2026, 7, 1)); // 01.08.2026
+    expect(d.dzis_plus_miesiac).toBe('1.09.2026');
+  });
+
+  it('31 stycznia + miesiąc — zachowanie natywnego JS Date (przewija do marca)', () => {
+    const d = buildDocData({}, null, new Date(2026, 0, 31)); // 31.01.2026
+    expect(d.dzis_plus_miesiac).toBe('3.03.2026');
+  });
+
+  it('29 lutego roku przestępnego + miesiąc — przewija do 29 marca', () => {
+    const d = buildDocData({}, null, new Date(2024, 1, 29)); // 29.02.2024 (przestępny)
+    expect(d.dzis_plus_miesiac).toBe('29.03.2024');
+  });
+});
+
+describe('buildDocData — kontrakt_adres / miejsce_szkolenia', () => {
+  it('kontrakt_adres bierze adres z kontraktu', () => {
+    const d = buildDocData({ contract: { name: 'K', address: 'ul. Testowa 1, Gdańsk' } });
+    expect(d.kontrakt_adres).toBe('ul. Testowa 1, Gdańsk');
+  });
+
+  it('kontrakt_adres jest pusty gdy kontrakt nie ma adresu', () => {
+    const d = buildDocData({ contract: { name: 'K' } });
+    expect(d.kontrakt_adres).toBe('');
+  });
+
+  it('kontrakt_adres jest pusty gdy brak kontraktu', () => {
+    const d = buildDocData({});
+    expect(d.kontrakt_adres).toBe('');
+  });
+
+  it('miejsce_szkolenia bierze adres z kontraktu', () => {
+    const d = buildDocData({ contract: { name: 'K', address: 'ul. Testowa 1, Gdańsk' } });
+    expect(d.miejsce_szkolenia).toContain('Testowa');
+  });
+
+  it('miejsce_szkolenia jest puste gdy kontrakt nie ma adresu', () => {
+    const d = buildDocData({ contract: { name: 'K' } });
+    expect(d.miejsce_szkolenia).toBe('');
   });
 });

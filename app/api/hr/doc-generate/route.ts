@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
   const sb = admin() as any;
   const [emps, tpls] = await Promise.all([
-    sb.from('hr_employees').select('*, contract:hr_contracts(id, name), accommodation:hr_accommodations(id, name, address, street, house_no, apartment_no, postal_code, city, voivodeship, county, commune, post_office)').in('id', employeeIds),
+    sb.from('hr_employees').select('*, contract:hr_contracts(id, name, address), accommodation:hr_accommodations(id, name, address, street, house_no, apartment_no, postal_code, city, voivodeship, county, commune, post_office)').in('id', employeeIds),
     sb.from('hr_doc_templates').select('*').in('id', templateIds),
   ]);
   if (emps.error) return NextResponse.json({ error: emps.error.message }, { status: 500 });

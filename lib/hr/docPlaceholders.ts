@@ -128,6 +128,9 @@ export const DOC_PLACEHOLDERS: DocPlaceholder[] = [
   { key: 'wiza_do', label: 'Wiza ważna do' },
   { key: 'zus_data', label: 'Data zgłoszenia do ZUS' },
   { key: 'dzis', label: 'Dzisiejsza data' },
+  { key: 'dzis_plus_miesiac', label: 'Dzisiejsza data + 1 miesiąc' },
+  { key: 'kontrakt_adres', label: 'Kontrakt — adres' },
+  { key: 'miejsce_szkolenia', label: 'Miejsce szkolenia (= adres kontraktu)' },
 ];
 
 const fmtDate = (s?: string | null) => {
@@ -136,9 +139,21 @@ const fmtDate = (s?: string | null) => {
   return isNaN(d.getTime()) ? null : d.toLocaleDateString('pl-PL');
 };
 
+// Data + 1 miesiąc — natywna arytmetyka JS Date (Date.setMonth). Przy przepełnieniu dnia
+// (np. 31 stycznia, gdzie luty go nie ma) JS sam przewija do kolejnego miesiąca
+// (31.01 → 03.03), a nie zatrzymuje się na ostatnim dniu lutego — świadomie zachowane,
+// zgodnie z konwencją reszty modułu (brak niestandardowej logiki kalendarzowej).
+const addMonths = (date: Date, months: number): Date => {
+  const d = new Date(date.getTime());
+  d.setMonth(d.getMonth() + months);
+  return d;
+};
+
 // Buduje mapę znacznik→wartość z rekordu pracownika (null = brak danych).
 // docDate (ISO 'YYYY-MM-DD') — data drukowana w dokumentach; brak → dzisiaj.
-export function buildDocData(e: any, docDate?: string | null): Record<string, string | null> {
+// today — wstrzykiwalne „dziś" (domyślnie new Date()), do deterministycznych testów
+// {{dzis_plus_miesiac}} (konwencja jak w lib/hr/alerts.ts).
+export function buildDocData(e: any, docDate?: string | null, today: Date = new Date()): Record<string, string | null> {
   return {
     imie: e.first_name || null,
     drugie_imie: e.second_name || null,
@@ -173,6 +188,12 @@ export function buildDocData(e: any, docDate?: string | null): Record<string, st
     wiza_do: fmtDate(e.visa_expiry),
     zus_data: fmtDate(e.zus_registration_date),
     dzis: (docDate ? fmtDate(docDate) : null) || new Date().toLocaleDateString('pl-PL'),
+    dzis_plus_miesiac: addMonths(today, 1).toLocaleDateString('pl-PL'),
+    // adres kontraktu — pusty string (nie null/"undefined") gdy brak, bo trafia
+    // bezpośrednio do dokumentów podpisywanych przez pracownika
+    kontrakt_adres: e.contract?.address || '',
+    // miejsce_szkolenia = adres kontraktu (wcześniej zaszyty na sztywno, jak w BBS)
+    miejsce_szkolenia: e.contract?.address || '',
   };
 }
 
