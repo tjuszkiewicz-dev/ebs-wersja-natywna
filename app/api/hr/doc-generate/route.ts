@@ -119,7 +119,10 @@ export async function POST(request: NextRequest) {
   // 1) zbuduj zadania: szablony HTML → Puppeteer; szablony 'acroform_pesel' → wypełnianie PDF
   const jobs: { emp: any; tpl: any; empName: string; missing: string[]; html?: string; footer?: string | null; acroform?: boolean }[] = [];
   for (const emp of emps.data ?? []) {
-    const data = buildDocData(emp, docDate);
+    // dzis_plus_miesiac liczony od daty DOKUMENTU (docDate), nie od dzisiaj — inaczej przy
+    // datowaniu w przyszłość/przeszłość okres w umowie może wyjść z datą końcową wcześniejszą
+    // niż początkowa (patrz test w docPlaceholders.test.ts)
+    const data = buildDocData(emp, docDate, docDate ? new Date(docDate) : new Date());
     const empName = [emp.first_name, emp.second_name, emp.last_name, emp.second_last_name].filter(Boolean).join(' ');
     for (const tpl of tpls.data ?? []) {
       if (tpl.kind === 'acroform_pesel') {

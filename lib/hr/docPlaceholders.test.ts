@@ -67,6 +67,21 @@ describe('buildDocData — dzis_plus_miesiac', () => {
     const d = buildDocData({}, null, new Date(2024, 1, 29)); // 29.02.2024 (przestępny)
     expect(d.dzis_plus_miesiac).toBe('29.03.2024');
   });
+
+  // Regresja: data dokumentu ustawiona w przyszłości (koordynator wypełnia generator na
+  // przyszłą datę szkolenia) — {{dzis_plus_miesiac}} MUSI liczyć się od docDate, a nie od
+  // dzisiejszej daty serwera, inaczej okres „od {{dzis}} do {{dzis_plus_miesiac}}" w umowie
+  // może wyjść z datą końcową wcześniejszą niż początkowa (patrz route.ts wołanie buildDocData).
+  it('data dokumentu w przyszłości → dzis_plus_miesiac liczony od docDate, nie od dzisiaj', () => {
+    const docDate = '2026-09-15'; // przyszłość względem „dzisiaj" w tym scenariuszu
+    const d = buildDocData({}, docDate, new Date(docDate));
+    expect(d.dzis).toBe('15.09.2026');
+    expect(d.dzis_plus_miesiac).toBe('15.10.2026');
+    // data końcowa (dzis_plus_miesiac) musi być PO dacie początkowej (dzis)
+    const start = new Date(2026, 8, 15);
+    const end = new Date(2026, 9, 15);
+    expect(end.getTime()).toBeGreaterThan(start.getTime());
+  });
 });
 
 describe('buildDocData — kontrakt_adres / miejsce_szkolenia', () => {
