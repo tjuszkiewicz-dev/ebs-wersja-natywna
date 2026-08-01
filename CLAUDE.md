@@ -103,6 +103,19 @@ regexem `znmp-logo`→`ebs-neon-no-bg`) — **do przeglądu/edycji w panelu**: c
 zwykły tekst nagłówka firmowego BBS (`www.znmp.pl`, `zp@znmp.pl`) niezwiązany z logo-obrazkiem,
 świadomie nieusunięty (nie jest to logo, tylko dane kontaktowe do ewentualnej ręcznej korekty).
 
+> ⚠️ **PUŁAPKA `import-bbs-doc-templates.mts` (E5 T17, 2026-07-29):** ten skrypt kopiuje
+> `hr_doc_templates` z bazy BBS **żywcem** (imię firmy, adres, NIP, a w niektórych szablonach
+> także zakodowany w treści base64 obrazek podpisu prezesa) — dobre dla ogólnych szablonów
+> BBS, ale **nie wolno** nim (re)generować „Porozumienia o szkoleniu wdrożeniowym" ani
+> „Oświadczenia — kontakt przez pełnomocnika": w BBS mają one na sztywno dane obcej spółki
+> ALCES i/lub dane osobowe konkretnego pełnomocnika (imię, nazwisko, telefon), a w wersji
+> porozumienia dodatkowo faksymile podpisu. EBS ma te 8 szablonów (4 języki × 2 dokumenty)
+> wgrane osobno przez `scripts/seed-e5-doc-templates.mts` z polami `{{firma_nazwa}}`,
+> `{{firma_adres}}`, `{{firma_nip}}`, `{{pelnomocnik_dane}}` do ręcznego uzupełnienia w panelu
+> „Szablony dokumentów" — bez żadnych danych ALCES ani podpisu. `import-bbs-doc-templates.mts`
+> ma wbudowany filtr wykluczający te 8 nazw, więc rerun ich nie nadpisze — **nie usuwaj tego
+> filtra**.
+
 **E2d (2026-07-18):** moduły AI agencji. Widoki `hr-tlumacz` → `components/agencja/HrTlumacz`
 (gate `agencja.tlumacz`) i `hr-mapa` → `HrMapa` (gate `agencja.mapa`, Leaflet+markercluster
 przez `next/dynamic {ssr:false}` — leaflet jest browser-only). API: `hr/ocr` (Claude Vision —
