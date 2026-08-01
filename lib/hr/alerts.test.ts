@@ -37,9 +37,36 @@ describe('buildAlerts', () => {
     expect(out.some(a => a.kind === 'medical')).toBe(true);
   });
 
+  it('zglasza badania lekarskie dokladnie na granicy progu (60 dni)', () => {
+    const out = buildAlerts([emp({ medical_exam_expiry: inDays(60) })], [], [], TODAY);
+    expect(out.some(a => a.kind === 'medical')).toBe(true);
+  });
+
+  it('NIE zglasza badan lekarskich tuz poza progiem (61 dni)', () => {
+    const out = buildAlerts([emp({ medical_exam_expiry: inDays(61) })], [], [], TODAY);
+    expect(out.some(a => a.kind === 'medical')).toBe(false);
+  });
+
+  it('zglasza termin Schengen dokladnie na granicy progu (30 dni)', () => {
+    // schengenDeadline = wjazd + 90 dni; zeby deadline wypadl w inDays(30),
+    // wjazd musi byc inDays(30 - 90).
+    const out = buildAlerts([emp({ schengen_entry_date: inDays(30 - 90) })], [], [], TODAY);
+    expect(out.some(a => a.kind === 'expiry' && /Schengen/i.test(a.label))).toBe(true);
+  });
+
+  it('NIE zglasza terminu Schengen tuz poza progiem (31 dni)', () => {
+    const out = buildAlerts([emp({ schengen_entry_date: inDays(31 - 90) })], [], [], TODAY);
+    expect(out.some(a => a.kind === 'expiry' && /Schengen/i.test(a.label))).toBe(false);
+  });
+
   it('zglasza brak numeru PESEL', () => {
     const out = buildAlerts([emp({ pesel: null })], [], [], TODAY);
     expect(out.some(a => a.kind === 'pesel')).toBe(true);
+  });
+
+  it('zglasza brak zgloszenia do ZUS', () => {
+    const out = buildAlerts([emp({ zus_registration_date: null })], [], [], TODAY);
+    expect(out.some(a => a.kind === 'zus')).toBe(true);
   });
 
   it('pomija pracownikow nieaktywnych', () => {
@@ -53,9 +80,29 @@ describe('buildAlerts', () => {
     expect(buildAlerts([], [], [{ ...v, status: 'wycofany' }], TODAY)).toHaveLength(0);
   });
 
+  it('zglasza flote dokladnie na granicy progu (30 dni)', () => {
+    const v = { id: 'v1', registration: 'GD123', status: 'aktywny', insurance_until: inDays(30) };
+    expect(buildAlerts([], [], [v], TODAY).some(a => a.kind === 'fleet')).toBe(true);
+  });
+
+  it('NIE zglasza floty tuz poza progiem (31 dni)', () => {
+    const v = { id: 'v1', registration: 'GD123', status: 'aktywny', insurance_until: inDays(31) };
+    expect(buildAlerts([], [], [v], TODAY).some(a => a.kind === 'fleet')).toBe(false);
+  });
+
   it('zglasza koniec najmu w progu 3 dni', () => {
     const acc = { id: 'a1', name: 'Lokal 1', lease_end_date: inDays(2) };
     expect(buildAlerts([], [acc], [], TODAY).some(a => a.kind === 'lease')).toBe(true);
+  });
+
+  it('zglasza koniec najmu dokladnie na granicy progu (3 dni)', () => {
+    const acc = { id: 'a1', name: 'Lokal 1', lease_end_date: inDays(3) };
+    expect(buildAlerts([], [acc], [], TODAY).some(a => a.kind === 'lease')).toBe(true);
+  });
+
+  it('NIE zglasza konca najmu tuz poza progiem (4 dni)', () => {
+    const acc = { id: 'a1', name: 'Lokal 1', lease_end_date: inDays(4) };
+    expect(buildAlerts([], [acc], [], TODAY).some(a => a.kind === 'lease')).toBe(false);
   });
 });
 
