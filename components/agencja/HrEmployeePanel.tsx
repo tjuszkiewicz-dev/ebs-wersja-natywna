@@ -5,10 +5,65 @@ import { X, Save, Trash2, Loader2, Phone, Mail, Landmark, Globe, FolderOpen, Use
 import { HrEmployeeDocs } from './HrEmployeeDocs';
 import { HrSchedule } from './HrSchedule';
 import { expiryStatus, TONE_BADGE, fmtDate, schengenDeadline } from './expiry';
-import { fullName } from '@/lib/hr/docPlaceholders';
+import { displayName } from '@/lib/hr/docPlaceholders';
 import { computeReadiness } from '@/lib/hr/readiness';
 import { Hint } from '@/components/ui/Hint';
-import { HeartPulse, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { HeartPulse, CheckCircle2, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
+import { WORK_STATUSES, workStatusDef } from '@/lib/hr/workStatus';
+
+// Klikalna plakietka statusu pracy — zapis natychmiastowy (bez trybu edycji), jak w BBS.
+function WorkStatusBadge({ employee, onChanged }: { employee: Employee; onChanged: (e: Employee) => void }) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const def = workStatusDef(employee.work_status);
+
+  const pick = async (id: string) => {
+    if (id === employee.work_status) { setOpen(false); return; }
+    setOpen(false); setBusy(true);
+    try {
+      const r = await fetch(`/api/hr/employees/${employee.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ work_status: id }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Błąd');
+      onChanged(d);
+    } catch (e) { alert(e instanceof Error ? e.message : 'Błąd zmiany statusu'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="relative mt-1 inline-block">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => setOpen(o => !o)}
+        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${def.badge} disabled:opacity-60`}
+      >
+        <span className={`h-1.5 w-1.5 rounded-full ${def.dot}`} />
+        {def.label}
+        <ChevronDown size={12} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+            {WORK_STATUSES.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => pick(s.id)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm font-sans text-slate-700 hover:bg-slate-50"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Checklist „gotowy do pracy" — podsumowanie kompletności dokumentów pracownika
 function ReadinessBlock({ employee }: { employee: Employee }) {
@@ -41,6 +96,7 @@ export interface Employee {
   contract_id?: string | null; team?: string | null; contract?: { id: string; name: string } | null; created_at?: string;
   residence_card_number?: string | null; residence_card_expiry?: string | null;
   work_permit_number?: string | null; work_permit_expiry?: string | null; visa_expiry?: string | null;
+  tlc?: boolean | null; tlc_expiry?: string | null;
   zus_registration_date?: string | null; pesel?: string | null;
   medical_exam_date?: string | null; medical_exam_expiry?: string | null;
   schengen_entry_date?: string | null;
@@ -52,6 +108,7 @@ export interface Employee {
   accommodation_id?: string | null; accommodation?: { id: string; name: string } | null;
   archived?: boolean; archived_at?: string | null; archived_from?: string | null; archive_reason?: string | null;
   candidate?: boolean;
+  work_status?: string | null;
 }
 export interface ContractLite { id: string; name: string }
 
@@ -189,7 +246,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
   };
 
   const restore = async () => {
-    if (employee.blacklisted && !confirm(`„${fullName(employee)}" jest na CZARNEJ LIŚCIE${employee.blacklist_reason ? ` (powód: ${employee.blacklist_reason})` : ''}.\n\nPrzywrócenie ZDEJMIE flagę czarnej listy. Kontynuować?`)) return;
+    if (employee.blacklisted && !confirm(`„${displayName(employee)}" jest na CZARNEJ LIŚCIE${employee.blacklist_reason ? ` (powód: ${employee.blacklist_reason})` : ''}.\n\nPrzywrócenie ZDEJMIE flagę czarnej listy. Kontynuować?`)) return;
     const r = await fetch(`/api/hr/employees/${employee.id}/archive`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
       body: JSON.stringify({ action: 'restore' }),
@@ -201,7 +258,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
   };
 
   const removeForever = async () => {
-    if (!confirm(`USUNĄĆ TRWALE „${fullName(employee)}"?\n\nZnikną też wszystkie dokumenty. Tej operacji nie da się cofnąć.`)) return;
+    if (!confirm(`USUNĄĆ TRWALE „${displayName(employee)}"?\n\nZnikną też wszystkie dokumenty. Tej operacji nie da się cofnąć.`)) return;
     await fetch(`/api/hr/employees/${employee.id}`, { method: 'DELETE', credentials: 'same-origin' });
     onDeleted(employee.id);
   };
@@ -215,7 +272,8 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
         <div className="flex items-start justify-between gap-3 bg-gradient-to-br from-primary-600 to-primary-500 px-6 py-5 text-white">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">{editing ? 'Edycja pracownika' : 'Karta pracownika'}</p>
-            <h3 className="truncate font-sans text-lg font-bold leading-tight">{editing ? fullName(form) : fullName(employee)}</h3>
+            <h3 className="truncate font-sans text-lg font-bold leading-tight">{editing ? displayName(form) : displayName(employee)}</h3>
+            {!editing && <WorkStatusBadge employee={employee} onChanged={onChanged} />}
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-white/15"><X size={18} /></button>
         </div>
@@ -282,6 +340,17 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
               <Field label="Nr pozwolenia na pracę" hint="Numer pozwolenia na pracę (jeśli posiada)."><input value={form.work_permit_number ?? ''} onChange={e => setForm({ ...form, work_permit_number: e.target.value })} className={INPUT} /></Field>
               <Field label="Pozwolenie — ważne do" hint="Data ważności pozwolenia na pracę — przy ≤60 dniach alert."><input type="date" value={form.work_permit_expiry ?? ''} onChange={e => setForm({ ...form, work_permit_expiry: e.target.value })} className={INPUT} /></Field>
               <Field label="Wiza — ważna do" hint="Data końca wizy / legalnego pobytu — przy ≤60 dniach alert."><input type="date" value={form.visa_expiry ?? ''} onChange={e => setForm({ ...form, visa_expiry: e.target.value })} className={INPUT} /></Field>
+              <Field label="TLC — karta pobytu z innego kraju" hint="Zaznacz, jeśli pracownik ma ważną kartę pobytu (TLC) wydaną przez inny kraj UE. Data ważności wchodzi do alertów tak samo jak polska karta pobytu.">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" checked={!!form.tlc} onChange={e => setForm({ ...form, tlc: e.target.checked, tlc_expiry: e.target.checked ? form.tlc_expiry : null })} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-300" />
+                  Posiada TLC
+                </label>
+              </Field>
+              {form.tlc && (
+                <Field label="TLC — ważna do" hint="Data ważności karty pobytu TLC — przy ≤60 dniach pojawia się alert.">
+                  <input type="date" value={form.tlc_expiry ?? ''} onChange={e => setForm({ ...form, tlc_expiry: e.target.value })} className={INPUT} />
+                </Field>
+              )}
               <Field label="Wjazd do strefy Schengen" hint="Data wjazdu do Schengen. Od niej liczy się 90 dni na złożenie wniosku o kartę pobytu — alert pojawia się 30 dni przed końcem tego terminu."><input type="date" value={form.schengen_entry_date ?? ''} onChange={e => setForm({ ...form, schengen_entry_date: e.target.value })} className={INPUT} /></Field>
               <Field label="Zgłoszenie do ZUS (data)" hint="Data zgłoszenia do ZUS — brak daty podbija alert „bez ZUS”."><input type="date" value={form.zus_registration_date ?? ''} onChange={e => setForm({ ...form, zus_registration_date: e.target.value })} className={INPUT} /></Field>
               <Field label="Numer PESEL" hint="PESEL (11 cyfr) — brak PESEL podbija alert na głównym widoku; używany w dokumentach."><input value={form.pesel ?? ''} onChange={e => setForm({ ...form, pesel: e.target.value })} className={INPUT} placeholder="11 cyfr" /></Field>
@@ -329,6 +398,9 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
                   <ExpiryRow icon={<IdCard size={16} />} label="Karta pobytu" number={employee.residence_card_number} date={employee.residence_card_expiry} />
                   <ExpiryRow icon={<Stamp size={16} />} label="Pozwolenie na pracę" number={employee.work_permit_number} date={employee.work_permit_expiry} />
                   <ExpiryRow icon={<Plane size={16} />} label="Wiza" date={employee.visa_expiry} />
+                  {employee.tlc && (
+                    <ExpiryRow icon={<IdCard size={16} />} label="TLC — karta pobytu z innego kraju" date={employee.tlc_expiry} />
+                  )}
                   {employee.schengen_entry_date && (
                     <ExpiryRow icon={<Plane size={16} />} label={`Karta pobytu — 90 dni od wjazdu Schengen (wjazd ${fmtDate(employee.schengen_entry_date)})`} date={schengenDeadline(employee.schengen_entry_date)} />
                   )}
@@ -403,7 +475,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
       {archiveModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setArchiveModal(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="mb-1 font-sans font-bold text-slate-900">Usuń z kontraktu — {fullName(employee)}</h3>
+            <h3 className="mb-1 font-sans font-bold text-slate-900">Usuń z kontraktu — {displayName(employee)}</h3>
             <p className="mb-3 text-sm text-slate-500">Pracownik trafi do Archiwum — dane, dokumenty, rozliczenia i grafik zostają. Można go przywrócić w każdej chwili.</p>
 
             <div className="mb-3">

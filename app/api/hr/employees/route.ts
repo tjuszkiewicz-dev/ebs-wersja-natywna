@@ -5,6 +5,8 @@ import { can, canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
 import { coordinatorGrantedContractIds } from '@/lib/hr/coordinatorScope';
+import { displayName } from '@/lib/hr/docPlaceholders';
+import { nameKey } from '@/lib/hr/nameMatch';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -95,11 +97,33 @@ export async function POST(request: NextRequest) {
       .eq('archived', false);
     const dup = (dupRows || []).find((x: any) => (x.passport_number || '').replace(/[^a-z0-9]/gi, '').toLowerCase() === pass);
     if (dup) {
-      const dupName = [dup.first_name, dup.second_name, dup.last_name, dup.second_last_name].filter(Boolean).join(' ');
+      const dupName = displayName(dup);
       return NextResponse.json({
         error: `Pracownik o tym numerze paszportu już istnieje: ${dupName}${dup.contract?.name ? ` — kontrakt „${dup.contract.name}"` : dup.candidate ? ' — Poczekalnia' : ''}.`,
         duplicate: true, existing: dup,
       }, { status: 409 });
+    }
+  }
+  // WALIDACJA DUPLIKATU (fallback): brak numeru paszportu — porownujemy po znormalizowanych
+  // imionach i nazwiskach (odporne na zamienioną kolejność członów i różną pisownię
+  // końcówki -s/-z, np. VILCHES/VILCHEZ). Obejmuje też zarchiwizowanych — osoba wracająca
+  // do pracy po przerwie nie powinna dostać drugiej kartoteki.
+  if (!pass) {
+    const newKey = nameKey({
+      first_name: b.first_name, second_name: b.second_name,
+      last_name: b.last_name, second_last_name: b.second_last_name,
+    });
+    if (newKey) {
+      const { data: nameRows } = await (admin() as any).from('hr_employees')
+        .select('id, first_name, second_name, last_name, second_last_name, candidate, contract:hr_contracts(id, name)');
+      const nameDup = (nameRows || []).find((x: any) => nameKey(x) === newKey);
+      if (nameDup) {
+        const dupName = displayName(nameDup);
+        return NextResponse.json({
+          error: `Pracownik o takim imieniu i nazwisku już istnieje: ${dupName}${nameDup.contract?.name ? ` — kontrakt „${nameDup.contract.name}"` : nameDup.candidate ? ' — Poczekalnia' : ''}. Sprawdź, czy to nie ta sama osoba (brak numeru paszportu uniemożliwia jednoznaczne dopasowanie).`,
+          duplicate: true, existing: { id: nameDup.id, name: dupName },
+        }, { status: 409 });
+      }
     }
   }
   const { data, error } = await (admin() as any).from('hr_employees').insert({

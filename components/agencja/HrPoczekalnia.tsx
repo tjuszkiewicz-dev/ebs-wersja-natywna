@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Hint } from '@/components/ui/Hint';
 import { Hourglass, Loader2, Search, Plus, X, CheckCircle2, Trash2, UserPlus, ScanText, FolderOpen } from 'lucide-react';
-import { fullName } from '@/lib/hr/docPlaceholders';
+import { displayName } from '@/lib/hr/docPlaceholders';
 import { HrEmployeePanel, Employee, ContractLite, LANGUAGES, PROFESSIONS } from './HrEmployeePanel';
 
 interface Candidate extends Employee { submitted_by_name?: string | null; submitted_at?: string | null }
@@ -145,7 +145,7 @@ export const HrPoczekalnia: React.FC = () => {
   };
 
   const reject = async (c: Candidate) => {
-    if (!confirm(`Odrzucić kandydata „${fullName(c)}"? Trafi do Archiwum (można przywrócić).`)) return;
+    if (!confirm(`Odrzucić kandydata „${displayName(c)}"? Trafi do Archiwum (można przywrócić).`)) return;
     const r = await fetch(`/api/hr/employees/${c.id}/archive`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
       body: JSON.stringify({ action: 'archive' }),
@@ -154,7 +154,7 @@ export const HrPoczekalnia: React.FC = () => {
     await load();
   };
 
-  const filtered = candidates.filter(c => !search.trim() || fullName(c).toLowerCase().includes(search.toLowerCase().trim()));
+  const filtered = candidates.filter(c => !search.trim() || displayName(c).toLowerCase().includes(search.toLowerCase().trim()));
 
   return (
     <div>
@@ -248,7 +248,7 @@ export const HrPoczekalnia: React.FC = () => {
           <div className="divide-y divide-slate-50">
             {filtered.map(c => (
               <div key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm hover:bg-slate-50/50">
-                <button onClick={() => setSelected(c)} className="min-w-0 text-left font-medium text-slate-800 hover:text-primary-600 hover:underline">{fullName(c)}</button>
+                <button onClick={() => setSelected(c)} className="min-w-0 text-left font-medium text-slate-800 hover:text-primary-600 hover:underline">{displayName(c)}</button>
                 {c.language && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500">{c.language.toUpperCase()}</span>}
                 {(c as any).profession && <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium text-primary-700">{(c as any).profession}</span>}
                 <span className="text-xs text-slate-400">
@@ -325,7 +325,7 @@ function AcceptModal({ candidate, contracts, coordinators, canPickCoordinator, o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-sans font-bold text-slate-900">Przydział do kontraktu — {fullName(candidate)}</h3>
+          <h3 className="font-sans font-bold text-slate-900">Przydział do kontraktu — {displayName(candidate)}</h3>
           <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X size={18} /></button>
         </div>
         <div className="space-y-3">

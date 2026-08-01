@@ -22,8 +22,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { data: s } = await sb.storage.from('hr-documents').createSignedUrl(d.path, 60 * 60);
     return { ...d, url: s?.signedUrl ?? null };
   }));
-  // koordynator może tylko dodawać — UI chowa przyciski usuwania
-  return NextResponse.json({ documents, can_delete: auth.role !== 'koordynator' });
+  // koordynator może tylko dodawać — chyba że ma nadany wyjątek agencja.dokumenty-usun
+  const canDelete = auth.role !== 'koordynator' || (await can(auth, 'agencja.dokumenty-usun'));
+  return NextResponse.json({ documents, can_delete: canDelete });
 }
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

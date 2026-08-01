@@ -39,12 +39,23 @@ export async function GET() {
     }
   }
 
+  // liczniki statusow pracy per lokal — jedno zapytanie, grupowanie w pamieci
+  const { data: statusRows } = await (sb as any).from('hr_employees').select('accommodation_id, work_status').eq('archived', false);
+  const statusCounts = new Map<string, Record<string, number>>();
+  for (const r of statusRows ?? []) {
+    if (!r.accommodation_id) continue;
+    const bucket = statusCounts.get(r.accommodation_id) ?? {};
+    const key = r.work_status || 'pracuje';
+    bucket[key] = (bucket[key] ?? 0) + 1;
+    statusCounts.set(r.accommodation_id, bucket);
+  }
+
   const accommodations = (data || []).map((a: any) => {
     const c: any = a.contract;
     const dist = (a.lat != null && a.lng != null && c?.lat != null && c?.lng != null)
       ? driveEstimate({ lat: a.lat, lng: a.lng }, { lat: c.lat, lng: c.lng })
       : null;
-    return { ...a, assigned_count: a.hr_employees?.[0]?.count ?? 0, hr_employees: undefined, distance_km: dist?.distance_km ?? null, drive_min: dist?.drive_min ?? null };
+    return { ...a, assigned_count: a.hr_employees?.[0]?.count ?? 0, hr_employees: undefined, distance_km: dist?.distance_km ?? null, drive_min: dist?.drive_min ?? null, status_counts: statusCounts.get(a.id) ?? {} };
   });
   return NextResponse.json({ accommodations });
 }

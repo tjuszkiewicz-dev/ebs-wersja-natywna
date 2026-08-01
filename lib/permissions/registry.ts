@@ -53,6 +53,7 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'agencja.legalizacja', label: 'Legalizacja pobytu (wnioski, terminy)', kind: 'tab' },
       { key: 'agencja.mapa', label: 'Mapa Pracowników (lokalizacja na żywo)', kind: 'tab' },
       { key: 'agencja.delete', label: 'Usuwanie pracowników / kontraktów / noclegów', kind: 'action' },
+      { key: 'agencja.dokumenty-usun', label: 'Usuwanie dokumentów z teczek', kind: 'action' },
     ],
   },
 ];

@@ -96,6 +96,8 @@ export async function POST(request: NextRequest) {
   const templateIds: string[] = Array.isArray(b?.template_ids) ? b.template_ids : [];
   // data drukowana w dokumentach ({{dzis}}) — ustawiana w generatorze; brak → dzisiaj
   const docDate: string | null = typeof b?.doc_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.doc_date) ? b.doc_date : null;
+  // miejscowość do pkt 8 (Podpisy) wniosku PESEL — ręczne pole generatora; puste = domyślne zachowanie (z adresu noclegu)
+  const peselSignCity: string = typeof b?.pesel_sign_city === 'string' ? b.pesel_sign_city.trim().slice(0, 60) : '';
   if (!employeeIds.length || !templateIds.length) return NextResponse.json({ error: 'Wybierz pracowników i dokumenty' }, { status: 400 });
   if (employeeIds.length * templateIds.length > MAX_PAIRS) {
     return NextResponse.json({ error: `Za dużo dokumentów naraz (max ${MAX_PAIRS} na partię)` }, { status: 400 });
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
 
   const sb = admin() as any;
   const [emps, tpls] = await Promise.all([
-    sb.from('hr_employees').select('*, contract:hr_contracts(id, name), accommodation:hr_accommodations(id, name, address, street, house_no, apartment_no, postal_code, city, voivodeship, county, commune, post_office)').in('id', employeeIds),
+    sb.from('hr_employees').select('*, contract:hr_contracts(id, name, address), accommodation:hr_accommodations(id, name, address, street, house_no, apartment_no, postal_code, city, voivodeship, county, commune, post_office)').in('id', employeeIds),
     sb.from('hr_doc_templates').select('*').in('id', templateIds),
   ]);
   if (emps.error) return NextResponse.json({ error: emps.error.message }, { status: 500 });
@@ -117,7 +119,10 @@ export async function POST(request: NextRequest) {
   // 1) zbuduj zadania: szablony HTML → Puppeteer; szablony 'acroform_pesel' → wypełnianie PDF
   const jobs: { emp: any; tpl: any; empName: string; missing: string[]; html?: string; footer?: string | null; acroform?: boolean }[] = [];
   for (const emp of emps.data ?? []) {
-    const data = buildDocData(emp, docDate);
+    // dzis_plus_miesiac liczony od daty DOKUMENTU (docDate), nie od dzisiaj — inaczej przy
+    // datowaniu w przyszłość/przeszłość okres w umowie może wyjść z datą końcową wcześniejszą
+    // niż początkowa (patrz test w docPlaceholders.test.ts)
+    const data = buildDocData(emp, docDate, docDate ? new Date(docDate) : new Date());
     const empName = [emp.first_name, emp.second_name, emp.last_name, emp.second_last_name].filter(Boolean).join(' ');
     for (const tpl of tpls.data ?? []) {
       if (tpl.kind === 'acroform_pesel') {
@@ -153,7 +158,7 @@ export async function POST(request: NextRequest) {
     try {
       const blank = await peselBlank();
       for (let i = 0; i < jobs.length; i++) {
-        if (jobs[i].acroform) pdfs[i] = Buffer.from(await fillPeselForm(blank, jobs[i].emp, docDate));
+        if (jobs[i].acroform) pdfs[i] = Buffer.from(await fillPeselForm(blank, jobs[i].emp, docDate, peselSignCity ? { signCity: peselSignCity } : undefined));
       }
     } catch (e: any) {
       return NextResponse.json({ error: `Wypełnianie wniosku PESEL nie powiodło się: ${e?.message || e}` }, { status: 500 });

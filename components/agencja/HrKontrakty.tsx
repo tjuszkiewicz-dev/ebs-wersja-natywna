@@ -4,13 +4,31 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Building2, Plus, ChevronRight, ChevronDown, Users, Pencil, Trash2, Save, Loader2, X, User, UserPlus, Search, UserMinus , FileText, IdCard, Plane, Landmark, Fingerprint } from 'lucide-react';
 import { HrEmployeePanel, type Employee, type ContractLite } from './HrEmployeePanel';
 import { HrPermitAlerts } from './HrPermitAlerts';
-import { fullName } from '@/lib/hr/docPlaceholders';
+import { displayName } from '@/lib/hr/docPlaceholders';
 import { computeReadiness } from '@/lib/hr/readiness';
 import { Hint } from '@/components/ui/Hint';
+import { WORK_STATUSES, workStatusDef, type WorkStatusId } from '@/lib/hr/workStatus';
 
 interface Contract {
   id: string; name: string; employer?: string | null; address?: string | null;
   contact_person?: string | null; phone?: string | null; status: string; notes?: string | null; employee_count: number;
+  status_counts?: Partial<Record<WorkStatusId, number>>;
+}
+
+// Plakietki z licznikami statusów pracy — pomija statusy z zerem, degraduje się cicho przy braku danych
+function StatusCountBadges({ counts }: { counts?: Partial<Record<WorkStatusId, number>> }) {
+  if (!counts) return null;
+  const entries = WORK_STATUSES.map(s => ({ s, n: counts[s.id] ?? 0 })).filter(x => x.n > 0);
+  if (!entries.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      {entries.map(({ s, n }) => (
+        <span key={s.id} title={s.label} className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${s.badge}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />{s.label} {n}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 const INPUT = 'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-300';
@@ -234,7 +252,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
   const matchEmp = (e: Employee) => {
     if (statusFilter === 'active' && e.status !== 'active') return false;
     if (statusFilter === 'inactive' && e.status === 'active') return false;
-    if (search.trim() && !fullName(e).toLowerCase().includes(search.toLowerCase().trim())) return false;
+    if (search.trim() && !displayName(e).toLowerCase().includes(search.toLowerCase().trim())) return false;
     return true;
   };
   const onSearch = (v: string) => {
@@ -347,6 +365,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
                   <div className="min-w-0">
                     <p className="font-sans font-bold text-slate-900">{c.name}</p>
                     <p className="text-xs text-slate-500">{c.employer || '—'}</p>
+                    <div className="mt-1"><StatusCountBadges counts={c.status_counts} /></div>
                   </div>
                 </button>
                 <span className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600"><Users size={13} /> {c.employee_count}</span>
@@ -370,7 +389,8 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
                           <div key={e.id} className="group flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-lg py-1.5 pl-10 pr-3 text-sm hover:bg-white">
                             <button onClick={() => setSelected(e)} className="flex min-w-0 items-center gap-2 text-left">
                               <User size={14} className="shrink-0 text-slate-400" />
-                              <span className="truncate font-medium text-slate-700">{fullName(e)}</span>
+                              <span title={workStatusDef(e.work_status).label} className={`h-2 w-2 shrink-0 rounded-full ${workStatusDef(e.work_status).dot}`} />
+                              <span className="truncate font-medium text-slate-700">{displayName(e)}</span>
                               {((e as any).hr_documents?.[0]?.count ?? 0) > 0 && (
                                 <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500" title={`Dokumenty w teczce: ${(e as any).hr_documents[0].count}`}>
                                   <FileText size={9} /> {(e as any).hr_documents[0].count}
@@ -401,7 +421,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
       {releaseFor && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setReleaseFor(null)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="mb-1 font-sans font-bold text-slate-900">Zwolnij pracownika — {fullName(releaseFor)}</h3>
+            <h3 className="mb-1 font-sans font-bold text-slate-900">Zwolnij pracownika — {displayName(releaseFor)}</h3>
             <p className="mb-3 text-sm text-slate-500">Pracownik trafi do Archiwum z całą historią (dokumenty, rozliczenia, grafik). Można go później przywrócić.</p>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Przyczyna zwolnienia *</p>
             <textarea value={releaseReason} onChange={e => setReleaseReason(e.target.value)} rows={3} autoFocus

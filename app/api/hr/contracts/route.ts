@@ -5,7 +5,7 @@ import { can, canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
 import { geocodeAddress } from '@/lib/hr/geo';
-import { coordinatorGrantedContractIds } from '@/lib/hr/coordinatorScope';
+import { coordinatorContractScope } from '@/lib/hr/coordinatorScope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,13 +27,22 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   let contracts = (data || []).map((c: any) => ({ ...c, employee_count: c.hr_employees?.[0]?.count ?? 0, hr_employees: undefined }));
 
+  // liczniki statusow pracy per kontrakt — jedno zapytanie, grupowanie w pamieci
+  const { data: statusRows } = await sb.from('hr_employees').select('contract_id, work_status').eq('archived', false);
+  const statusCounts = new Map<string, Record<string, number>>();
+  for (const r of statusRows ?? []) {
+    if (!r.contract_id) continue;
+    const bucket = statusCounts.get(r.contract_id) ?? {};
+    const key = r.work_status || 'pracuje';
+    bucket[key] = (bucket[key] ?? 0) + 1;
+    statusCounts.set(r.contract_id, bucket);
+  }
+  contracts = contracts.map((c: any) => ({ ...c, status_counts: statusCounts.get(c.id) ?? {} }));
+
   // koordynator: tylko przegląd; kontrakty, na których ma pracowników LUB jawnie przyznane w Ustawieniach
+  // (definicja WSPÓLNA z guardem przy przywracaniu z Archiwum — coordinatorContractScope)
   if (auth.role === 'koordynator') {
-    const [{ data: mine }, granted] = await Promise.all([
-      sb.from('hr_employees').select('contract_id').eq('coordinator_id', auth.id).eq('archived', false).not('contract_id', 'is', null),
-      coordinatorGrantedContractIds(auth.id),
-    ]);
-    const allowed = new Set([...(mine || []).map((e: any) => e.contract_id), ...granted]);
+    const allowed = new Set(await coordinatorContractScope(auth.id));
     contracts = contracts.filter((c: any) => allowed.has(c.id));
   }
   return NextResponse.json({ contracts, can_manage: auth.role !== 'koordynator' });

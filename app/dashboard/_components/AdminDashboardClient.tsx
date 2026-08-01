@@ -10,6 +10,7 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 import { NotificationHistoryModal } from '@/components/notifications/NotificationHistoryModal';
 import { useStrattonSystem } from '@/context/StrattonContext';
 import { supabaseBrowser } from '@/lib/supabase';
+import { useHistoryView } from '@/lib/useHistoryView';
 import { Search, Menu } from 'lucide-react';
 
 function AdminLayout() {
@@ -18,6 +19,7 @@ function AdminLayout() {
   const currentUser = state.currentUser;
 
   const [currentView,          setCurrentView]        = useState('admin-pulpit');
+  useHistoryView(currentView, setCurrentView);
   const [isMobileSidebarOpen,  setMobileSidebarOpen]  = useState(false);
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [isSearchOpen,         setSearchOpen]         = useState(false);

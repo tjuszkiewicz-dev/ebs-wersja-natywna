@@ -19,6 +19,7 @@ export function HrArchiwum() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Employee | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [restoreContract, setRestoreContract] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,9 +40,10 @@ export function HrArchiwum() {
     if (e.blacklisted && !confirm(`„${fullName(e)}" jest na CZARNEJ LIŚCIE${e.blacklist_reason ? ` (powód: ${e.blacklist_reason})` : ''}.\n\nPrzywrócenie ZDEJMIE flagę czarnej listy. Kontynuować?`)) return;
     setRestoring(e.id);
     try {
+      const contractId = restoreContract[e.id] || '';
       const r = await fetch(`/api/hr/employees/${e.id}/archive`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-        body: JSON.stringify({ action: 'restore' }),
+        body: JSON.stringify(contractId ? { action: 'restore', contract_id: contractId } : { action: 'restore' }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) { alert(d.error || 'Błąd przywracania'); return; }
@@ -66,11 +68,22 @@ export function HrArchiwum() {
           </p>
         </div>
       </button>
+      {!e.candidate && contracts.length > 0 && (
+        <select
+          value={restoreContract[e.id] ?? ''}
+          onChange={ev => setRestoreContract(m => ({ ...m, [e.id]: ev.target.value }))}
+          title="Kontrakt, do którego wróci pracownik (domyślnie: dawny kontrakt, jeśli nadal istnieje)"
+          className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-300"
+        >
+          <option value="">— dawny kontrakt —</option>
+          {contracts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      )}
       <button onClick={() => restore(e)} disabled={restoring === e.id}
         className="flex shrink-0 items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50">
         {restoring === e.id ? <Loader2 size={13} className="animate-spin" /> : <ArchiveRestore size={13} />} Przywróć
       </button>
-      <Hint text="Przywraca osobę z Archiwum: wraca do dawnego kontraktu (jeśli istnieje), kandydat wraca do Poczekalni. U oflagowanych zdejmuje czarną listę po potwierdzeniu." className="self-center" />
+      <Hint text="Przywraca osobę z Archiwum: domyślnie wraca do dawnego kontraktu (jeśli istnieje) — możesz wybrać inny z listy obok. Kandydat wraca do Poczekalni. U oflagowanych zdejmuje czarną listę po potwierdzeniu." className="self-center" />
       <button onClick={() => setSelected(e)} className="shrink-0 rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600"><ChevronRight size={16} /></button>
     </div>
   );

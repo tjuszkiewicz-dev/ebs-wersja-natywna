@@ -17,6 +17,7 @@ import { NotificationHistoryModal } from '@/components/notifications/Notificatio
 import { HRSettingsModal } from '@/components/hr/HRSettingsModal';
 import { useStrattonSystem } from '@/context/StrattonContext';
 import { supabaseBrowser } from '@/lib/supabase';
+import { useHistoryView } from '@/lib/useHistoryView';
 import { Role } from '@/types';
 import type { Notification } from '@/types';
 import { Settings, Search } from 'lucide-react';
@@ -29,6 +30,7 @@ function HRLayout() {
 
   // ── Stan UI (identyczny jak App.tsx) ──────────────────────────────────────
   const [currentView,          setCurrentView]          = useState<string>('hr-order');
+  useHistoryView(currentView, setCurrentView);
   const [isMobileSidebarOpen,  setMobileSidebarOpen]    = useState(false);
   const [isDesktopSidebarOpen, setDesktopSidebarOpen]   = useState(true);
   const [isSearchOpen,         setSearchOpen]           = useState(false);

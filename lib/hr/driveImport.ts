@@ -1,6 +1,7 @@
 // ── Import katalogu pracowników z Google Drive (folder publiczny „każdy z linkiem") ──
 // Bez klucza API: listowanie przez widok embeddedfolderview, pobieranie przez
 // uc?export=download (z obsługą strony potwierdzenia dla większych plików).
+import { OCR_TO_EMPLOYEE, langFromCountry, type OcrResult } from './ocr';
 
 export interface DriveEntry { id: string; name: string; isFolder: boolean }
 
@@ -53,4 +54,32 @@ export function guessNameFromFolder(folderName: string): { first: string; last: 
   const words = folderName.replace(/[_.]+/g, ' ').trim().split(/\s+/).filter(Boolean);
   if (words.length >= 2) return { last: words[0], first: words.slice(1).join(' ') };
   return { last: folderName.trim() || '(import Drive)', first: '—' };
+}
+
+// Czysta funkcja budująca dane NOWEJ karty kandydata z importu Drive: dane z OCR
+// (paszport/karta pobytu/…) ZAWSZE wygrywają, nazwa folderu jest fallbackiem WYŁĄCZNIE
+// per-pole, gdy OCR nic nie odczytał dla first_name/last_name (bez tego nazwiska w
+// formacie „NAZWISKA IMIONA" z nazwy folderu lądowałyby w złych kolumnach). Wartości
+// puste/białe znaki z OCR są traktowane jak brak danych, nie jak realny odczyt.
+export function buildImportPatch(agg: OcrResult, guess: { first: string; last: string }): Record<string, string> {
+  const patch: Record<string, string> = {};
+  for (const [ocrKey, col] of Object.entries(OCR_TO_EMPLOYEE)) {
+    const raw = (agg as any)[ocrKey];
+    const s = raw == null ? '' : String(raw).trim();
+    if (s) patch[col] = s;
+  }
+  if (!patch.first_name) {
+    const g = (guess.first || '').trim();
+    if (g) patch.first_name = g;
+  }
+  if (!patch.last_name) {
+    const g = (guess.last || '').trim();
+    if (g) patch.last_name = g;
+  }
+  // auto-język dokumentów wg obywatelstwa (tylko gdy sami go nie wpisaliśmy wyżej)
+  if (!patch.language) {
+    const lang = langFromCountry(agg.nationality ?? patch.country_of_origin);
+    if (lang) patch.language = lang;
+  }
+  return patch;
 }

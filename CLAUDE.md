@@ -103,6 +103,19 @@ regexem `znmp-logo`→`ebs-neon-no-bg`) — **do przeglądu/edycji w panelu**: c
 zwykły tekst nagłówka firmowego BBS (`www.znmp.pl`, `zp@znmp.pl`) niezwiązany z logo-obrazkiem,
 świadomie nieusunięty (nie jest to logo, tylko dane kontaktowe do ewentualnej ręcznej korekty).
 
+> ⚠️ **PUŁAPKA `import-bbs-doc-templates.mts` (E5 T17, 2026-07-29):** ten skrypt kopiuje
+> `hr_doc_templates` z bazy BBS **żywcem** (imię firmy, adres, NIP, a w niektórych szablonach
+> także zakodowany w treści base64 obrazek podpisu prezesa) — dobre dla ogólnych szablonów
+> BBS, ale **nie wolno** nim (re)generować „Porozumienia o szkoleniu wdrożeniowym" ani
+> „Oświadczenia — kontakt przez pełnomocnika": w BBS mają one na sztywno dane obcej spółki
+> ALCES i/lub dane osobowe konkretnego pełnomocnika (imię, nazwisko, telefon), a w wersji
+> porozumienia dodatkowo faksymile podpisu. EBS ma te 8 szablonów (4 języki × 2 dokumenty)
+> wgrane osobno przez `scripts/seed-e5-doc-templates.mts` z polami `{{firma_nazwa}}`,
+> `{{firma_adres}}`, `{{firma_nip}}`, `{{pelnomocnik_dane}}` do ręcznego uzupełnienia w panelu
+> „Szablony dokumentów" — bez żadnych danych ALCES ani podpisu. `import-bbs-doc-templates.mts`
+> ma wbudowany filtr wykluczający te 8 nazw, więc rerun ich nie nadpisze — **nie usuwaj tego
+> filtra**.
+
 **E2d (2026-07-18):** moduły AI agencji. Widoki `hr-tlumacz` → `components/agencja/HrTlumacz`
 (gate `agencja.tlumacz`) i `hr-mapa` → `HrMapa` (gate `agencja.mapa`, Leaflet+markercluster
 przez `next/dynamic {ssr:false}` — leaflet jest browser-only). API: `hr/ocr` (Claude Vision —
@@ -149,6 +162,52 @@ sprzedażowych — Fakturownia zostaje jedynym fakturującym/KSeF.** `lib/ksef/*
 puste. **KPiR/VAT jadą KOSZTOWO** (przychody sprzedażowe w Fakturowni; ewentualny sync
 Fakturownia→`acc_invoices` = przyszły krok, NIE duplikat wystawiania). Follow-up: picker „dodaj
 członka firmy" w `KsiegFirmy` woła `/api/users` (403 dla dyrektora — do domknięcia z E3/katalogiem).
+
+**E5 (2026-07-29) — port delty z BBS (bloki C–H):** rozszerzenia agencji pracy dosypane po E2.
+Migracja `052_hr_status_tlc.sql` — `hr_employees.work_status` (`pracuje`/`oczekuje`/`urlop`/
+`zwolniony`, **świadomie oddzielony od `status`** active/inactive, który dalej steruje
+rozliczeniami i alertami), `tlc` (bool) + `tlc_expiry` (karta pobytu z innego kraju UE); backfill
+ze strażnikiem jednorazowości. Nowe moduły: `lib/hr/workStatus.ts` (definicje statusów),
+`lib/hr/alerts.ts` (wspólny silnik alarmów dla ekranu i PDF — progi: dokumenty ≤60 dni,
+Schengen ≤30, badania ≤60, flota ≤30, najem ≤3; `buildAlerts`/`daysUntil` mają dodatkowy
+parametr `today` — determinizm), `lib/hr/nameMatch.ts` (dedup po imionach/nazwiskach,
+transliteracja pod NFD znaków nierozkładalnych: ł, ß, ø, đ, æ, œ, þ, ð), `lib/useHistoryView.ts`
+(historia ekranów SPA — wpięta w **3 panele**, nie 4: `NetworkDashboardClient` nie ma stanu
+widoku), `lib/users/accountPurge.ts` (logika usuwania/anonimizacji kont).
+
+Funkcje: statusy pracy w kartotece z licznikami per kontrakt i per lokal; zakwaterowani per
+lokal z przenoszeniem; przywracanie z archiwum do wybranego kontraktu; `displayName` (dwa
+imiona/dwa nazwiska); ekran „Alarmy wymagające uwagi" z filtrami + raport PDF
+(`app/api/hr/alerts/pdf`, renderer **`lib/pdf/renderer.ts` — EBS, nie moduł CRM**, bo CRM jest
+wykluczony z EBS); TLC w kartotece, alertach i digeście crona `expire-vouchers`; poprawki OCR
+(MRZ rozstrzyga kolejność imion/nazwisk i datę ważności paszportu); naprawiony import z Google
+Drive (OCR w pamięci PRZED zapisem, `octet-stream`, dedup po paszporcie); dedup po nazwiskach
+przy ręcznym dodaniu (409); ręczna miejscowość w pkt 8 wniosku PESEL (+ transliteracja
+cyrylicy — znaki spoza WinAnsi cicho gubiły pole); uprawnienie `agencja.dokumenty-usun`
+(per-user wyjątek, **z zakresem koordynatora**); nawigacja wstecz; usuwanie/anonimizacja kont;
+nowe szablony dokumentów (patrz PUŁAPKA `import-bbs-doc-templates.mts` powyżej — 8 szablonów
+z polami `{{firma_nazwa}}`/`{{firma_adres}}`/`{{firma_nip}}`/`{{pelnomocnik_dane}}` czekają na
+dane rejestrowe Stratton Prime, w `companies` na razie zaślepkowy NIP). Faksymile podpisu
+prezesa (BBS) **nieprzeniesione** — decyzja właściciela.
+
+**Usuwanie kont** (`app/api/users/[id]/purge`) — **PRZEPROJEKTOWANE względem BBS, nie port.**
+Tryb wybierany automatycznie po śladzie finansowym: pusty → **PURGE** (kasuje profil i konto
+logowania), niepusty → **ANONIMIZACJA** (dane osobowe wymazane, logowanie zablokowane, **księga
+nietknięta**). Powód: 11 kluczy obcych blokujących fizyczne usunięcie (zweryfikowane w
+`pg_constraint`), w tym `voucher_transactions` pod triggerem `enforce_ledger_immutability`
+(bony MPV, dyrektywa UE 2016/1065). Bramki: tylko `auth.isOwner`, nie siebie, nie właściciela,
+potwierdzenie przez przepisanie nazwy konta. Audyt do `audit_log` **przed** operacją (wyjątek
+od reguły „audyt triggerami" — nieudany zapis audytu przerywa operację).
+
+> **Zależność zwrotna E6→E5:** gdy E6 wprowadzi tabele czatu/poczty (`mail_account_users`,
+> `chat_push_subscriptions`, `chat_participants`, `chat_reactions`), endpoint purge musi zostać
+> o nie rozszerzony — inaczej zostaną sieroty. Oznaczone w kodzie `// TODO E6:`.
+
+**Świadomie odłożone (E5):** wskaźniki-widma bez klucza obcego w wielu tabelach `hr_*`/`acc_*`
+(m.in. `hr_coordinator_pay.user_id`); czy zgłoszenia do BOK powinny blokować usunięcie konta;
+pliki w Storage nietykane przy usuwaniu konta; dogrywanie dokumentów do istniejącej teczki
+przy imporcie z Google Drive (jest w BBS, brak w EBS); `dzis_plus_miesiac` dolicza miesiąc
+kalendarzowo (31.01 → 03.03, nie koniec lutego).
 
 ### State Management
 

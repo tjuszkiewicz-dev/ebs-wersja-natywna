@@ -42,8 +42,36 @@ if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_
   console.error('Brak kredencjałów EBS (.env.local — uruchom z --env-file=.env.local)'); process.exit(1);
 }
 
-const { data: templates, error: srcErr } = await src.from('hr_doc_templates').select('*');
+const { data: rawTemplates, error: srcErr } = await src.from('hr_doc_templates').select('*');
 if (srcErr) { console.error('BBS hr_doc_templates:', srcErr.message); process.exit(1); }
+
+// E5 T17 (2026-07-29): te 8 szablonów zostały już wprowadzone do EBS ręcznie
+// (scripts/seed-e5-doc-templates.mts) z danymi obcej spółki ALCES zamienionymi
+// na pola {{firma_...}} i bez faksymile podpisu prezesa ALCES/danych pełnomocnika.
+// Wersje w bazie BBS mają te dane wpisane na sztywno (i w przypadku porozumienia —
+// zakodowany w treści base64 podpis). Rerun tego skryptu NIE MOŻE ich nadpisać
+// tymi „żywcem" skopiowanymi wersjami — filtr wyklucza je po nazwie.
+//
+// Porównanie ZNORMALIZOWANE (trim + lowercase), nie ścisłe: jeśli ktoś w panelu
+// BBS kiedyś zmieni wielkość liter albo doda/usunie spację w nazwie szablonu,
+// ścisłe porównanie po cichu przepuściłoby zatruty wiersz z powrotem do EBS.
+// Normalizacja to siatka bezpieczeństwa — ma być głośna (patrz log niżej), nie cicha.
+const normalizeName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+const EXCLUDED_NAMES = new Set([
+  'Porozumienie o szkoleniu wdrożeniowym (PL / hiszpański)',
+  'Porozumienie o szkoleniu wdrożeniowym (PL / rosyjski)',
+  'Porozumienie o szkoleniu wdrożeniowym (PL / hindi)',
+  'Porozumienie o szkoleniu wdrożeniowym (PL / angielski)',
+  'Oświadczenie — kontakt przez pełnomocnika (PL / hiszpański)',
+  'Oświadczenie — kontakt przez pełnomocnika (PL / rosyjski)',
+  'Oświadczenie — kontakt przez pełnomocnika (PL / hindi)',
+  'Oświadczenie — kontakt przez pełnomocnika (PL / angielski)',
+].map(normalizeName));
+const templates = (rawTemplates ?? []).filter((t: any) => !EXCLUDED_NAMES.has(normalizeName(t.name ?? '')));
+const skippedCount = (rawTemplates?.length ?? 0) - templates.length;
+console.log(skippedCount > 0
+  ? `Pominięto ${skippedCount} szablon(y) z danymi ALCES/pełnomocnika (patrz komentarz w kodzie) — mają już swoje wersje EBS.`
+  : `UWAGA: filtr EXCLUDED_NAMES nie pominął żadnego szablonu (spodziewano się ${EXCLUDED_NAMES.size}) — sprawdź, czy nazwy w BBS się nie zmieniły.`);
 
 if (!templates || templates.length === 0) {
   console.log('BBS hr_doc_templates: brak wierszy — nic do skopiowania.');

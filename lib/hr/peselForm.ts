@@ -1,11 +1,41 @@
 // Wypełnianie oficjalnego wniosku o nadanie numeru PESEL (formularz EL/W/1, AcroForm)
 // danymi pracownika. Zachowuje oryginalny rządowy PDF — nakładamy tylko wartości pól.
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, NoSuchFieldError, UnexpectedFieldTypeError } from 'pdf-lib';
 
 // WinAnsi (font domyślny pdf-lib) nie koduje polskich liter specyficznych — transliterujemy
 // TYLKO je (ł,ż,ź,ś,ć,ń,ą,ę). Hiszpańskie akcenty (á,é,í,ó,ú,ü,ñ) są w WinAnsi → zostają.
 const PL: Record<string, string> = { 'ł': 'l', 'Ł': 'L', 'ż': 'z', 'Ż': 'Z', 'ź': 'z', 'Ź': 'Z', 'ś': 's', 'Ś': 'S', 'ć': 'c', 'Ć': 'C', 'ń': 'n', 'Ń': 'N', 'ą': 'a', 'Ą': 'A', 'ę': 'e', 'Ę': 'E' };
-const wa = (s: unknown): string => (s == null ? '' : String(s).replace(/[łŁżŻźŹśŚćĆńŃąĄęĘ]/g, c => PL[c] ?? c));
+
+// Cyrylica (ukraińska/rosyjska) → łacinka — pole może dostać wklejoną/wpisaną wartość cyrylicą
+// (np. z adresu OCR-owanego z dokumentu wschodniego pracownika). Transliteracja uproszczona
+// (nie ISO-9/paszportowa) — to pole miejscowości podpisu, nie dane tożsamości do weryfikacji 1:1.
+const CYR: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'h', ґ: 'g', д: 'd', е: 'e', є: 'ie', ж: 'zh', з: 'z', и: 'y', і: 'i',
+  ї: 'i', й: 'i', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u',
+  ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ь: '', ю: 'iu', я: 'ia', ъ: '', ы: 'y', э: 'e', ё: 'e',
+};
+const CYR_FULL: Record<string, string> = { ...CYR };
+for (const [k, v] of Object.entries(CYR)) {
+  CYR_FULL[k.toUpperCase()] = v.charAt(0).toUpperCase() + v.slice(1);
+}
+
+// Typografia „inteligentna" (myślniki, cudzysłowy, twarda spacja) → warianty ASCII z WinAnsi.
+const TYPO: Record<string, string> = { '—': '-', '–': '-', '‑': '-', '„': '"', '”': '"', '“': '"', '‘': "'", '’': "'", ' ': ' ' };
+
+// Ostatnia linia obrony: WinAnsi (Windows-1252) to zasadniczo Latin-1 + garść symboli w 0x80-0x9F
+// (już pokryte przez TYPO/PL/CYR powyżej). Wszystko poza drukowalnym ASCII i Latin-1 Supplement
+// (emoji, CJK, arabski, nieprzewidziane symbole) zamieniamy na „?" — pdf-lib rzuca wyjątek przy
+// próbie zakodowania takiego znaku (encodeUnicodeCodePoint), a to NIE MOŻE cicho ubić pola
+// pkt 8 wniosku urzędowego.
+const winAnsiSafe = (s: string): string => s.replace(/[^\x20-\x7E\xA0-\xFF]/g, '?');
+
+const wa = (s: unknown): string => {
+  if (s == null) return '';
+  const withTypo = String(s).replace(/[—–‑„”“‘’ ]/g, c => TYPO[c] ?? c);
+  const withCyr = withTypo.replace(/[а-яіїєґА-ЯІЇЄҐ]/g, c => CYR_FULL[c] ?? c);
+  const withPl = withCyr.replace(/[łŁżŻźŹśŚćĆńŃąĄęĘ]/g, c => PL[c] ?? c);
+  return winAnsiSafe(withPl);
+};
 const up = (s: unknown): string => wa(s).toUpperCase();
 
 const dateParts = (iso?: string | null) => {
@@ -27,7 +57,7 @@ export function peselMissingFields(emp: any): string[] {
   return miss;
 }
 
-export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: string | null): Promise<Uint8Array> {
+export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: string | null, opts?: { signCity?: string }): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(blank);
   const form = pdf.getForm();
 
@@ -36,7 +66,14 @@ export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: strin
       const f = form.getTextField(name);
       const max = f.getMaxLength?.();
       f.setText(typeof max === 'number' && max > 0 ? value.slice(0, max) : value);
-    } catch { /* pole nie istnieje lub inny typ — pomijamy */ }
+    } catch (e) {
+      // brak pola / zły typ pola w tym PDF-ie — oczekiwane, pomijamy po cichu.
+      // KAŻDY inny błąd (np. znak nieobsłużony przez WinAnsi mimo sanitizacji w wa()) MUSI
+      // trafić do logów serwera — cicha pusta rubryka w urzędowym wniosku to błąd krytyczny.
+      if (!(e instanceof NoSuchFieldError) && !(e instanceof UnexpectedFieldTypeError)) {
+        console.error(`[peselForm] pole "${name}" nie zostało wypełnione (wartość: "${value}"):`, e instanceof Error ? e.message : e);
+      }
+    }
   };
   const check = (name: string) => { try { form.getCheckBox(name).check(); } catch { /* */ } };
 
@@ -95,8 +132,10 @@ export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: strin
   // powiadomienie w formie papierowej (domyślne w formularzu — ustawiamy jawnie)
   check('przekazanie wnioskodawcy powiadomienia o nadaniu numeru PESEL papierowa');
 
-  // podpisy — miejscowość + data
-  setT('podpisy miejscowość', wa(miejscowosc));
+  // podpisy (pkt 8) — miejscowość: ręczna z generatora (opts.signCity) nadpisuje;
+  // brak podania → domyślnie jak dotąd, z adresu noclegu
+  const signCity = opts?.signCity?.trim();
+  setT('podpisy miejscowość', wa(signCity ? signCity : miejscowosc));
   setT('podpisy data dzień', sigD);
   setT('podpisy data miesiąc', sigM);
   setT('podpisy data rok', sigY);

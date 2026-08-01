@@ -70,7 +70,11 @@ Wyodrębnij WSZYSTKIE dane, które faktycznie widzisz w dokumencie, i zwróć WY
  "visa_expiry": null lub data ważności wizy YYYY-MM-DD
 }
 
-Zasady: pola nieobecne w dokumencie = null (nie zgaduj). Imiona i nazwiska pisz Formatem Z Wielkiej Litery (nie WERSALIKAMI). Obcokrajowcy z Ameryki Łacińskiej mają zwykle DWA imiona i DWA nazwiska — rozdziel je do właściwych pól (nigdy nie łącz dwóch nazwisk w last_name). Daty zawsze YYYY-MM-DD. W paszporcie sprawdź też strefę MRZ na dole.`;
+Zasady: pola nieobecne w dokumencie = null (nie zgaduj). Imiona i nazwiska pisz Formatem Z Wielkiej Litery (nie WERSALIKAMI). Obcokrajowcy z Ameryki Łacińskiej mają zwykle DWA imiona i DWA nazwiska — rozdziel je do właściwych pól (nigdy nie łącz dwóch nazwisk w last_name). Daty zawsze YYYY-MM-DD.
+
+KOLEJNOŚĆ PÓL W PASZPORCIE (krytyczne): w paszportach — zwłaszcza kolumbijskich i innych latynoskich — najpierw wydrukowane są NAZWISKA (Apellidos / Surname[s]), a dopiero POD NIMI imiona (Nombres / Given names). Nie zakładaj kolejności imię-nazwisko z samego układu tekstu. ROZSTRZYGA strefa MRZ na dole: format P<KRAJNAZWISKO1<NAZWISKO2<<IMIE1<IMIE2 — wszystko PRZED podwójnym '<<' to nazwiska (last_name, second_last_name), wszystko PO '<<' to imiona (first_name, second_name), w kolejności z dokumentu. Przykład: P<COLGONZALEZ<RODRIGUEZ<<PAULA<ANDREA → last_name=Gonzalez, second_last_name=Rodriguez, first_name=Paula, second_name=Andrea. Przy rozbieżności między polami tekstowymi a MRZ zaufaj MRZ.
+
+DATA WAŻNOŚCI PASZPORTU: skan często zawiera KILKA dokumentów naraz (np. u góry cédula/dowód z własną „Fecha de vencimiento", niżej paszport). passport_expiry bierz WYŁĄCZNIE ze strony danych paszportu (Date of expiry / Fecha de vencimiento przy danych paszportu) i ZWERYFIKUJ z 2. linią MRZ: po numerze paszportu i kraju idzie data urodzenia (RRMMDD), cyfra kontrolna, płeć (M/F), a ZARAZ PO płci data ważności RRMMDD (np. ...F3411067... → 2034-11-06). Przy rozbieżności zaufaj MRZ — nigdy dacie z innego dokumentu na skanie.`;
 
 const anthropic = getAnthropic;
 
@@ -142,7 +146,13 @@ export function langFromCountry(country: string | null | undefined): 'es' | 'en'
 }
 
 const norm = (v: any) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-const normNum = (v: any) => String(v ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+
+// Normalizacja numerów dokumentów (paszport, PESEL, IBAN, karta pobytu…) do porównań —
+// usuwa spacje/myślniki/kropki i ujednolica wielkość liter, żeby "AB-123 456" == "ab123456".
+export function normalizeDocNumber(v: any): string {
+  return String(v ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+const normNum = normalizeDocNumber;
 
 export interface MergeOutcome {
   applied: Record<string, string>;                                  // puste pola → wpisane
