@@ -1,11 +1,11 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Trash2, Loader2, Phone, Mail, Landmark, Globe, FolderOpen, User, Briefcase, IdCard, Stamp, Plane, ShieldCheck, BedDouble, CalendarDays, Hash, Archive, ArchiveRestore, KeyRound } from 'lucide-react';
 import { HrEmployeeDocs } from './HrEmployeeDocs';
 import { HrSchedule } from './HrSchedule';
 import { expiryStatus, TONE_BADGE, fmtDate, schengenDeadline } from './expiry';
-import { fullName } from '@/lib/hr/docPlaceholders';
+import { displayName } from '@/lib/hr/docPlaceholders';
 import { computeReadiness } from '@/lib/hr/readiness';
 import { Hint } from '@/components/ui/Hint';
 import { HeartPulse, CheckCircle2, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
@@ -245,7 +245,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
   };
 
   const restore = async () => {
-    if (employee.blacklisted && !confirm(`„${fullName(employee)}" jest na CZARNEJ LIŚCIE${employee.blacklist_reason ? ` (powód: ${employee.blacklist_reason})` : ''}.\n\nPrzywrócenie ZDEJMIE flagę czarnej listy. Kontynuować?`)) return;
+    if (employee.blacklisted && !confirm(`„${displayName(employee)}" jest na CZARNEJ LIŚCIE${employee.blacklist_reason ? ` (powód: ${employee.blacklist_reason})` : ''}.\n\nPrzywrócenie ZDEJMIE flagę czarnej listy. Kontynuować?`)) return;
     const r = await fetch(`/api/hr/employees/${employee.id}/archive`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
       body: JSON.stringify({ action: 'restore' }),
@@ -257,7 +257,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
   };
 
   const removeForever = async () => {
-    if (!confirm(`USUNĄĆ TRWALE „${fullName(employee)}"?\n\nZnikną też wszystkie dokumenty. Tej operacji nie da się cofnąć.`)) return;
+    if (!confirm(`USUNĄĆ TRWALE „${displayName(employee)}"?\n\nZnikną też wszystkie dokumenty. Tej operacji nie da się cofnąć.`)) return;
     await fetch(`/api/hr/employees/${employee.id}`, { method: 'DELETE', credentials: 'same-origin' });
     onDeleted(employee.id);
   };
@@ -271,7 +271,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
         <div className="flex items-start justify-between gap-3 bg-gradient-to-br from-primary-600 to-primary-500 px-6 py-5 text-white">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">{editing ? 'Edycja pracownika' : 'Karta pracownika'}</p>
-            <h3 className="truncate font-sans text-lg font-bold leading-tight">{editing ? fullName(form) : fullName(employee)}</h3>
+            <h3 className="truncate font-sans text-lg font-bold leading-tight">{editing ? displayName(form) : displayName(employee)}</h3>
             {!editing && <WorkStatusBadge employee={employee} onChanged={onChanged} />}
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-white/15"><X size={18} /></button>
@@ -460,7 +460,7 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
       {archiveModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setArchiveModal(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="mb-1 font-sans font-bold text-slate-900">Usuń z kontraktu — {fullName(employee)}</h3>
+            <h3 className="mb-1 font-sans font-bold text-slate-900">Usuń z kontraktu — {displayName(employee)}</h3>
             <p className="mb-3 text-sm text-slate-500">Pracownik trafi do Archiwum — dane, dokumenty, rozliczenia i grafik zostają. Można go przywrócić w każdej chwili.</p>
 
             <div className="mb-3">

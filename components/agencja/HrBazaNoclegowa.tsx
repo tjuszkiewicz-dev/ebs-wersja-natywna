@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { BedDouble, Plus, Pencil, Trash2, Save, Loader2, MapPin, Copy, Check, ExternalLink, Users, Phone, CalendarClock, AlertTriangle, Search, Route, Building2, X, Camera, Upload, ImageOff } from 'lucide-react';
+import { BedDouble, Plus, Pencil, Trash2, Save, Loader2, MapPin, Copy, Check, ExternalLink, Users, Phone, CalendarClock, AlertTriangle, Search, Route, Building2, X, Camera, Upload, ImageOff, ChevronDown, ChevronUp, ArrowRightLeft } from 'lucide-react';
 import { expiryStatus, fmtDate } from './expiry';
 import { Hint } from '@/components/ui/Hint';
 import { WORK_STATUSES, type WorkStatusId } from '@/lib/hr/workStatus';
+import { displayName } from '@/lib/hr/docPlaceholders';
 
 interface Contact { name: string; phone: string; role: string }
+interface Tenant {
+  id: string; first_name?: string | null; second_name?: string | null;
+  last_name?: string | null; second_last_name?: string | null; accommodation_id?: string | null;
+}
 interface Accommodation {
   id: string; name: string; type?: string | null; address?: string | null; capacity?: number | null;
   street?: string | null; house_no?: string | null; apartment_no?: string | null; postal_code?: string | null; city?: string | null;
@@ -68,6 +73,60 @@ function RentSummary({ net, pricePerPerson, rentedSpots, vatRate, mediaIncluded 
 
 // Ton plakietki końca najmu (alarm przy ≤3 dniach)
 const leaseTone = (days: number) => days <= 3 ? 'bg-red-100 text-red-700' : days <= 14 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700';
+
+// Lista zakwaterowanych w danym lokalu + przenoszenie do innego lokalu (PATCH accommodation_id).
+// Degraduje się cicho: bez zakwaterowanych → komunikat; bez innych lokali → select wyłączony.
+function TenantsList({ tenants, accommodations, currentId, onMoved }: {
+  tenants: Tenant[]; accommodations: { id: string; name: string }[]; currentId: string; onMoved: () => void;
+}) {
+  const [target, setTarget] = useState<Record<string, string>>({});
+  const [moving, setMoving] = useState<string | null>(null);
+  const others = accommodations.filter(a => a.id !== currentId);
+
+  const move = async (t: Tenant) => {
+    const accommodation_id = target[t.id];
+    if (!accommodation_id) return;
+    setMoving(t.id);
+    try {
+      const r = await fetch(`/api/hr/employees/${t.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify({ accommodation_id }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { alert(d.error || 'Błąd przenoszenia'); return; }
+      onMoved();
+    } finally { setMoving(null); }
+  };
+
+  if (!tenants.length) return <p className="px-1 py-2 text-xs italic text-slate-300">Brak zakwaterowanych w tym lokalu</p>;
+
+  return (
+    <div className="space-y-1.5">
+      {tenants.map(t => (
+        <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5 text-sm ring-1 ring-slate-100">
+          <span className="min-w-0 flex-1 truncate text-slate-700">{displayName(t)}</span>
+          <select
+            value={target[t.id] ?? ''}
+            onChange={e => setTarget(m => ({ ...m, [t.id]: e.target.value }))}
+            disabled={!others.length}
+            title={others.length ? 'Przenieś do innego lokalu' : 'Brak innych lokali do wyboru'}
+            className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 disabled:opacity-50"
+          >
+            <option value="">— przenieś do —</option>
+            {others.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <button
+            onClick={() => move(t)}
+            disabled={!target[t.id] || moving === t.id}
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-primary-200 bg-primary-50 px-2 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100 disabled:opacity-50"
+          >
+            {moving === t.id ? <Loader2 size={12} className="animate-spin" /> : <ArrowRightLeft size={12} />} Przenieś
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const TYPES: [string, string][] = [
   ['pensjonat', 'Pensjonat'], ['hotel', 'Hotel'], ['dom', 'Dom'], ['mieszkanie', 'Mieszkanie'], ['hostel', 'Hostel'], ['inne', 'Inne'],
@@ -209,18 +268,23 @@ export function HrBazaNoclegowa() {
   const [search, setSearch] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const [photosAcc, setPhotosAcc] = useState<Accommodation | null>(null);
+  const [employees, setEmployees] = useState<Tenant[]>([]);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ra, rc] = await Promise.all([
+      const [ra, rc, re] = await Promise.all([
         fetch('/api/hr/accommodations', { credentials: 'same-origin' }),
         fetch('/api/hr/contracts?names=1', { credentials: 'same-origin' }),
+        fetch('/api/hr/employees', { credentials: 'same-origin' }),
       ]);
       const da = ra.ok ? await ra.json() : { accommodations: [] };
       const dc = rc.ok ? await rc.json() : { contracts: [] };
+      const de = re.ok ? await re.json() : { employees: [] };
       setList(da.accommodations || []);
       setContracts(dc.contracts || []);
+      setEmployees(de.employees || []);
     } catch { /* */ } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -481,6 +545,28 @@ export function HrBazaNoclegowa() {
                 </div>
 
                 <div className="mt-2"><StatusCountBadges counts={a.status_counts} /></div>
+
+                {/* Zakwaterowani w tym lokalu — rozwijalna lista z przenoszeniem do innego lokalu */}
+                {a.assigned_count > 0 && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => setExpandedId(id => (id === a.id ? null : a.id))}
+                      className="flex items-center gap-1 text-xs font-semibold text-primary-600 hover:underline"
+                    >
+                      {expandedId === a.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />} Zakwaterowani ({a.assigned_count})
+                    </button>
+                    {expandedId === a.id && (
+                      <div className="mt-2 border-t border-slate-100 pt-2">
+                        <TenantsList
+                          tenants={employees.filter(e => e.accommodation_id === a.id)}
+                          accommodations={list.map(x => ({ id: x.id, name: x.name }))}
+                          currentId={a.id}
+                          onMoved={load}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Podsumowanie czynszu — TEN SAM widok co w formularzu edycji, dla każdego lokalu */}
                 {net != null && net > 0 && (

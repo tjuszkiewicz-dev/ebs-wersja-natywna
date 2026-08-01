@@ -7,6 +7,18 @@ export interface DocPlaceholder { key: string; label: string }
 export const fullName = (e: any) =>
   [e.first_name, e.second_name, e.last_name, e.second_last_name].filter(Boolean).join(' ');
 
+// Sklejenie pełnego imienia i nazwiska do wyświetlenia w UI — jak fullName, ale dodatkowo
+// przycina białe znaki na każdym polu (dane z importów/OCR bywają z otaczającymi spacjami).
+export function displayName(e: {
+  first_name?: string | null; second_name?: string | null;
+  last_name?: string | null; second_last_name?: string | null;
+}): string {
+  return [e.first_name, e.second_name, e.last_name, e.second_last_name]
+    .map(v => (v ?? '').trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
 // Adres zamieszkania pracownika = adres noclegu. Preferujemy pola STRUKTURALNE
 // z bazy noclegowej (street/house_no/apartment_no/postal_code/city); dla starych
 // rekordów z samym stringiem — splitAddress() poniżej.

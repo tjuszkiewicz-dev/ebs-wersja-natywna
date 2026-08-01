@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { fullName, fillPlaceholders } from './docPlaceholders';
+import { fullName, fillPlaceholders, displayName } from './docPlaceholders';
 
 describe('fullName', () => {
   it('zawiera imię i nazwisko', () => {
@@ -11,6 +11,25 @@ describe('fullName', () => {
   it('pomija puste pola (drugie imię/nazwisko)', () => {
     const name = fullName({ first_name: 'Jan', last_name: 'Kowalski' });
     expect(name).toBe('Jan Kowalski');
+  });
+});
+
+describe('displayName', () => {
+  it('skleja imię i nazwisko', () => {
+    expect(displayName({ first_name: 'Jan', last_name: 'Kowalski' })).toBe('Jan Kowalski');
+  });
+
+  it('skleja dwa imiona i dwa nazwiska (konwencja latynoska)', () => {
+    const name = displayName({ first_name: 'Maria', second_name: 'Fernanda', last_name: 'Garcia', second_last_name: 'Lopez' });
+    expect(name).toBe('Maria Fernanda Garcia Lopez');
+  });
+
+  it('pomija puste/brakujące pola', () => {
+    expect(displayName({ first_name: 'Jan', second_name: null, last_name: 'Kowalski', second_last_name: undefined })).toBe('Jan Kowalski');
+  });
+
+  it('przycina białe znaki wokół wartości', () => {
+    expect(displayName({ first_name: '  Jan  ', last_name: ' Kowalski ' })).toBe('Jan Kowalski');
   });
 });
 

@@ -5,6 +5,7 @@ import { can, canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
 import { coordinatorGrantedContractIds } from '@/lib/hr/coordinatorScope';
+import { displayName } from '@/lib/hr/docPlaceholders';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -95,7 +96,7 @@ export async function POST(request: NextRequest) {
       .eq('archived', false);
     const dup = (dupRows || []).find((x: any) => (x.passport_number || '').replace(/[^a-z0-9]/gi, '').toLowerCase() === pass);
     if (dup) {
-      const dupName = [dup.first_name, dup.second_name, dup.last_name, dup.second_last_name].filter(Boolean).join(' ');
+      const dupName = displayName(dup);
       return NextResponse.json({
         error: `Pracownik o tym numerze paszportu już istnieje: ${dupName}${dup.contract?.name ? ` — kontrakt „${dup.contract.name}"` : dup.candidate ? ' — Poczekalnia' : ''}.`,
         duplicate: true, existing: dup,

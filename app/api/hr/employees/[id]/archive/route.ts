@@ -7,6 +7,7 @@ import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
+import { coordinatorGrantedContractIds } from '@/lib/hr/coordinatorScope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -60,9 +61,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json(data);
   }
 
-  // restore — spróbuj wrócić do dawnego kontraktu (jeśli nadal istnieje)
+  // restore — domyślnie wraca do dawnego kontraktu (jeśli nadal istnieje); {contract_id}
+  // w body pozwala wybrać INNY kontrakt zamiast tego
+  const requestedContractId = typeof b.contract_id === 'string' && b.contract_id.trim() ? b.contract_id.trim() : null;
   let contractId: string | null = null;
-  if (emp.archived_from_contract_id) {
+  if (requestedContractId) {
+    // koordynator może przywrócić tylko do kontraktu w SWOIM zakresie (przyznanego
+    // w Ustawieniach) — nie omijamy tego, bo to ta sama granica co przy edycji pracownika
+    if (auth.role === 'koordynator') {
+      const granted = await coordinatorGrantedContractIds(auth.id);
+      if (!granted.includes(requestedContractId)) {
+        return NextResponse.json({ error: 'Możesz przywrócić tylko do kontraktu w Twoim zakresie' }, { status: 403 });
+      }
+    }
+    const { data: c } = await sb.from('hr_contracts').select('id').eq('id', requestedContractId).maybeSingle();
+    contractId = c?.id ?? null;
+  } else if (emp.archived_from_contract_id) {
     const { data: c } = await sb.from('hr_contracts').select('id').eq('id', emp.archived_from_contract_id).maybeSingle();
     contractId = c?.id ?? null;
   }

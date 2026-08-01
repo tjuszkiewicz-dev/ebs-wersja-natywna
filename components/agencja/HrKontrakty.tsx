@@ -1,10 +1,10 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Building2, Plus, ChevronRight, ChevronDown, Users, Pencil, Trash2, Save, Loader2, X, User, UserPlus, Search, UserMinus , FileText, IdCard, Plane, Landmark, Fingerprint } from 'lucide-react';
 import { HrEmployeePanel, type Employee, type ContractLite } from './HrEmployeePanel';
 import { HrPermitAlerts } from './HrPermitAlerts';
-import { fullName } from '@/lib/hr/docPlaceholders';
+import { displayName } from '@/lib/hr/docPlaceholders';
 import { computeReadiness } from '@/lib/hr/readiness';
 import { Hint } from '@/components/ui/Hint';
 import { WORK_STATUSES, workStatusDef, type WorkStatusId } from '@/lib/hr/workStatus';
@@ -252,7 +252,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
   const matchEmp = (e: Employee) => {
     if (statusFilter === 'active' && e.status !== 'active') return false;
     if (statusFilter === 'inactive' && e.status === 'active') return false;
-    if (search.trim() && !fullName(e).toLowerCase().includes(search.toLowerCase().trim())) return false;
+    if (search.trim() && !displayName(e).toLowerCase().includes(search.toLowerCase().trim())) return false;
     return true;
   };
   const onSearch = (v: string) => {
@@ -390,7 +390,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
                             <button onClick={() => setSelected(e)} className="flex min-w-0 items-center gap-2 text-left">
                               <User size={14} className="shrink-0 text-slate-400" />
                               <span title={workStatusDef(e.work_status).label} className={`h-2 w-2 shrink-0 rounded-full ${workStatusDef(e.work_status).dot}`} />
-                              <span className="truncate font-medium text-slate-700">{fullName(e)}</span>
+                              <span className="truncate font-medium text-slate-700">{displayName(e)}</span>
                               {((e as any).hr_documents?.[0]?.count ?? 0) > 0 && (
                                 <span className="flex shrink-0 items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500" title={`Dokumenty w teczce: ${(e as any).hr_documents[0].count}`}>
                                   <FileText size={9} /> {(e as any).hr_documents[0].count}
@@ -421,7 +421,7 @@ export function HrKontrakty({ onGoToNoclegi }: { onGoToNoclegi?: () => void }) {
       {releaseFor && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4" onClick={() => setReleaseFor(null)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
-            <h3 className="mb-1 font-sans font-bold text-slate-900">Zwolnij pracownika — {fullName(releaseFor)}</h3>
+            <h3 className="mb-1 font-sans font-bold text-slate-900">Zwolnij pracownika — {displayName(releaseFor)}</h3>
             <p className="mb-3 text-sm text-slate-500">Pracownik trafi do Archiwum z całą historią (dokumenty, rozliczenia, grafik). Można go później przywrócić.</p>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-600">Przyczyna zwolnienia *</p>
             <textarea value={releaseReason} onChange={e => setReleaseReason(e.target.value)} rows={3} autoFocus
