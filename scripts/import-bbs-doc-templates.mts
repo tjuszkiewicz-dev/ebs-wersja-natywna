@@ -51,6 +51,12 @@ if (srcErr) { console.error('BBS hr_doc_templates:', srcErr.message); process.ex
 // Wersje w bazie BBS mają te dane wpisane na sztywno (i w przypadku porozumienia —
 // zakodowany w treści base64 podpis). Rerun tego skryptu NIE MOŻE ich nadpisać
 // tymi „żywcem" skopiowanymi wersjami — filtr wyklucza je po nazwie.
+//
+// Porównanie ZNORMALIZOWANE (trim + lowercase), nie ścisłe: jeśli ktoś w panelu
+// BBS kiedyś zmieni wielkość liter albo doda/usunie spację w nazwie szablonu,
+// ścisłe porównanie po cichu przepuściłoby zatruty wiersz z powrotem do EBS.
+// Normalizacja to siatka bezpieczeństwa — ma być głośna (patrz log niżej), nie cicha.
+const normalizeName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 const EXCLUDED_NAMES = new Set([
   'Porozumienie o szkoleniu wdrożeniowym (PL / hiszpański)',
   'Porozumienie o szkoleniu wdrożeniowym (PL / rosyjski)',
@@ -60,10 +66,12 @@ const EXCLUDED_NAMES = new Set([
   'Oświadczenie — kontakt przez pełnomocnika (PL / rosyjski)',
   'Oświadczenie — kontakt przez pełnomocnika (PL / hindi)',
   'Oświadczenie — kontakt przez pełnomocnika (PL / angielski)',
-]);
-const templates = (rawTemplates ?? []).filter((t: any) => !EXCLUDED_NAMES.has(t.name));
+].map(normalizeName));
+const templates = (rawTemplates ?? []).filter((t: any) => !EXCLUDED_NAMES.has(normalizeName(t.name ?? '')));
 const skippedCount = (rawTemplates?.length ?? 0) - templates.length;
-if (skippedCount > 0) console.log(`Pominięto ${skippedCount} szablon(y) z danymi ALCES/pełnomocnika (patrz komentarz w kodzie) — mają już swoje wersje EBS.`);
+console.log(skippedCount > 0
+  ? `Pominięto ${skippedCount} szablon(y) z danymi ALCES/pełnomocnika (patrz komentarz w kodzie) — mają już swoje wersje EBS.`
+  : `UWAGA: filtr EXCLUDED_NAMES nie pominął żadnego szablonu (spodziewano się ${EXCLUDED_NAMES.size}) — sprawdź, czy nazwy w BBS się nie zmieniły.`);
 
 if (!templates || templates.length === 0) {
   console.log('BBS hr_doc_templates: brak wierszy — nic do skopiowania.');
