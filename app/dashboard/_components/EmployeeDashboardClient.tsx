@@ -13,6 +13,7 @@ import { NotificationCenter } from '@/components/notifications/NotificationCente
 import { NotificationHistoryModal } from '@/components/notifications/NotificationHistoryModal';
 import { useStrattonSystem } from '@/context/StrattonContext';
 import { supabaseBrowser } from '@/lib/supabase';
+import { useHistoryView } from '@/lib/useHistoryView';
 import { Search, Settings, Wallet, Clock, X, Menu } from 'lucide-react';
 import { EmployeeSettingsModal } from '@/components/employee/EmployeeSettingsModal';
 
@@ -22,6 +23,7 @@ function EmployeeLayout() {
   const currentUser = state.currentUser;
 
   const [currentView,          setCurrentView]        = useState('WALLET');
+  useHistoryView(currentView, setCurrentView);
   const [isMobileSidebarOpen,  setMobileSidebarOpen]  = useState(false);
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [isSearchOpen,         setSearchOpen]         = useState(false);
