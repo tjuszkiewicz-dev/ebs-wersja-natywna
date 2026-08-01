@@ -146,7 +146,13 @@ export function langFromCountry(country: string | null | undefined): 'es' | 'en'
 }
 
 const norm = (v: any) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-const normNum = (v: any) => String(v ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+
+// Normalizacja numerów dokumentów (paszport, PESEL, IBAN, karta pobytu…) do porównań —
+// usuwa spacje/myślniki/kropki i ujednolica wielkość liter, żeby "AB-123 456" == "ab123456".
+export function normalizeDocNumber(v: any): string {
+  return String(v ?? '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+}
+const normNum = normalizeDocNumber;
 
 export interface MergeOutcome {
   applied: Record<string, string>;                                  // puste pola → wpisane
