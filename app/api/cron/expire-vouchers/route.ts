@@ -178,7 +178,7 @@ export async function GET(req: NextRequest) {
 
     const [{ data: emps }, { data: accs }, { data: vehicles }] = await Promise.all([
       (supabase as any).from('hr_employees')
-        .select('first_name, second_name, last_name, second_last_name, passport_expiry, visa_expiry, residence_card_expiry, work_permit_expiry, contract:hr_contracts(name)')
+        .select('first_name, second_name, last_name, second_last_name, passport_expiry, visa_expiry, residence_card_expiry, work_permit_expiry, tlc, tlc_expiry, contract:hr_contracts(name)')
         .eq('archived', false).eq('candidate', false),
       (supabase as any).from('hr_accommodations')
         .select('name, lease_end_date, hr_employees(count)')
@@ -193,6 +193,10 @@ export async function GET(req: NextRequest) {
       for (const [f, label] of DOC_FIELDS) {
         const v = (e as any)[f];
         if (v && v <= soon) docAlerts.push({ name: fullName(e), contract: (e as any).contract?.name || '—', what: label, date: v, expired: v < today });
+      }
+      // TLC — karta pobytu wydana przez inny kraj UE (pole warunkowe: tylko gdy tlc=true)
+      if ((e as any).tlc && (e as any).tlc_expiry && (e as any).tlc_expiry <= soon) {
+        docAlerts.push({ name: fullName(e), contract: (e as any).contract?.name || '—', what: 'TLC — karta pobytu', date: (e as any).tlc_expiry, expired: (e as any).tlc_expiry < today });
       }
     }
     docAlerts.sort((a, b) => a.date.localeCompare(b.date));

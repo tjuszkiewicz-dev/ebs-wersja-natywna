@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const HR_ROLES = ['superadmin', 'dyrektor', 'hr', 'hr_panel', 'pracodawca', 'koordynator'];
-const FIELDS = ['first_name', 'last_name', 'phone', 'email', 'bank_account', 'country_of_origin', 'notes', 'status', 'work_status', 'contract_id', 'team', 'residence_card_number', 'residence_card_expiry', 'work_permit_number', 'work_permit_expiry', 'visa_expiry', 'zus_registration_date', 'accommodation_id', 'pesel', 'passport_number', 'birth_date', 'birth_place', 'second_name', 'family_name', 'passport_expiry', 'second_last_name', 'language', 'coordinator_id', 'profession', 'shoe_size', 'clothing_size', 'medical_exam_date', 'medical_exam_expiry', 'gender', 'schengen_entry_date'];
+const FIELDS = ['first_name', 'last_name', 'phone', 'email', 'bank_account', 'country_of_origin', 'notes', 'status', 'work_status', 'contract_id', 'team', 'residence_card_number', 'residence_card_expiry', 'work_permit_number', 'work_permit_expiry', 'visa_expiry', 'zus_registration_date', 'accommodation_id', 'pesel', 'passport_number', 'birth_date', 'birth_place', 'second_name', 'family_name', 'passport_expiry', 'second_last_name', 'language', 'coordinator_id', 'profession', 'shoe_size', 'clothing_size', 'medical_exam_date', 'medical_exam_expiry', 'gender', 'schengen_entry_date', 'tlc', 'tlc_expiry'];
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await getAuthUserWithRole();

@@ -96,6 +96,7 @@ export interface Employee {
   contract_id?: string | null; team?: string | null; contract?: { id: string; name: string } | null; created_at?: string;
   residence_card_number?: string | null; residence_card_expiry?: string | null;
   work_permit_number?: string | null; work_permit_expiry?: string | null; visa_expiry?: string | null;
+  tlc?: boolean | null; tlc_expiry?: string | null;
   zus_registration_date?: string | null; pesel?: string | null;
   medical_exam_date?: string | null; medical_exam_expiry?: string | null;
   schengen_entry_date?: string | null;
@@ -339,6 +340,17 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
               <Field label="Nr pozwolenia na pracę" hint="Numer pozwolenia na pracę (jeśli posiada)."><input value={form.work_permit_number ?? ''} onChange={e => setForm({ ...form, work_permit_number: e.target.value })} className={INPUT} /></Field>
               <Field label="Pozwolenie — ważne do" hint="Data ważności pozwolenia na pracę — przy ≤60 dniach alert."><input type="date" value={form.work_permit_expiry ?? ''} onChange={e => setForm({ ...form, work_permit_expiry: e.target.value })} className={INPUT} /></Field>
               <Field label="Wiza — ważna do" hint="Data końca wizy / legalnego pobytu — przy ≤60 dniach alert."><input type="date" value={form.visa_expiry ?? ''} onChange={e => setForm({ ...form, visa_expiry: e.target.value })} className={INPUT} /></Field>
+              <Field label="TLC — karta pobytu z innego kraju" hint="Zaznacz, jeśli pracownik ma ważną kartę pobytu (TLC) wydaną przez inny kraj UE. Data ważności wchodzi do alertów tak samo jak polska karta pobytu.">
+                <label className="flex items-center gap-2 text-sm text-slate-700">
+                  <input type="checkbox" checked={!!form.tlc} onChange={e => setForm({ ...form, tlc: e.target.checked, tlc_expiry: e.target.checked ? form.tlc_expiry : null })} className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-300" />
+                  Posiada TLC
+                </label>
+              </Field>
+              {form.tlc && (
+                <Field label="TLC — ważna do" hint="Data ważności karty pobytu TLC — przy ≤60 dniach pojawia się alert.">
+                  <input type="date" value={form.tlc_expiry ?? ''} onChange={e => setForm({ ...form, tlc_expiry: e.target.value })} className={INPUT} />
+                </Field>
+              )}
               <Field label="Wjazd do strefy Schengen" hint="Data wjazdu do Schengen. Od niej liczy się 90 dni na złożenie wniosku o kartę pobytu — alert pojawia się 30 dni przed końcem tego terminu."><input type="date" value={form.schengen_entry_date ?? ''} onChange={e => setForm({ ...form, schengen_entry_date: e.target.value })} className={INPUT} /></Field>
               <Field label="Zgłoszenie do ZUS (data)" hint="Data zgłoszenia do ZUS — brak daty podbija alert „bez ZUS”."><input type="date" value={form.zus_registration_date ?? ''} onChange={e => setForm({ ...form, zus_registration_date: e.target.value })} className={INPUT} /></Field>
               <Field label="Numer PESEL" hint="PESEL (11 cyfr) — brak PESEL podbija alert na głównym widoku; używany w dokumentach."><input value={form.pesel ?? ''} onChange={e => setForm({ ...form, pesel: e.target.value })} className={INPUT} placeholder="11 cyfr" /></Field>
@@ -386,6 +398,9 @@ export function HrEmployeePanel({ employee, contracts, onClose, onChanged, onDel
                   <ExpiryRow icon={<IdCard size={16} />} label="Karta pobytu" number={employee.residence_card_number} date={employee.residence_card_expiry} />
                   <ExpiryRow icon={<Stamp size={16} />} label="Pozwolenie na pracę" number={employee.work_permit_number} date={employee.work_permit_expiry} />
                   <ExpiryRow icon={<Plane size={16} />} label="Wiza" date={employee.visa_expiry} />
+                  {employee.tlc && (
+                    <ExpiryRow icon={<IdCard size={16} />} label="TLC — karta pobytu z innego kraju" date={employee.tlc_expiry} />
+                  )}
                   {employee.schengen_entry_date && (
                     <ExpiryRow icon={<Plane size={16} />} label={`Karta pobytu — 90 dni od wjazdu Schengen (wjazd ${fmtDate(employee.schengen_entry_date)})`} date={schengenDeadline(employee.schengen_entry_date)} />
                   )}
