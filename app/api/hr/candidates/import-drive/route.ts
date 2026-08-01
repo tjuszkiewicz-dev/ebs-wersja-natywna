@@ -4,6 +4,14 @@
 // — UI pętli po offset aż done. Katalog musi mieć dostęp „każdy z linkiem" (pełny
 // dostęp do odczytu).
 //
+// Kolejność jest CELOWA (poprawka po review — wcześniejsza wersja tworzyła szkielet
+// karty PRZED decyzją o duplikacie/czarnej liście, co przy nieoczekiwanym wyjątku
+// zostawiało sierotę z placeholderem i pustym numerem paszportu — dokładnie ten
+// duplikat, przed którym to zadanie miało chronić): pliki pobieramy do PAMIĘCI, robimy
+// OCR, i DOPIERO PO decyzji „to nie duplikat i nie czarna lista" zapisujemy cokolwiek
+// do bazy/Storage. Dzięki temu przy każdym wcześniejszym wyjściu (duplikat, czarna
+// lista, błąd pobierania) nie ma czego sprzątać — nic jeszcze nie powstało.
+//
 // AI-guard (E2d, obowiązkowy w całym repo): brak ANTHROPIC_API_KEY → import nadal
 // działa (pliki się wgrywają, karta powstaje z nazwy folderu), tylko bez OCR —
 // nigdy 500.
@@ -12,8 +20,8 @@ import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
-import { extractDriveFolderId, listDriveFolder, downloadDriveFile, guessNameFromFolder } from '@/lib/hr/driveImport';
-import { extractFromDocument, aggregateResults, mergeIntoEmployee, resolveOcrType, sniffOcrType, normalizeDocNumber, type OcrResult } from '@/lib/hr/ocr';
+import { extractDriveFolderId, listDriveFolder, downloadDriveFile, guessNameFromFolder, buildImportPatch } from '@/lib/hr/driveImport';
+import { extractFromDocument, aggregateResults, resolveOcrType, sniffOcrType, normalizeDocNumber, type OcrResult } from '@/lib/hr/ocr';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -50,6 +58,19 @@ export async function POST(request: NextRequest) {
   const guess = guessNameFromFolder(person.name);
   const base = { done: offset + 1 >= persons.length, total: persons.length, index: offset, name: person.name };
 
+  // Sprzątanie — wołane TYLKO gdy coś już powstało (patrz createdEmpId niżej). W normalnym
+  // przebiegu (Option A) do tego nie dochodzi: decyzja zapada, ZANIM cokolwiek zapiszemy.
+  // To siatka bezpieczeństwa na wypadek błędu MIĘDZY utworzeniem karty a zakończeniem
+  // zapisu teczki (np. Storage padnie w połowie) — nie na duplikat/czarną listę.
+  let createdEmpId: string | null = null;
+  const uploadedPaths: string[] = [];
+  const cleanupCreated = async () => {
+    if (!createdEmpId) return;
+    if (uploadedPaths.length) await sb.storage.from('hr-documents').remove(uploadedPaths).catch(() => {});
+    await sb.from('hr_documents').delete().eq('employee_id', createdEmpId).catch(() => {});
+    await sb.from('hr_employees').delete().eq('id', createdEmpId).catch(() => {});
+  };
+
   // Import przetwarza wiele osób w kolejnych wywołaniach (jedna osoba na request) —
   // błąd na TEJ osobie nie może zablokować pętli importu w UI, więc cała logika
   // poniżej jest w try/catch i zawsze zwraca 200 ze statusem 'error', nigdy 500.
@@ -69,75 +90,42 @@ export async function POST(request: NextRequest) {
     const files = person.isFolder ? (await listDriveFolder(person.id).catch(() => [])).filter(e => !e.isFolder).slice(0, MAX_FILES) : [person];
     if (!files.length) return NextResponse.json({ ...base, status: 'skipped', note: 'folder bez plików' });
 
-    // kandydat-szkielet
-    const { data: emp, error: ee } = await sb.from('hr_employees').insert({
-      first_name: '—', last_name: `(import: ${person.name.slice(0, 40)})`,
-      candidate: true, submitted_by: auth.id, submitted_at: new Date().toISOString(),
-      coordinator_id: auth.role === 'koordynator' ? auth.id : null,
-      profession, status: 'active', created_by: auth.id,
-    }).select().single();
-    if (ee || !emp) return NextResponse.json({ ...base, status: 'error', note: ee?.message || 'nie udało się utworzyć karty' });
-
-    // Sprzątanie szkieletu — używane na KAŻDEJ ścieżce, na której odrzucamy import
-    // (czarna lista, duplikat po paszporcie, brak plików): kasuje wgrane pliki ze
-    // Storage, wpisy hr_documents i sam rekord hr_employees, żeby nie zostawiać sierot.
-    const cleanup = async (paths: string[]) => {
-      if (paths.length) await sb.storage.from('hr-documents').remove(paths).catch(() => {});
-      await sb.from('hr_documents').delete().eq('employee_id', emp.id);
-      await sb.from('hr_employees').delete().eq('id', emp.id);
-    };
-
-    // pobierz pliki → teczka
-    const uploaded: { docId?: string; driveId: string; path: string; buf: Buffer; contentType: string; name: string }[] = [];
-    const paths: string[] = [];
+    // ── 1. pliki → PAMIĘĆ (jeszcze bez żadnego zapisu do bazy/Storage)
+    const fetched: { driveId: string; name: string; buf: Buffer; contentType: string }[] = [];
     for (const f of files) {
       const dl = await downloadDriveFile(f.id);
-      if (!dl) continue;
-      const safe = f.name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80) || 'plik';
-      const path = `${emp.id}/drive-${f.id}-${safe}`;
-      const up = await sb.storage.from('hr-documents').upload(path, dl.buf, { contentType: dl.contentType });
-      if (up.error) continue;
-      paths.push(path);
-      const { data: doc } = await sb.from('hr_documents').insert({
-        employee_id: emp.id, filename: f.name, path, content_type: dl.contentType, size: dl.buf.length, uploaded_by: auth.id,
-      }).select('id').single();
-      uploaded.push({ docId: doc?.id, driveId: f.id, path, buf: dl.buf, contentType: dl.contentType, name: f.name });
+      if (dl) fetched.push({ driveId: f.id, name: f.name, buf: dl.buf, contentType: dl.contentType });
     }
-    if (!uploaded.length) { await cleanup(paths); return NextResponse.json({ ...base, status: 'error', note: 'nie udało się pobrać żadnego pliku (dostęp? rozmiar?)' }); }
+    if (!fetched.length) return NextResponse.json({ ...base, status: 'error', note: 'nie udało się pobrać żadnego pliku (dostęp? rozmiar?)' });
 
-    // AI-guard E2d: łagodna degradacja bez klucza — teczka zostaje, karta wypełniana
-    // WYŁĄCZNIE z nazwy folderu (zero OCR, zero 500)
-    if (!process.env.ANTHROPIC_API_KEY) {
-      const patch: any = { first_name: guess.first, last_name: guess.last, updated_at: new Date().toISOString() };
-      const { data: updated } = await sb.from('hr_employees').update(patch).eq('id', emp.id).select().single();
-      const empName = [updated?.first_name, updated?.second_name, updated?.last_name, updated?.second_last_name].filter(Boolean).join(' ');
-      return NextResponse.json({
-        ...base, status: 'created', name: empName, files: uploaded.length, fields: 2,
-        disabled: true, note: 'OCR wyłączone — brak ANTHROPIC_API_KEY, dane tylko z nazwy folderu',
-      });
+    // ── 2. OCR (jeśli klucz jest ustawiony): max 2 pliki, paszport-podobne najpierw.
+    // Typ pliku ustalamy odpornie — nagłówek → nazwa → sygnatura bajtów — bo Google
+    // Drive oddaje część plików jako application/octet-stream i takie paszporty
+    // wcześniej NIGDY nie trafiały do OCR (brak numeru paszportu → deduplikacja nie
+    // miała czego porównać → duplikaty osób).
+    const aiDisabled = !process.env.ANTHROPIC_API_KEY;
+    const ocrByDriveId = new Map<string, OcrResult>();
+    let agg: OcrResult = {};
+    if (!aiDisabled) {
+      const ocrable = fetched
+        .map(u => ({ ...u, ocrType: resolveOcrType(u.contentType, u.name) ?? sniffOcrType(u.buf) }))
+        .filter((u): u is typeof u & { ocrType: string } => !!u.ocrType)
+        .sort((a, z) => Number(/pas+z?port|pass/i.test(z.name)) - Number(/pas+z?port|pass/i.test(a.name)))
+        .slice(0, 2);
+      const results: OcrResult[] = [];
+      for (const u of ocrable) {
+        try {
+          const res = await extractFromDocument(u.buf, u.ocrType);
+          results.push(res);
+          ocrByDriveId.set(u.driveId, res);
+        } catch { /* pojedynczy plik może się nie odczytać — reszta importu jedzie dalej */ }
+      }
+      agg = aggregateResults(results);
     }
 
-    // ── OCR: max 2 pliki, paszport-podobne najpierw. Typ pliku ustalamy odpornie —
-    // nagłówek → nazwa → sygnatura bajtów — bo Google Drive oddaje część plików jako
-    // application/octet-stream i takie paszporty wcześniej NIGDY nie trafiały do OCR
-    // (brak numeru paszportu → deduplikacja nie miała czego porównać → duplikaty osób).
-    const ocrable = uploaded
-      .map(u => ({ ...u, ocrType: resolveOcrType(u.contentType, u.name) ?? sniffOcrType(u.buf) }))
-      .filter((u): u is typeof u & { ocrType: string } => !!u.ocrType)
-      .sort((a, z) => Number(/pas+z?port|pass/i.test(z.name)) - Number(/pas+z?port|pass/i.test(a.name)))
-      .slice(0, 2);
-
-    const results: OcrResult[] = [];
-    for (const u of ocrable) {
-      try {
-        const res = await extractFromDocument(u.buf, u.ocrType);
-        results.push(res);
-        if (u.docId) await sb.from('hr_documents').update({ ocr_status: 'done', ocr_data: res, ocr_at: new Date().toISOString() }).eq('id', u.docId);
-      } catch { /* pojedynczy plik może się nie odczytać — reszta importu jedzie dalej */ }
-    }
-    const agg = aggregateResults(results);
-
-    // czarna lista — po odczytanych danych (nr paszportu z OCR ma priorytet nad zgadniętym imieniem/nazwiskiem)
+    // ── 3. decyzja PRZED jakimkolwiek zapisem: czarna lista i duplikat po numerze
+    // paszportu (nr paszportu z OCR ma priorytet nad zgadniętym imieniem/nazwiskiem —
+    // nazwa folderu bywa przekręcona/niepełna)
     const ocrPass = normNum(agg.passport_number);
     const fnGuess = (agg.first_name || guess.first || '').toLowerCase();
     const lnGuess = (agg.last_name || guess.last || '').toLowerCase();
@@ -145,39 +133,60 @@ export async function POST(request: NextRequest) {
     const blackHit = (black || []).find((x: any) =>
       (ocrPass && normNum(x.passport_number) === ocrPass) ||
       ((x.first_name || '').trim().toLowerCase() === fnGuess && (x.last_name || '').trim().toLowerCase() === lnGuess));
-    if (blackHit) {
-      await cleanup(paths);
-      return NextResponse.json({ ...base, status: 'blacklist', note: blackHit.blacklist_reason || 'czarna lista' });
-    }
+    if (blackHit) return NextResponse.json({ ...base, status: 'blacklist', note: blackHit.blacklist_reason || 'czarna lista' });
 
-    // deduplikacja po numerze paszportu — twardy identyfikator (nazwa folderu bywa
-    // przekręcona/niepełna); trafienie kasuje świeżo utworzony szkielet i kończy jako 'skipped'
     if (ocrPass) {
-      const { data: everyone } = await sb.from('hr_employees').select('id, first_name, last_name, second_name, second_last_name, passport_number').neq('id', emp.id);
+      const { data: everyone } = await sb.from('hr_employees').select('id, first_name, last_name, second_name, second_last_name, passport_number');
       const passportDup = (everyone || []).find((x: any) => x.passport_number && normNum(x.passport_number) === ocrPass);
       if (passportDup) {
-        await cleanup(paths);
         const dupName = [passportDup.first_name, passportDup.second_name, passportDup.last_name, passportDup.second_last_name].filter(Boolean).join(' ');
         return NextResponse.json({ ...base, status: 'skipped', note: `osoba już istnieje w systemie (nr paszportu)${dupName ? ` — ${dupName}` : ''}` });
       }
     }
 
-    // ── zapis danych: rekord startuje z PLACEHOLDERAMI ('—', '(import: …)') — to nie
-    // są prawdziwe dane, więc dane z OCR ZAWSZE je nadpisują; nazwa folderu Drive jest
-    // fallbackiem WYŁĄCZNIE gdy OCR nic nie odczytał (bez tego nazwiska w formacie
-    // „NAZWISKA IMIONA" lądują w kolumnach imion).
-    const { data: fresh } = await sb.from('hr_employees').select('*').eq('id', emp.id).single();
-    const { applied } = mergeIntoEmployee(fresh, agg);
-    const patch: any = { ...applied, updated_at: new Date().toISOString() };
-    if (agg.first_name) { patch.first_name = agg.first_name; if (agg.second_name != null) patch.second_name = agg.second_name; }
-    if (agg.last_name) { patch.last_name = agg.last_name; if (agg.second_last_name != null) patch.second_last_name = agg.second_last_name; }
-    if (!patch.first_name) patch.first_name = guess.first;
-    if (!patch.last_name) patch.last_name = guess.last;
-    const { data: updated } = await sb.from('hr_employees').update(patch).eq('id', emp.id).select().single();
+    // ── 4. dopiero TERAZ zapis: karta od razu z docelowymi danymi (OCR albo, gdy OCR
+    // nic nie zwrócił, nazwa folderu — buildImportPatch to czysta funkcja, patrz testy)
+    const patch = buildImportPatch(agg, guess);
+    const { data: emp, error: ee } = await sb.from('hr_employees').insert({
+      ...patch,
+      candidate: true, submitted_by: auth.id, submitted_at: new Date().toISOString(),
+      coordinator_id: auth.role === 'koordynator' ? auth.id : null,
+      profession, status: 'active', created_by: auth.id,
+    }).select().single();
+    if (ee || !emp) return NextResponse.json({ ...base, status: 'error', note: ee?.message || 'nie udało się utworzyć karty' });
+    createdEmpId = emp.id;
 
-    const empName = [updated?.first_name, updated?.second_name, updated?.last_name, updated?.second_last_name].filter(Boolean).join(' ');
-    return NextResponse.json({ ...base, status: 'created', name: empName, files: uploaded.length, fields: Object.keys(patch).length - 1 });
+    // ── 5. teczka: wgraj pliki pobrane w kroku 1, dopisz wynik OCR do dokumentu, z którego pochodzi
+    const uploadedCount = { n: 0 };
+    for (const f of fetched) {
+      const safe = f.name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80) || 'plik';
+      const path = `${emp.id}/drive-${f.driveId}-${safe}`;
+      const up = await sb.storage.from('hr-documents').upload(path, f.buf, { contentType: f.contentType });
+      if (up.error) continue;
+      uploadedPaths.push(path);
+      const ocr = ocrByDriveId.get(f.driveId);
+      const { error: de } = await sb.from('hr_documents').insert({
+        employee_id: emp.id, filename: f.name, path, content_type: f.contentType, size: f.buf.length, uploaded_by: auth.id,
+        ...(ocr ? { ocr_status: 'done', ocr_data: ocr, ocr_at: new Date().toISOString() } : {}),
+      });
+      if (de) continue; // plik jest w Storage, ale wpis w hr_documents padł — nie liczymy go do teczki
+      uploadedCount.n++;
+    }
+    if (!uploadedCount.n) {
+      await cleanupCreated();
+      return NextResponse.json({ ...base, status: 'error', note: 'nie udało się zapisać żadnego pliku w teczce' });
+    }
+
+    const empName = [emp.first_name, emp.second_name, emp.last_name, emp.second_last_name].filter(Boolean).join(' ');
+    return NextResponse.json({
+      ...base, status: 'created', name: empName, files: uploadedCount.n, fields: Object.keys(patch).length,
+      ...(aiDisabled ? { disabled: true, note: 'OCR wyłączone — brak ANTHROPIC_API_KEY, dane tylko z nazwy folderu' } : {}),
+    });
   } catch (e) {
+    // Siatka bezpieczeństwa: jeśli karta zdążyła powstać (krok 4/5) zanim wyjątek
+    // przerwał przetwarzanie, sprzątamy ją razem z tym, co zdążyło trafić do Storage —
+    // żeby żaden nieoczekiwany błąd nie zostawił sieroty z placeholderem.
+    await cleanupCreated();
     return NextResponse.json({ ...base, status: 'error', note: e instanceof Error ? e.message : 'nieoczekiwany błąd importu tej osoby' });
   }
 }
