@@ -213,10 +213,13 @@ export function HrGeneratorDokumentow() {
       for (const { empId, ids } of perEmp) {
         for (let i = 0; i < ids.length; i += 6) {
           const chunk = ids.slice(i, i + 6);
+          // miejscowość pkt 8 wysyłamy TYLKO gdy w partii jest wniosek PESEL — dla innych
+          // dokumentów pole jest nieużywane po stronie API, ale nie ma po co go tam wysyłać
+          const chunkHasPesel = chunk.some(id => templates.find(t => t.id === id)?.kind === 'acroform_pesel');
           setProgress(`Generowanie ${done + 1}–${Math.min(done + chunk.length, total)} z ${total}…`);
           const r = await fetch('/api/hr/doc-generate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-            body: JSON.stringify({ employee_ids: [empId], template_ids: chunk, doc_date: docDate || undefined, pesel_sign_city: peselSignCity || undefined }),
+            body: JSON.stringify({ employee_ids: [empId], template_ids: chunk, doc_date: docDate || undefined, pesel_sign_city: chunkHasPesel ? (peselSignCity || undefined) : undefined }),
           });
           // serwer przy timeoucie/awarii zwraca stronę tekstową (nie JSON) — czytamy surowo
           const raw = await r.text();
