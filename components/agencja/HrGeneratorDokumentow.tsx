@@ -45,6 +45,8 @@ export function HrGeneratorDokumentow() {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState('');
   const [docDate, setDocDate] = useState(''); // data drukowana w dokumentach; puste = dzisiaj
+  // Wniosek PESEL, pkt 8 (Podpisy): miejscowość wpisywana ręcznie; puste = domyślnie (z adresu noclegu)
+  const [peselSignCity, setPeselSignCity] = useState('');
   const [results, setResults] = useState<GenResult[]>([]);
   const [editTpl, setEditTpl] = useState<Template | null>(null);
   const [creating, setCreating] = useState(false);
@@ -214,7 +216,7 @@ export function HrGeneratorDokumentow() {
           setProgress(`Generowanie ${done + 1}–${Math.min(done + chunk.length, total)} z ${total}…`);
           const r = await fetch('/api/hr/doc-generate', {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
-            body: JSON.stringify({ employee_ids: [empId], template_ids: chunk, doc_date: docDate || undefined }),
+            body: JSON.stringify({ employee_ids: [empId], template_ids: chunk, doc_date: docDate || undefined, pesel_sign_city: peselSignCity || undefined }),
           });
           // serwer przy timeoucie/awarii zwraca stronę tekstową (nie JSON) — czytamy surowo
           const raw = await r.text();
@@ -350,6 +352,18 @@ export function HrGeneratorDokumentow() {
               : <span className="text-xs text-slate-400">= dzisiaj</span>}
           </div>
         </div>
+
+        {/* Wniosek PESEL: miejscowość do pkt 8 (Podpisy) — ręcznie, puste = domyślne (adres noclegu) */}
+        {templates.some(t => t.kind === 'acroform_pesel' && selTpl.has(t.id)) && (
+          <div>
+            <p className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Miejscowość — pkt 8 wniosku PESEL
+              <Hint text="Miejscowość wpisywana w sekcji Podpisy (pkt 8) wniosku o PESEL. Puste = tak jak dotąd, pobierane automatycznie z adresu noclegu — wpisz ręcznie, gdy jest inna." />
+            </p>
+            <input value={peselSignCity} onChange={e => setPeselSignCity(e.target.value)} placeholder="np. Kostomłoty"
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-300" />
+          </div>
+        )}
 
         {/* Umowy dwujęzyczne: wybór drugiego języka (kolumna po prawej) */}
         {category === 'umowy' && (

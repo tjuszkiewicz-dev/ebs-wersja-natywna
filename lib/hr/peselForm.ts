@@ -27,7 +27,7 @@ export function peselMissingFields(emp: any): string[] {
   return miss;
 }
 
-export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: string | null): Promise<Uint8Array> {
+export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: string | null, opts?: { signCity?: string }): Promise<Uint8Array> {
   const pdf = await PDFDocument.load(blank);
   const form = pdf.getForm();
 
@@ -95,8 +95,10 @@ export async function fillPeselForm(blank: Uint8Array, emp: any, docDate?: strin
   // powiadomienie w formie papierowej (domyślne w formularzu — ustawiamy jawnie)
   check('przekazanie wnioskodawcy powiadomienia o nadaniu numeru PESEL papierowa');
 
-  // podpisy — miejscowość + data
-  setT('podpisy miejscowość', wa(miejscowosc));
+  // podpisy (pkt 8) — miejscowość: ręczna z generatora (opts.signCity) nadpisuje;
+  // brak podania → domyślnie jak dotąd, z adresu noclegu
+  const signCity = opts?.signCity?.trim();
+  setT('podpisy miejscowość', wa(signCity ? signCity : miejscowosc));
   setT('podpisy data dzień', sigD);
   setT('podpisy data miesiąc', sigM);
   setT('podpisy data rok', sigY);

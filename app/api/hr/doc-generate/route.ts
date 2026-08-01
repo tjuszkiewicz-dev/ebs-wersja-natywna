@@ -96,6 +96,8 @@ export async function POST(request: NextRequest) {
   const templateIds: string[] = Array.isArray(b?.template_ids) ? b.template_ids : [];
   // data drukowana w dokumentach ({{dzis}}) — ustawiana w generatorze; brak → dzisiaj
   const docDate: string | null = typeof b?.doc_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(b.doc_date) ? b.doc_date : null;
+  // miejscowość do pkt 8 (Podpisy) wniosku PESEL — ręczne pole generatora; puste = domyślne zachowanie (z adresu noclegu)
+  const peselSignCity: string = typeof b?.pesel_sign_city === 'string' ? b.pesel_sign_city.trim().slice(0, 60) : '';
   if (!employeeIds.length || !templateIds.length) return NextResponse.json({ error: 'Wybierz pracowników i dokumenty' }, { status: 400 });
   if (employeeIds.length * templateIds.length > MAX_PAIRS) {
     return NextResponse.json({ error: `Za dużo dokumentów naraz (max ${MAX_PAIRS} na partię)` }, { status: 400 });
@@ -153,7 +155,7 @@ export async function POST(request: NextRequest) {
     try {
       const blank = await peselBlank();
       for (let i = 0; i < jobs.length; i++) {
-        if (jobs[i].acroform) pdfs[i] = Buffer.from(await fillPeselForm(blank, jobs[i].emp, docDate));
+        if (jobs[i].acroform) pdfs[i] = Buffer.from(await fillPeselForm(blank, jobs[i].emp, docDate, peselSignCity ? { signCity: peselSignCity } : undefined));
       }
     } catch (e: any) {
       return NextResponse.json({ error: `Wypełnianie wniosku PESEL nie powiodło się: ${e?.message || e}` }, { status: 500 });
