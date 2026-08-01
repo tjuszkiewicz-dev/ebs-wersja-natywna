@@ -13,8 +13,10 @@ const HR_ROLES = ['superadmin', 'dyrektor', 'hr', 'hr_panel', 'pracodawca', 'koo
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; docId: string }> }) {
   const auth = await getAuthUserWithRole();
   if (!auth || !(await canAny(auth, AGENCJA_TABS))) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  // koordynator może tylko DODAWAĆ dokumenty — usuwanie zablokowane
-  if (auth.role === 'koordynator') return NextResponse.json({ error: 'Koordynator nie może usuwać dokumentów pracowników' }, { status: 403 });
+  // koordynator może tylko DODAWAĆ dokumenty — usuwanie zablokowane, chyba że ma nadany wyjątek agencja.dokumenty-usun
+  if (auth.role === 'koordynator' && !(await can(auth, 'agencja.dokumenty-usun'))) {
+    return NextResponse.json({ error: 'Brak uprawnień do usuwania dokumentów' }, { status: 403 });
+  }
   const { id, docId } = await params;
   const sb = admin() as any;
   const { data: doc } = await sb.from('hr_documents').select('path, filename').eq('id', docId).single();
