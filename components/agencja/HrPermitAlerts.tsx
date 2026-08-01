@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AlertTriangle, ChevronRight, ChevronDown, Filter } from 'lucide-react';
+import { AlertTriangle, ChevronRight, ChevronDown, Filter, Download } from 'lucide-react';
 import { fmtDate } from './expiry';
 import type { Employee } from './HrEmployeePanel';
 import { buildAlerts, filterAlerts, groupOf, ALERT_GROUPS, type AlertItem } from '@/lib/hr/alerts';
@@ -42,6 +42,7 @@ export function HrPermitAlerts({ onOpen, onOpenAccommodation, refreshKey }: {
   const [contract, setContract] = useState('');
   const [search, setSearch] = useState('');
   const [maxDays, setMaxDays] = useState('');
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -75,6 +76,37 @@ export function HrPermitAlerts({ onOpen, onOpenAccommodation, refreshKey }: {
     search: search || undefined,
     maxDays: maxDays.trim() !== '' ? Number(maxDays) : undefined,
   }), [alerts, groups, contract, search, maxDays]);
+
+  const downloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch('/api/hr/alerts/pdf', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kinds: groups.length < ALL_GROUP_IDS.length ? groups : undefined,
+          contract: contract || undefined,
+          search: search || undefined,
+          maxDays: maxDays.trim() !== '' ? Number(maxDays) : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error('Nie udało się wygenerować raportu');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `alarmy-agencja-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('Nie udało się pobrać raportu PDF.');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (!loaded) return null;
 
@@ -111,6 +143,13 @@ export function HrPermitAlerts({ onOpen, onOpenAccommodation, refreshKey }: {
         ))}
         <button onClick={() => setShowFilters((v) => !v)} className="ml-auto flex items-center gap-1 rounded-full border border-amber-300 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-amber-800 hover:bg-white">
           <Filter size={12} /> Filtry
+        </button>
+        <button
+          onClick={downloadPdf}
+          disabled={downloading}
+          className="flex items-center gap-1 rounded-full border border-amber-300 bg-white/70 px-2.5 py-0.5 text-xs font-semibold text-amber-800 hover:bg-white disabled:opacity-50"
+        >
+          <Download size={12} /> {downloading ? 'Generowanie…' : 'Pobierz raport PDF'}
         </button>
       </div>
 
