@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Building2, Plus, ChevronRight, ChevronDown, Users, Pencil, Trash2, Save, Loader2, X, User, UserPlus, Search, UserMinus , FileText, IdCard, Plane, Landmark, Fingerprint } from 'lucide-react';

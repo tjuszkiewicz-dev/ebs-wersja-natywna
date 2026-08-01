@@ -5,7 +5,7 @@ import { can, canAny } from '@/lib/permissions/server';
 import { AGENCJA_TABS } from '@/lib/permissions/registry';
 import { admin } from '@/lib/supabaseAdmin';
 import { geocodeAddress } from '@/lib/hr/geo';
-import { coordinatorGrantedContractIds } from '@/lib/hr/coordinatorScope';
+import { coordinatorContractScope } from '@/lib/hr/coordinatorScope';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,12 +40,9 @@ export async function GET(request: NextRequest) {
   contracts = contracts.map((c: any) => ({ ...c, status_counts: statusCounts.get(c.id) ?? {} }));
 
   // koordynator: tylko przegląd; kontrakty, na których ma pracowników LUB jawnie przyznane w Ustawieniach
+  // (definicja WSPÓLNA z guardem przy przywracaniu z Archiwum — coordinatorContractScope)
   if (auth.role === 'koordynator') {
-    const [{ data: mine }, granted] = await Promise.all([
-      sb.from('hr_employees').select('contract_id').eq('coordinator_id', auth.id).eq('archived', false).not('contract_id', 'is', null),
-      coordinatorGrantedContractIds(auth.id),
-    ]);
-    const allowed = new Set([...(mine || []).map((e: any) => e.contract_id), ...granted]);
+    const allowed = new Set(await coordinatorContractScope(auth.id));
     contracts = contracts.filter((c: any) => allowed.has(c.id));
   }
   return NextResponse.json({ contracts, can_manage: auth.role !== 'koordynator' });

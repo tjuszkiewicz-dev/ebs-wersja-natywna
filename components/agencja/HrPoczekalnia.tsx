@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // Poczekalnia — kandydaci do pracy zgłaszani przez koordynatorów.
 // Koordynator widzi tylko swoich zgłoszonych; akceptacja (przypisanie do kontraktu)

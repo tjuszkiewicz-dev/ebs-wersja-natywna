@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Trash2, Loader2, Phone, Mail, Landmark, Globe, FolderOpen, User, Briefcase, IdCard, Stamp, Plane, ShieldCheck, BedDouble, CalendarDays, Hash, Archive, ArchiveRestore, KeyRound } from 'lucide-react';
