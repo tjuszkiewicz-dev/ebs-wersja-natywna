@@ -252,7 +252,33 @@ Adaptacje względem BBS (uzasadnienia w specu):
 > `leads/[id]/convert` (`crm_client_profiles`, `leads.company_id`, `leads.converted_at`).
 > **Jedyna żywa oś czasu to `crm_activities` przez `leads/[id]/activities` + `lib/crm/activities`.**
 
-**Odłożone (E7b–E7e):** kontakty i kalendarz, kalkulator ofertowy + generator oferty PDF
+**E7b (2026-09-01) — kontakty + kalendarz i zadania.** Widoki `crm-kontakty` →
+`components/adminNew/crm/CrmKontakty` (gate `crm.kontakty`) i `crm-kalendarz` → `CrmKalendarz`
+(gate `crm.kalendarz`). API: `app/api/crm/contacts/{route,[id]/route}`,
+`app/api/calendar/events/{route,[id]/route}`, `app/api/tasks/{route,[id]/route,people/route}`.
+Migracja `056_kalendarz_zadania.sql`: `calendar_events`, `calendar_attendees`, `app_tasks`.
+Helper `lib/crm/profiles.ts` (`profilesMap` — w BBS mieszkał w `lib/chat/server`, czatu nie ma do E6a).
+
+> ⚠️ **KALENDARZ NIE STOI NA `crm_tasks`.** Spec E7 tak zakładał — błędnie. `CrmKalendarz` woła
+> `/api/calendar/events` i `/api/tasks`, a te używają `calendar_events` + `calendar_attendees` +
+> `app_tasks`. **`crm_tasks` (migracja 054) jest w EBS pusta i nieużywana** — w BBS też nikt jej
+> nie czyta (`app/api/crm/tasks/` jest pusty). Nie budować na niej niczego bez świadomej decyzji.
+
+Adaptacje E7b:
+- **Dołożona bramka `crm.kalendarz` do pięciu route'ów `calendar/*` i `tasks/*`** — w BBS nie
+  mają ŻADNEJ bramki poza zalogowaniem, więc moduł widziałby każdy użytkownik EBS (także
+  pracownicy i pracodawcy-klienci).
+- `calendar_attendees` dostaje **klucz główny (event_id, user_id) i FK z ON DELETE CASCADE**;
+  w BBS nie ma ani jednego, ani drugiego, więc usunięcie wydarzenia zostawia sieroty.
+  `app_tasks.event_id` → ON DELETE SET NULL: skasowanie spotkania odpina zadanie, nie kasuje go.
+- `CrmKalendarz` wołał `/api/chat/users` (E6a) — podmienione na `/api/tasks/people`, rozszerzony
+  o pole `me`, żeby kalendarz obchodził się jednym wywołaniem. Zalogowany jest odfiltrowany
+  z listy, żeby nie dublował pozycji „Ja".
+- Wyszukiwarka kontaktów escapuje `,()\` przed wstawieniem do `or()` PostgREST — bez tego
+  przecinek albo nawias w polu szukania rozwalał całe zapytanie.
+- `logEvent` (BBS) → triggery `trg_audit_calendar_events` i `trg_audit_app_tasks`.
+
+**Odłożone (E7c–E7e):** kalkulator ofertowy + generator oferty PDF
 (ma korzystać z `lib/pdf/renderer.ts`, nie z CRM-owego `lib/crm/offer/pdfRenderer.ts`),
 leaderboard + org-chart (dojdzie `d3`), notatki głosowe (domykają zaślepkę
 `/api/notes/from-text` z E2d). **Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% /

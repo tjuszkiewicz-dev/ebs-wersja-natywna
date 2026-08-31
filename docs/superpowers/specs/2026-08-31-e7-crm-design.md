@@ -54,7 +54,7 @@ grepem po importach i zapytaniem do żywej bazy bbs-unified:
 | Etap | Zakres | ~LOC |
 |---|---|---|
 | **E7a** | Fundament: migracja schematu, leady + Pipeline (kanban/lista/szczegóły), aktywności, widoczność, uprawnienia `crm.*`, sekcja „CRM" w menu | ~2 900 |
-| **E7b** | Kontakty, zadania (`crm_tasks`), Kalendarz | ~1 100 |
+| **E7b** | Kontakty, Kalendarz i zadania | ~1 100 → faktycznie ~1 400 (K10) |
 | **E7c** | Kalkulator Ofertowy (wizard 6 kroków + `tax-engine`) i generator oferty PDF | ~2 800 |
 | **E7d** | Leaderboard, Org-chart, prowizje | ~1 400 |
 | **E7e** | Notatki głosowe — domyka zaślepkę z E2d | ~460 |
@@ -83,6 +83,8 @@ grepem po importach i zapytaniem do żywej bazy bbs-unified:
 | **K5** | **Migracja dostaje numer `054`** | `053` jest zarezerwowane przez spec E6a (`053_chat.sql`). **Przy okazji: w repo są dwie migracje `050_`** — zacommitowana `050_ksiegowosc_schema.sql` i nieśledzona `050_drop_permissive_voucher_accounts_insert.sql`. To powtórka historycznego konfliktu `020_`; do przenumerowania w E7a. |
 | **K6** | **Nowa grupa uprawnień „CRM" (klucze `crm.*`)** | Spec E6a świadomie **nie** użył klucza `crm.poczta` (decyzja K2 tamtej fali), bo CRM był wykluczony i klucz byłby martwą zależnością. Teraz grupa realnie powstaje — E6d ma się podpiąć pod `crm.poczta` zamiast tworzyć własny klucz. |
 | **K7** | **`app/api/companies/sync-crm/route.ts` do usunięcia w E7a** | Route zwraca **mockowe firmy zaszyte w kodzie** (`Omega Logistics`, `Pixel Art Studio`, `Green Energy S.A.`) i wstawia je do produkcyjnej tabeli `companies` z `origin='CRM_SYNC'`. Jest to atrapa sprzed decyzji o CRM; po wejściu prawdziwego modułu to już tylko generator śmieci w bazie klientów. |
+| **K10** | **Kalendarz NIE stoi na `crm_tasks` — to osobny moduł na trzech własnych tabelach** (ustalone przy wdrażaniu E7b) | Spec zakładał, że „Kalendarz" w CRM czyta `crm_tasks` z migracji 054. Nieprawda: `CrmKalendarz` woła `/api/calendar/events` i `/api/tasks`, a te stoją na `calendar_events`, `calendar_attendees` i `app_tasks`. `crm_tasks` istnieje w bazie BBS, ale **nie używa jej żaden żywy kod** (`app/api/crm/tasks/` jest pusty) — czyli kolejny przypadek K9, tym razem po stronie tabeli, nie pliku. Konsekwencje: migracja `056`, pięć dodatkowych route'ów (`calendar/events`, `tasks`) i zależność od `/api/chat/users` z E6a, którą podmieniono na rozszerzony `/api/tasks/people`. `crm_tasks` zostaje w EBS (pusta, nieszkodliwa) — ale nie jest tabelą kalendarza. |
+| **K11** | **Kalendarz i zadania dostają bramkę `crm.kalendarz`** | Route'y `calendar/*` i `tasks/*` w BBS **nie mają żadnej bramki uprawnień** — wystarczy być zalogowanym, więc moduł widzi każdy użytkownik systemu, łącznie z pracownikami i pracodawcami-klientami. W EBS to niedopuszczalne (panel obsługuje klientów zewnętrznych), więc każdy z pięciu route'ów dostał `can(auth, 'crm.kalendarz')`. |
 | **K9** | **Martwy kod BBS nie jest portowany** | 1 910 LOC (tabela wyżej) odwołuje się do tabel i kolumn, których nie ma w żywej bazie BBS, albo nie jest nigdzie importowane. Przeniesienie tego wprowadziłoby do EBS route'y, które wywalają się na pierwszym wywołaniu, i drugą, martwą implementację pipeline'u obok tej używanej. |
 | **K8** | **Prowizje MLM zostają poza E7** | Rozbicie prowizji (self 10% / L1 5% / L2 2% / agent 10%) siedzi dziś po stronie CRM, a EBS wysyła kwotę bazową (`companies.fee_percent`, 15–31%). To zmiana reguły rozliczeń, nie port UI — wymaga osobnej decyzji usera. E7d portuje wyłącznie **prezentację** prowizji z `crm_invoices`. |
 

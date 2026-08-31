@@ -83,9 +83,9 @@ export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
   // CRM (E7): role sprzedażowe dostają pipeline domyślnie — to jest ich narzędzie pracy,
   // inaczej niż agencja, która jest modułem wewnętrznym Strattona.
   pracodawca: [], pracownik: [], hr: [],
-  partner: ['crm.pipeline'],
-  menedzer: ['crm.pipeline'],
-  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline'],
+  partner: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz'],
+  menedzer: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz'],
+  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline', 'crm.kontakty', 'crm.kalendarz'],
   koordynator: [...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury'],
   platnik: [], pracownik_tymczasowy: [],
 };
@@ -101,4 +101,6 @@ export const PERMISSION_MENU: MenuDef[] = [
   { view: 'hr-mapa', label: 'Mapa Pracowników', section: 'Agencja Pracy', icon: 'mappin', anyOf: ['agencja.mapa'] },
   { view: 'admin-ksiegowosc', label: 'Księgowość', section: 'Księgowość', icon: 'book', anyOf: ['ksiegowosc.bilans', 'ksiegowosc.faktury'] },
   { view: 'crm-pipeline', label: 'Pipeline CRM', section: 'CRM', icon: 'kanban', anyOf: ['crm.pipeline'] },
+  { view: 'crm-kontakty', label: 'Kontakty', section: 'CRM', icon: 'user', anyOf: ['crm.kontakty'] },
+  { view: 'crm-kalendarz', label: 'Kalendarz', section: 'CRM', icon: 'calendar', anyOf: ['crm.kalendarz'] },
 ];

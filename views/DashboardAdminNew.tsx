@@ -23,8 +23,11 @@ const OwnerPanel = dynamic(() => import('../components/adminNew/OwnerPanel').the
 const AdminUstawienia = dynamic(() => import('../components/adminNew/AdminUstawienia').then(m => m.AdminUstawienia), { ssr: false });
 // CRM (E7a) — lazy, żeby pipeline nie ładował się rolom, które go nie mają.
 const PipelineKanban = dynamic(() => import('../components/crm/pipeline/PipelineKanban'), { ssr: false });
+// CRM (E7b)
+const CrmKontakty = dynamic(() => import('../components/adminNew/crm/CrmKontakty').then(m => ({ default: m.CrmKontakty })), { ssr: false });
+const CrmKalendarz = dynamic(() => import('../components/adminNew/crm/CrmKalendarz').then(m => ({ default: m.CrmKalendarz })), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'owner-panel' | 'ustawienia';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'owner-panel' | 'ustawienia';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -43,6 +46,8 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'hr-mapa':         'hr-mapa',
   'admin-ksiegowosc': 'admin-ksiegowosc',
   'crm-pipeline':     'crm-pipeline',
+  'crm-kontakty':     'crm-kontakty',
+  'crm-kalendarz':    'crm-kalendarz',
   'owner-panel':      'owner-panel',
   'admin-ustawienia': 'ustawienia',
 };
@@ -64,6 +69,8 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'hr-mapa':       'hr-mapa',
   'admin-ksiegowosc': 'admin-ksiegowosc',
   'crm-pipeline':     'crm-pipeline',
+  'crm-kontakty':     'crm-kontakty',
+  'crm-kalendarz':    'crm-kalendarz',
   'owner-panel':      'owner-panel',
   ustawienia:         'admin-ustawienia',
 };
@@ -152,6 +159,8 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
         {tab === 'hr-mapa' && <HrMapa />}
         {tab === 'admin-ksiegowosc' && <AdminKsiegowosc />}
         {tab === 'crm-pipeline' && <PipelineKanban />}
+        {tab === 'crm-kontakty' && <CrmKontakty />}
+        {tab === 'crm-kalendarz' && <CrmKalendarz />}
         {tab === 'owner-panel' && isOwner && <OwnerPanel onGoToPermissions={() => onViewChange?.('admin-ustawienia')} />}
         {tab === 'ustawienia' && isOwner && <AdminUstawienia />}
       </div>
