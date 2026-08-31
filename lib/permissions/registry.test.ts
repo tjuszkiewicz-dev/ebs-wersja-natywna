@@ -5,8 +5,14 @@ describe('permissions registry (EBS E1)', () => {
   it('klucze unikalne', () => {
     expect(new Set(ALL_PERMISSIONS).size).toBe(ALL_PERMISSIONS.length);
   });
-  it('bez kluczy CRM (wykluczony moduł)', () => {
-    expect(ALL_PERMISSIONS.some(k => k.startsWith('crm.'))).toBe(false);
+  // CRM był wykluczony do E6; od E7 wchodzi do zakresu (decyzja usera 2026-08-31).
+  it('grupa CRM ma komplet kluczy etapów E7a–E7e + rezerwację poczty dla E6d', () => {
+    const group = PERMISSION_GROUPS.find(g => g.name === 'CRM');
+    expect(group).toBeDefined();
+    expect(group!.perms.map(p => p.key)).toEqual([
+      'crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator',
+      'crm.leaderboard', 'crm.org-chart', 'crm.notatki', 'crm.poczta', 'crm.delete',
+    ]);
   });
   it('DEFAULT_ROLE_PERMS odwołuje się tylko do istniejących kluczy', () => {
     const all = new Set(ALL_PERMISSIONS);
@@ -14,8 +20,8 @@ describe('permissions registry (EBS E1)', () => {
       for (const p of perms) expect(all.has(p)).toBe(true);
     }
   });
-  it('grupy: Panel systemowy, Benefity, Księgowość i Agencja Pracy', () => {
-    expect(PERMISSION_GROUPS.map(g => g.name)).toEqual(['Panel systemowy', 'Benefity', 'Księgowość', 'Agencja Pracy']);
+  it('grupy: Panel systemowy, Benefity, Księgowość, Agencja Pracy i CRM', () => {
+    expect(PERMISSION_GROUPS.map(g => g.name)).toEqual(['Panel systemowy', 'Benefity', 'Księgowość', 'Agencja Pracy', 'CRM']);
   });
   it('grupa Księgowość ma klucze ksiegowosc.faktury i ksiegowosc.bilans, oba w ALL_PERMISSIONS', () => {
     const group = PERMISSION_GROUPS.find(g => g.name === 'Księgowość');
@@ -36,9 +42,18 @@ describe('permissions registry (EBS E1)', () => {
       expect((DEFAULT_ROLE_PERMS[r] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
     }
   });
-  it('dyrektor domyślnie ma pełną Księgowość, ale nic z agencji', () => {
-    expect(DEFAULT_ROLE_PERMS['dyrektor']).toEqual(['ksiegowosc.faktury', 'ksiegowosc.bilans']);
+  it('dyrektor domyślnie ma pełną Księgowość i pipeline CRM, ale nic z agencji', () => {
+    expect(DEFAULT_ROLE_PERMS['dyrektor']).toEqual(['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline']);
     expect((DEFAULT_ROLE_PERMS['dyrektor'] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
+  });
+
+  it('role sprzedażowe dostają pipeline CRM domyślnie, a pracodawca/pracownik nie', () => {
+    for (const r of ['partner', 'menedzer', 'dyrektor']) {
+      expect(DEFAULT_ROLE_PERMS[r]).toContain('crm.pipeline');
+    }
+    for (const r of ['pracodawca', 'pracownik', 'hr', 'platnik', 'pracownik_tymczasowy']) {
+      expect((DEFAULT_ROLE_PERMS[r] ?? []).some(k => k.startsWith('crm.'))).toBe(false);
+    }
   });
   it('PERMISSION_MENU: sekcja Agencja Pracy pokrywa hr-pracownicy i hr-flota', () => {
     const views = PERMISSION_MENU.map(m => m.view);

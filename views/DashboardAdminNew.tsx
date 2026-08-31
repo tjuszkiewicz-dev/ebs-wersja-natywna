@@ -21,8 +21,10 @@ const HrMapa = dynamic(() => import('../components/agencja/HrMapa').then(m => m.
 // Ekrany wyłączne dla ownera — lazy, żeby nie ładować ich zwykłym adminom.
 const OwnerPanel = dynamic(() => import('../components/adminNew/OwnerPanel').then(m => m.OwnerPanel), { ssr: false });
 const AdminUstawienia = dynamic(() => import('../components/adminNew/AdminUstawienia').then(m => m.AdminUstawienia), { ssr: false });
+// CRM (E7a) — lazy, żeby pipeline nie ładował się rolom, które go nie mają.
+const PipelineKanban = dynamic(() => import('../components/crm/pipeline/PipelineKanban'), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'owner-panel' | 'ustawienia';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'owner-panel' | 'ustawienia';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -40,6 +42,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'hr-tlumacz':      'hr-tlumacz',
   'hr-mapa':         'hr-mapa',
   'admin-ksiegowosc': 'admin-ksiegowosc',
+  'crm-pipeline':     'crm-pipeline',
   'owner-panel':      'owner-panel',
   'admin-ustawienia': 'ustawienia',
 };
@@ -60,6 +63,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'hr-tlumacz':    'hr-tlumacz',
   'hr-mapa':       'hr-mapa',
   'admin-ksiegowosc': 'admin-ksiegowosc',
+  'crm-pipeline':     'crm-pipeline',
   'owner-panel':      'owner-panel',
   ustawienia:         'admin-ustawienia',
 };
@@ -147,6 +151,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
         {tab === 'hr-tlumacz' && <HrTlumacz />}
         {tab === 'hr-mapa' && <HrMapa />}
         {tab === 'admin-ksiegowosc' && <AdminKsiegowosc />}
+        {tab === 'crm-pipeline' && <PipelineKanban />}
         {tab === 'owner-panel' && isOwner && <OwnerPanel onGoToPermissions={() => onViewChange?.('admin-ustawienia')} />}
         {tab === 'ustawienia' && isOwner && <AdminUstawienia />}
       </div>

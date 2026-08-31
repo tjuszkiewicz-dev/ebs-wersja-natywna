@@ -41,7 +41,6 @@ export const CompanyFormModal: React.FC<Props> = ({ onClose, onCreated }) => {
   const [fieldErrors, setFieldErrors]  = useState<Partial<Record<keyof FormData, string>>>({});
   const [serverError, setServerError]  = useState<string | null>(null);
   const [saving,      setSaving]       = useState(false);
-  const [crmSyncing,  setCrmSyncing]   = useState(false);
 
   // GUS lookup state
   const [gusLoading,  setGusLoading]   = useState(false);
@@ -143,20 +142,9 @@ export const CompanyFormModal: React.FC<Props> = ({ onClose, onCreated }) => {
     }
   };
 
-  const handleCrmSync = async () => {
-    setCrmSyncing(true);
-    setServerError(null);
-    try {
-      const res = await fetch('/api/companies/sync-crm', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
-      onCreated(null); // odśwież listę
-    } catch (e: any) {
-      setServerError(e.message ?? 'Błąd syncronizacji CRM');
-    } finally {
-      setCrmSyncing(false);
-    }
-  };
+  // „Synchronizuj z CRM" usunięte w E7a: endpoint /api/companies/sync-crm zwracał
+  // trzy zaszyte w kodzie firmy-atrapy i wstawiał je do produkcyjnej tabeli companies.
+  // Import z prawdziwego CRM przyjdzie z falą E8 (migracja danych ze Stratton CRM).
 
   const field = (
     key: keyof FormData,
@@ -292,17 +280,7 @@ export const CompanyFormModal: React.FC<Props> = ({ onClose, onCreated }) => {
             )}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={handleCrmSync}
-              disabled={crmSyncing || saving}
-              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition disabled:opacity-50"
-            >
-              {crmSyncing ? <Loader2 size={14} className="animate-spin" /> : null}
-              Synchronizuj z CRM
-            </button>
-
+          <div className="flex items-center justify-end pt-2 border-t border-slate-100">
             <div className="flex items-center gap-2">
               <button
                 type="button"

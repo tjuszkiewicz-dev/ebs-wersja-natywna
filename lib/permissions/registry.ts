@@ -1,7 +1,7 @@
 // Rejestr uprawnień EBS — jedyne źródło listy kluczy, etykiet i domyślnych
 // zestawów per rola. Klient-safe (bez sekretów). Superadmin ZAWSZE ma wszystko
 // (zablokowane w kodzie — patrz lib/permissions/server.ts).
-// Port z BBS-Unified, przycięty do modułów EBS (bez CRM; agencja/księgowość dojdą w E2/E4).
+// Port z BBS-Unified, przycięty do modułów EBS (agencja E2, księgowość E4, CRM E7).
 
 export type PermKind = 'tab' | 'action';
 export interface PermDef { key: string; label: string; kind: PermKind }
@@ -56,6 +56,20 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'agencja.dokumenty-usun', label: 'Usuwanie dokumentów z teczek', kind: 'action' },
     ],
   },
+  {
+    name: 'CRM',
+    perms: [
+      { key: 'crm.pipeline', label: 'Pipeline CRM (leady, oś czasu)', kind: 'tab' },
+      { key: 'crm.kontakty', label: 'Kontakty CRM', kind: 'tab' },
+      { key: 'crm.kalendarz', label: 'Kalendarz CRM', kind: 'tab' },
+      { key: 'crm.kalkulator', label: 'Kalkulator Ofertowy', kind: 'tab' },
+      { key: 'crm.leaderboard', label: 'Leaderboard sprzedaży', kind: 'tab' },
+      { key: 'crm.org-chart', label: 'Org-chart (struktura sprzedaży)', kind: 'tab' },
+      { key: 'crm.notatki', label: 'Notatki głosowe', kind: 'tab' },
+      { key: 'crm.poczta', label: 'Poczta CRM', kind: 'tab' },
+      { key: 'crm.delete', label: 'Usuwanie leadów i kontaktów', kind: 'action' },
+    ],
+  },
 ];
 
 export const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap(g => g.perms.map(p => p.key));
@@ -66,8 +80,12 @@ export const AGENCJA_TABS = ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.k
 // wewnętrznym Strattona — pracodawcy-klienci EBS ani role sieciowe NIE dostają
 // agencji domyślnie (w BBS dostawali). Wyjątki nadaje panel Uprawnienia.
 export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
-  pracodawca: [], pracownik: [], partner: [], menedzer: [], hr: [],
-  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans'],
+  // CRM (E7): role sprzedażowe dostają pipeline domyślnie — to jest ich narzędzie pracy,
+  // inaczej niż agencja, która jest modułem wewnętrznym Strattona.
+  pracodawca: [], pracownik: [], hr: [],
+  partner: ['crm.pipeline'],
+  menedzer: ['crm.pipeline'],
+  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline'],
   koordynator: [...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury'],
   platnik: [], pracownik_tymczasowy: [],
 };
@@ -82,4 +100,5 @@ export const PERMISSION_MENU: MenuDef[] = [
   { view: 'hr-tlumacz', label: 'Tłumacz', section: 'Agencja Pracy', icon: 'languages', anyOf: ['agencja.tlumacz'] },
   { view: 'hr-mapa', label: 'Mapa Pracowników', section: 'Agencja Pracy', icon: 'mappin', anyOf: ['agencja.mapa'] },
   { view: 'admin-ksiegowosc', label: 'Księgowość', section: 'Księgowość', icon: 'book', anyOf: ['ksiegowosc.bilans', 'ksiegowosc.faktury'] },
+  { view: 'crm-pipeline', label: 'Pipeline CRM', section: 'CRM', icon: 'kanban', anyOf: ['crm.pipeline'] },
 ];

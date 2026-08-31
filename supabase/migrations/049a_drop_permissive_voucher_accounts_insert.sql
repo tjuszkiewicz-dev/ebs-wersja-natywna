@@ -1,0 +1,23 @@
+-- =============================================================================
+-- EBS — Migracja 050: usunięcie nadmiarowej, permisywnej polityki INSERT
+--                     na public.voucher_accounts
+-- =============================================================================
+-- Kontekst: migracja 008 dodała politykę "Tworzenie konta voucherowego — system"
+--   z WITH CHECK (true) jako "poduszkę" dla triggera auto-tworzącego konto.
+--   Efekt uboczny: rola anon/authenticated mogła wstawiać DOWOLNE wiersze do
+--   voucher_accounts przez PostgREST (POST /rest/v1/voucher_accounts).
+--   Supabase database-linter zgłaszał to jako 0024_permissive_rls_policy (WARN).
+--
+-- Dlaczego usunięcie jest bezpieczne:
+--   * trg_auto_create_voucher_account (na auth.users) używa
+--     fn_auto_create_voucher_account() = SECURITY DEFINER, owner=postgres,
+--     a voucher_accounts nie ma FORCE RLS → trigger OMIJA RLS i działa dalej.
+--   * Serwerowe inserty (np. app/api/employees, scripts/*) idą przez
+--     supabaseServer() = service_role → OMIJA RLS.
+--   * Brak jakiegokolwiek insertu do voucher_accounts w kodzie klienckim
+--     (przeglądarka nie wstawia tu wierszy).
+--   * Polityka SELECT "Własne konto voucherowe" (auth.uid() = user_id) pozostaje
+--     nienaruszona — pracownik dalej widzi wyłącznie własne saldo.
+-- =============================================================================
+
+DROP POLICY IF EXISTS "Tworzenie konta voucherowego — system" ON public.voucher_accounts;

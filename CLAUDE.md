@@ -51,7 +51,7 @@ Dashboard clients (`app/dashboard/_components/`) bridge Supabase session ↔ Str
 
 Architektura super-appa: `/launcher` (kafelki appek), `/app/[appId]` (host z guardem),
 `/admin/uprawnienia` (panel entitlements, superadmin). Rejestr appek: `lib/apps/registry.ts`
-(E1: tylko `benefity`; CRM wykluczony — osobny CRM Stratton Prime). Dostęp = defaultRoles
+(E1: tylko `benefity`; CRM był wtedy wykluczony — **decyzja odwrócona 2026-08-31, patrz E7**). Dostęp = defaultRoles
 per appka + wyjątki `user_app_entitlements` (migracja 044). Po zalogowaniu `/api/auth/role`
 kieruje: 1 appka → jej dashboard (zero zmiany UX), >1 → `/launcher` (`lib/auth/postLoginRedirect`).
 Szczegółowe uprawnienia (fundament pod E2): `lib/permissions/*` + tabele `app_roles`/
@@ -79,7 +79,8 @@ brak sesji → **403** nie 401 — wzorzec BBS). **UI agencji jest w `components
 z niezwiązanym, benefitowym `components/hr/*`.** Helpery: `lib/hr/*` (`docPlaceholders`, `readiness`,
 `rentShare`, `accommodations`, `coordinatorScope`, `driveImport`, `vehicles`; **`lib/hr/geo` = stub
 zwracający null do E2d**); `lib/supabaseAdmin.admin` = alias `supabaseServer` (BBS-owe `admin()` z
-`lib/crm/visibility` — CRM wykluczony). Tabele `hr_*` nie są w `types/database.ts` → kod używa
+`lib/crm/visibility` — wtedy wykluczone; od E7 `lib/crm/visibility` istnieje i reeksportuje ten alias).
+Tabele `hr_*` nie są w `types/database.ts` → kod używa
 `(admin() as any).from('hr_...')` (konwencja repo). Audyt: **triggery DB**, nie `logEvent` (usunięte
 przy porcie). **Świadomie odłożone (stuby w kodzie):** `settlements/pdf` + generator dokumentów →
 **E2c**; OCR (Claude Vision) w `vehicles/[id]/license` i `candidates` → zwraca `ocr:null`,
@@ -209,6 +210,61 @@ pliki w Storage nietykane przy usuwaniu konta; dogrywanie dokumentów do istniej
 przy imporcie z Google Drive (jest w BBS, brak w EBS); `dzis_plus_miesiac` dolicza miesiąc
 kalendarzowo (31.01 → 03.03, nie koniec lutego).
 
+**E7a (2026-08-31) — CRM WCHODZI DO EBS (odwrócenie decyzji):** user cofnął pierwotne
+„skopiuj wszystko z BBSa bez CRMa". CRM ma docelowo **zastąpić** osobną aplikację Stratton CRM.
+Spec: `docs/superpowers/specs/2026-08-31-e7-crm-design.md` (dekompozycja E7a–E7e).
+
+E7a dowozi fundament: migracja `054_crm_schema.sql` (tabele `leads`, `crm_activities`,
+`crm_contacts`, `crm_tasks`, `crm_offers`, `crm_invoices` + hierarchia w `user_profiles`:
+`manager_id`, `hierarchical_id`, `is_agent_authorized`, `leadowiec_opiekun_id`, rola
+`leadowiec`, bucket `crm-offers`); `lib/crm/{visibility,activities}.ts`; API
+`app/api/crm/leads/{route, [id]/route, [id]/activities/route}`; UI
+`components/crm/pipeline/*` (kanban + lista + panel szczegółów, port 1:1 — komponenty są
+samowystarczalne, zależą tylko od `react` i `lucide-react`); zakładka `crm-pipeline`
+w `DashboardAdminNew`; sekcja **── CRM ──** w `Sidebar`; grupa uprawnień **CRM**
+(`crm.pipeline/kontakty/kalendarz/kalkulator/leaderboard/org-chart/notatki/poczta/delete`).
+
+Adaptacje względem BBS (uzasadnienia w specu):
+- **Kolumna `workspace` NIE portowana** — EBS jest jednonajemcowy (K2).
+- **`admin()` nie jest odtwarzany** — `lib/crm/visibility` reeksportuje `lib/supabaseAdmin.admin`,
+  więc proteza z E2b stała się rozwiązaniem docelowym.
+- **Pełną widoczność ma też `owner`** (BBS tej roli nie zna; `getAuthUserWithRole` i tak
+  normalizuje `owner`→`superadmin`, gałąź jest zabezpieczeniem).
+- **`crm_invoices` = EWIDENCJA prowizji, bez wystawiania i bez KSeF** — decyzja E4 (Fakturownia
+  jedynym fakturującym) zostaje w mocy (K3).
+- **Poczta CRM NIE jest portowana w E7 — należy do E6d** (K4). `crm.poczta` to rezerwacja klucza;
+  `DetailsPanel` woła `/api/crm/mail/by-contact` i `/api/crm/offers`, oba degradują się cicho
+  (`r.ok ? … : puste`), więc brak tych endpointów w E7a niczego nie wywala.
+- **Usunięty `app/api/companies/sync-crm` wraz z przyciskiem „Synchronizuj z CRM"**
+  w `CompanyFormModal` — route wstawiał do produkcyjnych `companies` trzy firmy-atrapy
+  zaszyte w kodzie (K7).
+- **Numeracja migracji:** `053` zarezerwowane dla `053_chat.sql` z E6a, CRM dostał `054`.
+  Naprawiony historyczny duplikat: `050_drop_permissive_voucher_accounts_insert.sql` →
+  `049a_…` (był drugim plikiem `050_`; w bazie zastosowany przed `050_ksiegowosc_schema`).
+
+> ⚠️ **MARTWY KOD W ŹRÓDLE — nie portować (K9).** 1 910 z 9 734 LOC modułu CRM w BBS jest
+> martwe i **zweryfikowane dwiema drogami** (grep po importach + `information_schema` żywej bazy
+> BBS): `components/adminNew/crm/CrmPipeline` + 5 helperów `crmPipeline*` i `CrmKalkulator`
+> (zero importów — żywe są `components/crm/pipeline/PipelineKanban` i
+> `components/crm/calculator/CalculatorWizard`), oraz sześć route'ów stojących na
+> nieistniejących obiektach: `app/api/crm/activities/*` (`crm_client_activities`),
+> `leads/[id]/notes` (`lead_notes`), `leads/[id]/qualify` (`leads.qualification_notes`),
+> `leads/[id]/convert` (`crm_client_profiles`, `leads.company_id`, `leads.converted_at`).
+> **Jedyna żywa oś czasu to `crm_activities` przez `leads/[id]/activities` + `lib/crm/activities`.**
+
+**Odłożone (E7b–E7e):** kontakty i kalendarz, kalkulator ofertowy + generator oferty PDF
+(ma korzystać z `lib/pdf/renderer.ts`, nie z CRM-owego `lib/crm/offer/pdfRenderer.ts`),
+leaderboard + org-chart (dojdzie `d3`), notatki głosowe (domykają zaślepkę
+`/api/notes/from-text` z E2d). **Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% /
+L2 2% / agent 10% to zmiana reguł rozliczeń, nie port UI (K8).
+
+> **E8 — migracja danych ze Stratton CRM: ZABLOKOWANA.** Supabase MCP widzi tylko konto
+> `tjuszkiewicz-dev`; Stratton CRM stoi na koncie „stratton dev". Kolejność ustalona przez usera:
+> **najpierw moduł, potem dane**; źródłem prawdy w okresie przejściowym pozostaje Stratton CRM
+> (EBS czyta), **bez dwukierunkowej synchronizacji**. Otwarte pytanie: kod pochodzi z BBS, a dane
+> ze Stratton CRM — to dwa systemy o prawdopodobnie różnych schematach i to mapowanie, nie sam
+> import, jest właściwą treścią E8.
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
@@ -297,11 +353,12 @@ Struktura przeniesiona z BBS:
 **SUPERADMIN menu (kolejność jak BBS; treść EBS)**: `admin-pulpit`, `admin-ksiegowosc`,
 `admin-uprawnienia`, `admin-szablony`, `admin-logi` (Rejestr zdarzeń) · **── Benefity ──**
 `admin-klienci`, `admin-platnosci`, `admin-archiwum`, `admin-vouchery`, `admin-buyback` ·
-**── Agencja Pracy ──** `hr-pracownicy`, `hr-mapa`, `hr-flota`, `hr-generator`, `hr-tlumacz`.
+**── Agencja Pracy ──** `hr-pracownicy`, `hr-mapa`, `hr-flota`, `hr-generator`, `hr-tlumacz` ·
+**── CRM ──** `crm-pipeline` (E7a; kolejne pozycje dochodzą z E7b–E7e).
 
-**Świadome różnice vs BBS** (CRM wykluczony — osobny CRM Stratton Prime): usunięta sekcja CRM
-i pozycje ownera (`owner-panel`/`admin-ustawienia` — EBS nie ma roli `owner`, prop `isOwner`
-usunięty); role sprzedażowe (DIRECTOR/MANAGER/ADVISOR) → Panel Sprzedaży + Moje Prowizje (bez CRM).
+**Świadome różnice vs BBS**: pozycje ownera są w EBS obecne (`owner-panel`/`admin-ustawienia`,
+rola `owner` doszła migracją 051); role sprzedażowe (DIRECTOR/MANAGER/ADVISOR) → Panel Sprzedaży
++ Moje Prowizje. Sekcja CRM **wróciła** w E7 (do E6 była wycięta).
 
 ### CSS (`index.css`)
 
