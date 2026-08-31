@@ -1,5 +1,6 @@
 // Portal pracownika tymczasowego (rola pracownik_tymczasowy → /dashboard/agencja)
 import { redirect } from 'next/navigation';
+import { effectiveDbRole } from '@/lib/roleMap';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
@@ -44,7 +45,7 @@ export default async function AgencjaWorkerPage() {
 
   // DbRole (types/database.ts) nie zawiera jeszcze ról agencyjnych z migracji 049
   // (koordynator/hr/platnik/pracownik_tymczasowy) — porównanie na stringu.
-  const role = profile?.role as unknown as string | undefined;
+  const role = effectiveDbRole(profile?.role);
   if (role !== 'pracownik_tymczasowy' && role !== 'superadmin') redirect('/login');
 
   return <TempWorkerDashboard />;

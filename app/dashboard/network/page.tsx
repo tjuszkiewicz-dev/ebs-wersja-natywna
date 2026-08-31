@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { effectiveDbRole } from '@/lib/roleMap';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
@@ -43,7 +44,7 @@ export default async function NetworkDashboardPage() {
     .eq('id', user.id)
     .single();
 
-  const role = profile?.role;
+  const role = effectiveDbRole(profile?.role);
   if (!role || (!NETWORK_ROLES.includes(role as typeof NETWORK_ROLES[number]) && role !== 'superadmin')) {
     redirect('/login');
   }

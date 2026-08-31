@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { effectiveDbRole } from '@/lib/roleMap';
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
@@ -41,7 +42,8 @@ export default async function EmployeeDashboardPage() {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'pracownik' && profile?.role !== 'superadmin') redirect('/login');
+  const role = effectiveDbRole(profile?.role);
+  if (role !== 'pracownik' && role !== 'superadmin') redirect('/login');
 
   return <EmployeeDashboardClient />;
 }

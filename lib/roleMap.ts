@@ -77,3 +77,17 @@ export const ROLE_DASHBOARD: Record<Role, string> = {
   [Role.PAYROLL]:     '/dashboard/admin',
   [Role.TEMP_WORKER]: '/dashboard/agencja',
 };
+
+/**
+ * Rola z bazy sprowadzona do roli efektywnej dla strażników porównujących
+ * surowy string z `user_profiles.role`.
+ *
+ * `owner` stoi ponad `superadmin` i dziedziczy wszystkie jego uprawnienia —
+ * bez tego strażniki typu `role !== 'superadmin'` odbijały właściciela na
+ * ekran logowania. API używają `auth.role` z `getAuthUserWithRole()`, które
+ * normalizuje to samodzielnie; ten helper jest dla server components,
+ * które czytają profil bezpośrednio.
+ */
+export function effectiveDbRole(dbRole: string | null | undefined): string {
+  return dbRole === 'owner' ? 'superadmin' : (dbRole ?? '');
+}
