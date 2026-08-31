@@ -12,7 +12,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Database } from './types/database';
 
 // Ścieżki publiczne — nie wymagają logowania
-const PUBLIC_PATHS = ['/login', '/api/auth', '/api'];
+// /reset-password MUSI być publiczne — osoba odzyskująca hasło z definicji nie
+// ma jeszcze sesji, a token przychodzi we fragmencie URL (niewidocznym dla serwera).
+const PUBLIC_PATHS = ['/login', '/reset-password', '/api/auth', '/api'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(p => pathname.startsWith(p))
