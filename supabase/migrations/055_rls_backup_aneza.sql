@@ -25,9 +25,15 @@
 --   Operacja jest NIENISZCZĄCA — kopie zostają nietknięte i dalej pozwalają
 --   cofnąć czyszczenie danych Anezy, gdyby okazało się błędne.
 --
--- Decyzja o USUNIĘCIU tych tabel jest osobna i należy do właściciela
--- (patrz session-logs/2026-08-31-auth-reset-hasla-owner.md — pozycja „czeka na usera").
--- Do czasu tej decyzji kopie są bezpieczne, bo niedostępne z zewnątrz.
+-- DECYZJA WŁAŚCICIELA (31.08.2026): kopie ZOSTAJĄ do czasu potwierdzenia, że
+--   rozliczenia Anezy po czyszczeniu się zgadzają — są jedyną drogą cofnięcia
+--   usunięcia 3 zamówień i 2 dokumentów oraz przywrócenia starych dat potwierdzeń.
+--   RODO zaspokojone przez RLS (dane niedostępne z zewnątrz), a krótkie
+--   przechowywanie na potrzeby weryfikacji poprawności operacji jest uzasadnione.
+--
+-- ⚠️ ZOBOWIĄZANIE DO DOMKNIĘCIA: gdy właściciel potwierdzi rozliczenia Anezy,
+--   te trzy tabele należy USUNĄĆ (DROP) — trzymanie PESEL bez terminu usunięcia
+--   jest trudne do obrony przy kontroli. Nie zostawiać tego w zawieszeniu.
 -- =============================================================================
 
 ALTER TABLE public."_backup_aneza_orders_del"    ENABLE ROW LEVEL SECURITY;
