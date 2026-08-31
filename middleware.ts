@@ -14,7 +14,7 @@ import type { Database } from './types/database';
 // Ścieżki publiczne — nie wymagają logowania
 // /reset-password MUSI być publiczne — osoba odzyskująca hasło z definicji nie
 // ma jeszcze sesji, a token przychodzi we fragmencie URL (niewidocznym dla serwera).
-const PUBLIC_PATHS = ['/login', '/reset-password', '/api/auth', '/api'];
+const PUBLIC_PATHS = ['/login', '/reset-password', '/auth/confirm', '/api/auth', '/api'];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(p => pathname.startsWith(p))
