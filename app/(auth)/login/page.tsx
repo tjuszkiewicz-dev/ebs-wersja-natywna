@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
 import MagicRings from '@/components/ui/MagicRings';
 import { supabaseBrowser } from '@/lib/supabase';
@@ -18,6 +18,49 @@ export default function LoginPage() {
     const line = `[${ts}] ${msg}`;
     console.log('[EBS-LOGIN]', line);
     setDebugLogs(prev => [...prev, line]);
+  };
+
+  // ── Odzyskiwanie hasła ────────────────────────────────────────────────────
+  const [showForgot,    setShowForgot]    = useState(false);
+  const [forgotEmail,   setForgotEmail]   = useState('');
+  const [forgotMsg,     setForgotMsg]     = useState('');
+  const [forgotErr,     setForgotErr]     = useState('');
+  const [forgotPending, setForgotPending] = useState(false);
+
+  // Link odzyskiwania trafia na Site URL (katalog główny), a ten przekierowuje
+  // na /login — fragment z tokenem przeżywa przekierowanie, więc przerzucamy go
+  // na właściwy ekran zamiast pozwolić mu przepaść.
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      window.location.replace('/reset-password' + hash);
+    }
+  }, []);
+
+  const handleForgot = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setForgotErr('');
+    setForgotMsg('');
+
+    const target = forgotEmail.trim().toLowerCase();
+    if (!target) { setForgotErr('Podaj adres e-mail.'); return; }
+
+    setForgotPending(true);
+    try {
+      const { error: resetErr } = await supabaseBrowser.auth.resetPasswordForEmail(target, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      if (resetErr) {
+        setForgotErr(resetErr.message || 'Nie udało się wysłać linku.');
+        return;
+      }
+      // Nie zdradzamy, czy konto istnieje — komunikat zawsze taki sam.
+      setForgotMsg('Jeśli konto istnieje, wysłaliśmy link do zmiany hasła. Sprawdź skrzynkę.');
+    } catch {
+      setForgotErr('Błąd połączenia. Spróbuj ponownie.');
+    } finally {
+      setForgotPending(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -222,6 +265,48 @@ export default function LoginPage() {
                       )}
                     </button>
                   </form>
+
+                  {/* ── Nie pamiętam hasła ── */}
+                  <div style={{ marginTop:12, textAlign:'center' }}>
+                    {!showForgot ? (
+                      <button
+                        type="button"
+                        onClick={() => { setShowForgot(true); setForgotEmail(email); }}
+                        style={{ background:'none', border:'none', color:'rgba(255,255,255,0.45)', fontSize:12, cursor:'pointer', textDecoration:'underline' }}
+                      >
+                        Nie pamiętam hasła
+                      </button>
+                    ) : (
+                      <form onSubmit={handleForgot} style={{ display:'flex', flexDirection:'column', gap:8, marginTop:4 }}>
+                        <input
+                          type="email"
+                          value={forgotEmail}
+                          onChange={(ev) => setForgotEmail(ev.target.value)}
+                          placeholder="Twój adres e-mail"
+                          autoComplete="email"
+                          style={{ padding:'9px 11px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'#fff', fontSize:12, outline:'none' }}
+                        />
+                        {forgotErr && <div style={{ color:'#fca5a5', fontSize:11 }}>{forgotErr}</div>}
+                        {forgotMsg && <div style={{ color:'#86efac', fontSize:11, lineHeight:1.5 }}>{forgotMsg}</div>}
+                        <div style={{ display:'flex', gap:8 }}>
+                          <button
+                            type="submit"
+                            disabled={forgotPending}
+                            style={{ flex:1, padding:'8px', borderRadius:10, background:'rgba(37,99,235,0.85)', border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}
+                          >
+                            {forgotPending ? 'Wysyłanie…' : 'Wyślij link'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowForgot(false); setForgotErr(''); setForgotMsg(''); }}
+                            style={{ padding:'8px 12px', borderRadius:10, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.6)', fontSize:12, cursor:'pointer' }}
+                          >
+                            Anuluj
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
