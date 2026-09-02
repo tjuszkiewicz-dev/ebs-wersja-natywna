@@ -39,6 +39,7 @@ export const STATUS_BADGE: Record<LeadStatus, string> = {
 
 export const ROLE_LABEL: Record<string, string> = {
   superadmin: 'ADMINISTRATOR',
+  owner:      'WŁAŚCICIEL',
   dyrektor:   'DYREKTOR',
   menedzer:   'MANAGER',
   partner:    'DORADCA BIZNESOWY',

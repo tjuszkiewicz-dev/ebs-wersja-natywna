@@ -420,13 +420,25 @@ Mapowanie i decyzje:
   ich do `TERMINATED` sfałszowałoby dane, a zostawienie samego tekstu uczyniłoby te leady
   **niewidocznymi na kanbanie** — `byStatus` filtruje po znanych kolumnach.
 - **Opiekunowie: identyfikatory NIE przenoszą się.** `users.supabase_id` w Strattonie pochodzi
-  z **tamtejszego** projektu Supabase — żaden z 6 opiekunów nie istnieje w `auth.users` EBS.
-  Mapowanie idzie po **e-mailu**, a tablica jest w skrypcie (`OPIEKUN_STRATTON_NA_EBS`).
-  Dziś mapuje się jedna osoba: `t.juszkiewicz@stratton-prime.pl` → konto właściciela w EBS
-  (`t.juszkiewicz@gmail.com`, ta sama osoba, inny adres) = **14 leadów**. Pozostałe **6 idzie
-  bez przypisania** — świadomie **nie zakładamy kont logowania realnym ludziom przy okazji
-  importu danych**. E-mail pierwotnego opiekuna jest zapisany w `notes`, więc nic nie ginie;
-  po założeniu kont wystarczy dopisać wpis do tablicy i uruchomić import ponownie.
+  z **tamtejszego** projektu Supabase — żaden z 6 opiekunów nie istniał w `auth.users` EBS.
+  Dopasowanie idzie po **e-mailu**, rozwiązywanym na żywo z `auth.users`; sztywna tablica
+  `INNY_ADRES_W_EBS` w skrypcie obsługuje tylko przypadki, gdy ta sama osoba ma w obu
+  systemach inny adres (dziś: `t.juszkiewicz@stratton-prime.pl` → `t.juszkiewicz@gmail.com`).
+  Krok `1b` importu **uzupełnia opiekuna tam, gdzie jest pusty** (nigdy nie nadpisuje
+  przypisania zmienionego ręcznie), więc po założeniu nowego konta wystarczy powtórzyć import.
+  Konta zakłada `scripts/e8-konta-opiekunow.mts`.
+- **Stan przypisań po E8:** właściciel 14 · Marzanna Szarolkiewicz (`partner`) 2 ·
+  Tomasz Górski (`dyrektor`) 1 · Maciej Hagno 2 · bez opiekuna 1 (w źródle też go nie ma).
+
+> ⚠️ **DWA OTWARTE PRZYPADKI OSOBOWE (do decyzji właściciela, celowo nierozstrzygnięte):**
+> · **`m.hagno@stratton-prime.pl`** ma w EBS konto w roli **`pracodawca`** (klient benefitowy),
+> a w Stratton CRM jest DIRECTOR-em sprzedaży. Jego 2 leady są mu przypisane, ale **tej roli
+> nie widać w CRM**: `pracodawca` należy do `STATIC_MENU_ROLES` w `Sidebar` i ma menu bez
+> sekcji CRM, więc samo dosypanie uprawnień przez `user_permissions` nic nie da. Wybór:
+> druga rola, drugie konto, albo zostawić (leady i tak widzi superadmin/owner).
+> · **`biuro@stratton-prime.pl`** — wspólna skrzynka biura z rolą ADMIN w Strattonie,
+> nie prowadzi żadnego klienta. Konta **nie zakładano**: nadanie skrzynce współdzielonej
+> uprawnień administratora to decyzja bezpieczeństwa, nie szczegół migracji.
 - **`users` i `offers` NIE migrowane.** Konta to osobna decyzja. `offers` (9) to w Strattonie
   oferta kwotowa (`subtotal_net`/`total_vat`/`total_gross`/`commission_percent`), a EBS-owe
   `crm_offers` to snapshot kalkulatora oszczędności (`total_savings_*`, `pdf_url`, `snapshot`)

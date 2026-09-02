@@ -35,12 +35,15 @@ const WYKONAJ = process.argv.includes('--wykonaj');
 const STRATTON_ENV =
   process.env.STRATTON_ENV ?? 'C:/Users/Użytkownik/Desktop/Stratton Prime/php-api/.env';
 
-/** E-mail opiekuna w Stratton CRM → id konta w EBS. Kogo nie ma na liście, ten zostaje
- *  bez przypisania: lead trafia do puli nieprzypisanych i widzi go superadmin/owner.
- *  Świadomie NIE zakładamy kont logowania realnym ludziom przy okazji importu danych. */
-const OPIEKUN_STRATTON_NA_EBS: Record<string, string> = {
-  // ta sama osoba, inny adres: w EBS właściciel loguje się jako t.juszkiewicz@gmail.com
-  't.juszkiewicz@stratton-prime.pl': 'afea23e4-62bc-4449-923c-c9aa5fdca7ab',
+/** Opiekunów dopasowujemy po ADRESIE E-MAIL, nie po id: `users.supabase_id` w Strattonie
+ *  pochodzi z TAMTEJSZEGO projektu Supabase, więc w EBS te UUID-y nie istnieją.
+ *  Mapa poniżej obsługuje wyłącznie przypadki, gdy ta sama osoba ma w obu systemach
+ *  INNY adres. Kto nie ma konta w EBS, ten zostaje bez przypisania — lead trafia do puli
+ *  nieprzypisanych (widzi ją superadmin/owner), a e-mail pierwotnego opiekuna ląduje
+ *  w `notes`, więc informacja nie ginie. Konta zakłada osobny skrypt
+ *  `scripts/e8-konta-opiekunow.mts`; po jego uruchomieniu wystarczy powtórzyć import. */
+const INNY_ADRES_W_EBS: Record<string, string> = {
+  't.juszkiewicz@stratton-prime.pl': 't.juszkiewicz@gmail.com',
 };
 
 function wczytajEnv(sciezka: string): Record<string, string> {
@@ -74,10 +77,28 @@ const stratton = new pg.Client({
 
 const ZERO_LUB_NULL = (v: unknown) => v === null || v === undefined || Number(v) === 0;
 
+/** e-mail (jak w Strattonie) → id konta w EBS, rozwiązywane na żywo z auth.users. */
+async function zbudujMapeOpiekunow(): Promise<Map<string, string>> {
+  const { data, error } = await ebs.auth.admin.listUsers({ perPage: 1000 });
+  if (error) throw new Error(`odczyt kont EBS: ${error.message}`);
+  const poEmailu = new Map(
+    (data?.users ?? []).map(u => [String(u.email ?? '').toLowerCase(), u.id])
+  );
+  const mapa = new Map<string, string>();
+  for (const [email, id] of poEmailu) mapa.set(email, id);
+  for (const [wStrattonie, wEbs] of Object.entries(INNY_ADRES_W_EBS)) {
+    const id = poEmailu.get(wEbs);
+    if (id) mapa.set(wStrattonie, id);
+  }
+  return mapa;
+}
+
 async function main() {
   await stratton.connect();
   console.log(`źródło: ${src.DB_HOST} · cel: ${process.env.NEXT_PUBLIC_SUPABASE_URL}`);
   console.log(WYKONAJ ? 'TRYB: ZAPIS\n' : 'TRYB: PODGLĄD (dodaj --wykonaj, żeby zapisać)\n');
+
+  const opiekunowie = await zbudujMapeOpiekunow();
 
   // ── 1. Leady ───────────────────────────────────────────────────────────────
   const { rows: firmy } = await stratton.query(`
@@ -121,7 +142,7 @@ async function main() {
       f.reservation_end_date ? `Rezerwacja do: ${String(f.reservation_end_date).slice(0, 10)}` : null,
     ].filter(Boolean).join('\n') || null,
     contacts: f.kontakty,
-    assigned_to: OPIEKUN_STRATTON_NA_EBS[f.opiekun_email] ?? null,
+    assigned_to: opiekunowie.get(f.opiekun_email) ?? null,
     created_at: new Date(f.created_at).toISOString(),
   }));
 
@@ -137,9 +158,29 @@ async function main() {
 
   // mapowanie companies.id → leads.id (potrzebne do aktywności)
   const { data: wEbs, error: bladOdczytu } = await ebs
-    .from('leads').select('id, external_id').eq('external_source', 'stratton-crm');
+    .from('leads').select('id, external_id, assigned_to').eq('external_source', 'stratton-crm');
   if (bladOdczytu) throw new Error(`odczyt leadów: ${bladOdczytu.message}`);
   const naLead = new Map((wEbs ?? []).map(l => [String(l.external_id), l.id as string]));
+
+  // ── 1b. Uzupełnienie opiekuna ──────────────────────────────────────────────
+  // `ignoreDuplicates` nie rusza istniejących wierszy, więc leady zaimportowane
+  // ZANIM powstało konto opiekuna zostałyby na zawsze nieprzypisane. Uzupełniamy je
+  // tutaj — ale WYŁĄCZNIE tam, gdzie `assigned_to` jest puste, żeby nie deptać
+  // przypisań zmienionych ręcznie w panelu.
+  const doUzupelnienia = (wEbs ?? [])
+    .filter(l => !l.assigned_to)
+    .map(l => ({ lead: l, opiekun: leady.find(n => n.external_id === String(l.external_id))?.assigned_to }))
+    .filter((x): x is { lead: typeof wEbs[number]; opiekun: string } => Boolean(x.opiekun));
+
+  if (doUzupelnienia.length) {
+    console.log(`leady bez opiekuna, dla których konto już istnieje: ${doUzupelnienia.length}`);
+    if (WYKONAJ) {
+      for (const { lead, opiekun } of doUzupelnienia) {
+        const { error } = await ebs.from('leads').update({ assigned_to: opiekun }).eq('id', lead.id);
+        if (error) throw new Error(`uzupełnienie opiekuna (${lead.id}): ${error.message}`);
+      }
+    }
+  }
 
   // ── 2. Aktywności ──────────────────────────────────────────────────────────
   const { rows: akt } = await stratton.query(`
@@ -159,7 +200,7 @@ async function main() {
       lead_id: naLead.get(String(a.client_id))!,
       type: TYPY_EBS.has(a.type) ? a.type : 'NOTE',
       body: a.description ?? '',
-      author_id: OPIEKUN_STRATTON_NA_EBS[a.autor_email] ?? null,
+      author_id: opiekunowie.get(a.autor_email) ?? null,
       author_name: a.autor ?? null,
       is_system: false,
       created_at: new Date(a.occurred_at ?? a.created_at).toISOString(),
