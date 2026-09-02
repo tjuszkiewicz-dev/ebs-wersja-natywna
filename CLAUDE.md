@@ -396,7 +396,54 @@ Decyzje E7e:
 **Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% / L2 2% / agent 10% to zmiana
 reguł rozliczeń, nie port UI (K8). **Poczta CRM → E6d.**
 
-> **E8 — migracja danych ze Stratton CRM: ZABLOKOWANA.** Supabase MCP widzi tylko konto
+**E8 (2026-09-02) — MIGRACJA DANYCH ZE STRATTON CRM WYKONANA.** Importer:
+`scripts/import-stratton-crm.mts` (`npx tsx --env-file=.env.local … [--wykonaj]`; bez flagi
+tylko podgląd). Migracja `060_e8_powiazanie_ze_stratton_crm.sql` — `external_source`/
+`external_id` na `leads` i `crm_activities`. Przeniesione: **20 leadów + 101 aktywności**
+(2 leady z kontaktami, 6 autorów zachowanych). Idempotencja sprawdzona: drugie uruchomienie
+nie zdublowało niczego.
+
+> ⚠️ **SEDNO E8 TO MAPOWANIE, NIE IMPORT — bo `leads` w Stratton CRM jest PUSTA.**
+> Tamtejszy model klienta to `companies` (20) + `crm_client_profiles` (20, 1:1) +
+> `client_contacts` (3) + `crm_client_activities` (101). EBS-owy CRM (port z BBS) stoi na
+> `leads`. Kto szuka w źródle tabeli `leads`, znajdzie zero wierszy i wyciągnie błędny wniosek,
+> że nie ma czego migrować.
+
+Mapowanie i decyzje:
+- `companies` + `crm_client_profiles` → **`leads`**; klucz `companies.id`. NIP jest w źródle
+  wypełniony i **unikalny we wszystkich 20 rekordach**, więc nadaje się na klucz naturalny,
+  ale idempotencję opieramy na `external_id` (odporne na korektę NIP-u).
+- `client_contacts` → `leads.contacts` (jsonb). `crm_client_activities` → `crm_activities`;
+  typy `CALL`/`MEETING`/`NOTE` mapują się **1:1**, nic nie trzeba tłumaczyć.
+- **Statusy: doszedł piąty etap `RESIGNED`** (`pipelineTypes` + `pipelineConfig`). Stratton
+  rozróżnia „zrezygnował przed podpisaniem" (2 rekordy) od „umowa rozwiązana" (1). Wciśnięcie
+  ich do `TERMINATED` sfałszowałoby dane, a zostawienie samego tekstu uczyniłoby te leady
+  **niewidocznymi na kanbanie** — `byStatus` filtruje po znanych kolumnach.
+- **Opiekunowie: identyfikatory NIE przenoszą się.** `users.supabase_id` w Strattonie pochodzi
+  z **tamtejszego** projektu Supabase — żaden z 6 opiekunów nie istnieje w `auth.users` EBS.
+  Mapowanie idzie po **e-mailu**, a tablica jest w skrypcie (`OPIEKUN_STRATTON_NA_EBS`).
+  Dziś mapuje się jedna osoba: `t.juszkiewicz@stratton-prime.pl` → konto właściciela w EBS
+  (`t.juszkiewicz@gmail.com`, ta sama osoba, inny adres) = **14 leadów**. Pozostałe **6 idzie
+  bez przypisania** — świadomie **nie zakładamy kont logowania realnym ludziom przy okazji
+  importu danych**. E-mail pierwotnego opiekuna jest zapisany w `notes`, więc nic nie ginie;
+  po założeniu kont wystarczy dopisać wpis do tablicy i uruchomić import ponownie.
+- **`users` i `offers` NIE migrowane.** Konta to osobna decyzja. `offers` (9) to w Strattonie
+  oferta kwotowa (`subtotal_net`/`total_vat`/`total_gross`/`commission_percent`), a EBS-owe
+  `crm_offers` to snapshot kalkulatora oszczędności (`total_savings_*`, `pdf_url`, `snapshot`)
+  — **te modele się nie mapują**; wciśnięcie jednego w drugi dałoby rekordy z pustymi
+  oszczędnościami i bez PDF-u.
+- **Kierunek jednostronny.** Skrypt nie zapisuje niczego w Strattonie; kolumny
+  `companies.ebs_company_id`/`ebs_synced_at` (puste) celowo zostają nietknięte. Powiązanie
+  trzymamy u siebie.
+- Indeks unikalny `uq_leads_external` **nie jest częściowy** — PostgREST nie potrafi użyć
+  indeksu częściowego jako celu `ON CONFLICT` (`upsert` z supabase-js wywala się na
+  „no unique or exclusion constraint matching…"). Zwykły indeks niczego nie blokuje, bo NULL-e
+  są w unikalności rozróżnialne.
+- Dostęp do źródła: **wprost po Postgresie** poświadczeniami z `Stratton Prime/php-api/.env`
+  (rola `postgres`). Token MCP tamtego konta jest read-only, a PostgREST jest tam zamknięty
+  po audycie RLS (Krok 2), więc REST-em danych się nie weźmie.
+
+> **Historia (nieaktualne):** E8 była zablokowana brakiem dostępu do konta „stratton dev".
 > `tjuszkiewicz-dev`; Stratton CRM stoi na koncie „stratton dev". Kolejność ustalona przez usera:
 > **najpierw moduł, potem dane**; źródłem prawdy w okresie przejściowym pozostaje Stratton CRM
 > (EBS czyta), **bez dwukierunkowej synchronizacji**. Otwarte pytanie: kod pochodzi z BBS, a dane

@@ -1,6 +1,9 @@
 // ─── Typy / kontrakt API ──────────────────────────────────────────────────────
 
-export type LeadStatus = 'NEW' | 'IN_TALKS' | 'SIGNED' | 'TERMINATED';
+// RESIGNED doszedł w E8: Stratton CRM rozróżnia „zrezygnował przed podpisaniem" od
+// „umowa rozwiązana". Bez osobnej kolumny te leady byłyby NIEWIDOCZNE na kanbanie,
+// bo `byStatus` filtruje po znanych kolumnach.
+export type LeadStatus = 'NEW' | 'IN_TALKS' | 'SIGNED' | 'RESIGNED' | 'TERMINATED';
 
 export interface Opiekun {
   full_name: string;
