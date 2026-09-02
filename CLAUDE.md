@@ -378,12 +378,20 @@ Decyzje E7e:
 - AI-guard jak w E2d: brak `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` → 200 `{ok:false,disabled:true}`
   i komunikat w UI; wpisywanie notatki tekstem działa dalej.
 
-> 🔑 **STAN NA 2026-09-02: `ANTHROPIC_API_KEY` i `OPENAI_API_KEY` NIE SĄ USTAWIONE** ani
-> w `.env.local`, ani na Vercelu (sprawdzone `vercel env ls production`). Wyłączone są przez
-> to: OCR i tłumacz (E2d), analiza faktur (E4) **oraz notatki głosowe (E7e)**. CLAUDE.md
-> sugerował „skopiować z BBS" — **uwaga: BBS to inna spółka**, więc jej klucz oznaczałby, że
-> Baltic Benefits płaci za zużycie AI Stratton Prime. Wymaga decyzji właściciela, czyich
-> kluczy użyć; to nie jest szczegół techniczny.
+> 🔑 **KLUCZE AI WŁĄCZONE 2026-09-02.** `ANTHROPIC_API_KEY` i `OPENAI_API_KEY` są w
+> `.env.local` **oraz na Vercelu (production)**. Odblokowały: OCR i tłumacz (E2d), analizę
+> faktur (E4) i notatki głosowe (E7e). **Źródłem był `Desktop/Stratton Prime/php-api/.env`,
+> NIE BBS** — czyli projekt tej samej spółki, więc nie ma kwestii, kto płaci za zużycie
+> (wcześniejsza instrukcja „skopiować z BBS" jest nieaktualna; BBS to inna spółka).
+> **`AI_MODEL` świadomie NIE skopiowany:** php-api jedzie na `claude-sonnet-4-6`, a EBS ma
+> w `lib/anthropic.ts` domyślny `claude-opus-4-8` i pod niego był pisany — podmiana po cichu
+> zmieniłaby zachowanie OCR-u, tłumacza i notatek.
+>
+> Zweryfikowane realnym wywołaniem, nie deklaracją: model `claude-opus-4-8` odpowiada,
+> a asystent notatek rozwiązał „w przyszły wtorek o czternastej" (ze środy 02.09) na
+> **2026-09-08 14:00** i „do piątku" na **2026-09-04** — daty policzone poprawnie,
+> `due_date` w formacie `YYYY-MM-DD`. Klucz OpenAI: `GET /v1/models` → 200,
+> `whisper-1` dostępny (`shutdown_date: null`).
 
 **Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% / L2 2% / agent 10% to zmiana
 reguł rozliczeń, nie port UI (K8). **Poczta CRM → E6d.**
