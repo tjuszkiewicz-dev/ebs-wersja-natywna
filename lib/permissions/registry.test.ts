@@ -44,14 +44,19 @@ describe('permissions registry (EBS E1)', () => {
   });
   it('dyrektor domyślnie ma pełną Księgowość i CRM, ale nic z agencji', () => {
     expect(DEFAULT_ROLE_PERMS['dyrektor']).toEqual([
-      'ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline', 'crm.kontakty', 'crm.kalendarz',
+      'ksiegowosc.faktury', 'ksiegowosc.bilans',
+      'crm.pipeline', 'crm.kontakty', 'crm.kalendarz',
+      'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki',
     ]);
     expect((DEFAULT_ROLE_PERMS['dyrektor'] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
   });
 
-  it('PERMISSION_MENU: sekcja CRM pokrywa pipeline, kontakty i kalendarz', () => {
+  it('PERMISSION_MENU: sekcja CRM pokrywa całą falę E7 (pipeline → notatki)', () => {
     const crm = PERMISSION_MENU.filter(m => m.section === 'CRM').map(m => m.view);
-    expect(crm).toEqual(['crm-pipeline', 'crm-kontakty', 'crm-kalendarz']);
+    expect(crm).toEqual([
+      'crm-pipeline', 'crm-kontakty', 'crm-kalendarz',
+      'crm-kalkulator', 'crm-leaderboard', 'crm-org-chart', 'crm-notatki',
+    ]);
   });
 
   it('role sprzedażowe dostają pipeline CRM domyślnie, a pracodawca/pracownik nie', () => {
