@@ -67,25 +67,29 @@ export async function getVisibleUserIds(
  * Dokłada filtr `.in('assigned_to', ids)` do zapytania Supabase.
  * ids = null → brak filtra (pełna widoczność).
  * ids puste → nic nie jest widoczne (zabezpieczenie przed wyciekiem całej tabeli).
+ *
+ * `column` (E7c): tabele kalkulacji i ofert nie mają `assigned_to` — właścicielem
+ * wiersza jest tam `created_by`. Domyślna wartość zachowuje zachowanie z E7a/E7b.
  */
 export function applyVisibilityFilter<T>(
   query: T,
   visibleIds: string[] | null,
   includeUnassigned = false,
+  column = 'assigned_to',
 ): T {
   if (visibleIds === null) return query;
 
   if (visibleIds.length === 0) {
-    return (query as any).eq('assigned_to', '00000000-0000-0000-0000-000000000000') as T;
+    return (query as any).eq(column, '00000000-0000-0000-0000-000000000000') as T;
   }
 
   if (includeUnassigned) {
     // menedżer/dyrektor widzi też leady jeszcze nieprzypisane
-    const filter = visibleIds.map(id => `assigned_to.eq.${id}`).join(',');
-    return (query as any).or(`assigned_to.is.null,${filter}`) as T;
+    const filter = visibleIds.map(id => `${column}.eq.${id}`).join(',');
+    return (query as any).or(`${column}.is.null,${filter}`) as T;
   }
 
-  return (query as any).in('assigned_to', visibleIds) as T;
+  return (query as any).in(column, visibleIds) as T;
 }
 
 /**

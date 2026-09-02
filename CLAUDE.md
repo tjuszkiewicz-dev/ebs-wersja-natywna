@@ -278,11 +278,43 @@ Adaptacje E7b:
   przecinek albo nawias w polu szukania rozwalał całe zapytanie.
 - `logEvent` (BBS) → triggery `trg_audit_calendar_events` i `trg_audit_app_tasks`.
 
-**Odłożone (E7c–E7e):** kalkulator ofertowy + generator oferty PDF
-(ma korzystać z `lib/pdf/renderer.ts`, nie z CRM-owego `lib/crm/offer/pdfRenderer.ts`),
-leaderboard + org-chart (dojdzie `d3`), notatki głosowe (domykają zaślepkę
-`/api/notes/from-text` z E2d). **Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% /
-L2 2% / agent 10% to zmiana reguł rozliczeń, nie port UI (K8).
+**E7c (2026-09-02) — kalkulator ofertowy + generator oferty PDF.** Widok `crm-kalkulator`
+→ `components/crm/calculator/CalculatorWizard` (default export, mount wprost w
+`DashboardAdminNew` — bez przejściówki w `adminNew`, bo BBS-owy `CrmKalkulator` jest martwy,
+K9). Wizard 6 kroków: `steps/Step0Company` (wybór leada z `/api/crm/leads` + GUS po NIP),
+`Step1Employees`, `Step2Standard`, `Step3Split`, `Step4BusinessCase`, `Step5Summary`
+(zapis kalkulacji, generowanie oferty PDF, eksport CSV). API: `app/api/crm/kalkulator/
+{calculate,sessions}` i `app/api/crm/offers/{route,generate}`. Migracja `057_crm_kalkulator.sql`.
+
+Adaptacje E7c:
+- **Silnik podatkowy NIE jest kopiowany.** BBS-owy `lib/crm/tax-engine` jest **bajt w bajt
+  identyczny** z istniejącym w EBS `lib/agencja/tax-engine` (7 plików, `diff` czysty) —
+  importy w kalkulatorze przepisane na `@/lib/agencja/tax-engine`.
+- **PDF przez `lib/pdf/renderer.ts` (EBS)**, nie CRM-owy `lib/crm/offer/pdfRenderer.ts`
+  (decyzja ze specu). Oba pliki miały identyczny kontrakt `renderOfferPdf(html)`, więc port
+  to zmiana jednej linii importu; `lib/crm/offer/pdfRenderer.ts` **nie istnieje w EBS**.
+- **Tabela `crm_calculations`, nie `payroll_calculations`** (nazwa z BBS) — w EBS
+  „payroll" to listy płac agencji pracy (`hr_*`), nazwa BBS-owa myliłaby dwie różne domeny.
+- **`calculator_configs` nie portowana** — EBS nie ma panelu do edycji stałych silnika,
+  więc kalkulator jedzie na `DEFAULT_CONFIG`; użyte parametry lądują w kolumnie `config`,
+  żeby stara kalkulacja dała się odtworzyć po zmianie stałych.
+- **`sharp` NIE jest dokładany.** BBS przepuszczał przez niego swoje logo 4,5 MB; EBS wstawia
+  `public/ebs-neon-no-bg.png` (49 KB) wprost jako data URI. Brak pliku → oferta z tekstowym „EBS".
+- Bucket `offers` (BBS) → **`crm-offers`** (nazwa z migracji 054).
+- Bramki: `can(auth,'crm.kalkulator')` zamiast listy ról zaszytej w kodzie BBS
+  (`superadmin/partner/menedzer/dyrektor`); brak dostępu → **403**, nie 401.
+- **`GET /api/crm/offers` to NIE port — w BBS tego endpointu nie ma.** `DetailsPanel`
+  i `ActivityPanel` (port 1:1 z E7a) wołają go od początku i degradują się cicho, więc
+  w BBS sekcja „Oferty" przy leadzie jest zawsze pusta. W EBS pętla jest domknięta.
+- `applyVisibilityFilter` dostał 4. parametr `column` (domyślnie `assigned_to`) — kalkulacje
+  i oferty mają właściciela w `created_by`. `sessions` filtruje widocznością; **w BBS route
+  oddawał kalkulacje wszystkich użytkowników każdemu z rolą CRM.**
+- Branding szablonu oferty przepisany BBS→EBS (Eliton Benefits System, Stratton Prime
+  sp. z o.o., `www.stratton-prime.pl`, `biuro@stratton-prime.pl`).
+
+**Odłożone (E7d–E7e):** leaderboard + org-chart (dojdzie `d3`), notatki głosowe (domykają
+zaślepkę `/api/notes/from-text` z E2d). **Prowizje MLM poza zakresem** — rozbicie self 10% /
+L1 5% / L2 2% / agent 10% to zmiana reguł rozliczeń, nie port UI (K8).
 
 > **E8 — migracja danych ze Stratton CRM: ZABLOKOWANA.** Supabase MCP widzi tylko konto
 > `tjuszkiewicz-dev`; Stratton CRM stoi na koncie „stratton dev". Kolejność ustalona przez usera:

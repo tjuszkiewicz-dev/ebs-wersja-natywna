@@ -26,8 +26,10 @@ const PipelineKanban = dynamic(() => import('../components/crm/pipeline/Pipeline
 // CRM (E7b)
 const CrmKontakty = dynamic(() => import('../components/adminNew/crm/CrmKontakty').then(m => ({ default: m.CrmKontakty })), { ssr: false });
 const CrmKalendarz = dynamic(() => import('../components/adminNew/crm/CrmKalendarz').then(m => ({ default: m.CrmKalendarz })), { ssr: false });
+// E7c: kalkulator żyje w components/crm/calculator (jak w BBS) — bez zbędnej przejściówki w adminNew.
+const CalculatorWizard = dynamic(() => import('../components/crm/calculator/CalculatorWizard'), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'owner-panel' | 'ustawienia';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'owner-panel' | 'ustawienia';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -48,6 +50,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'crm-pipeline':     'crm-pipeline',
   'crm-kontakty':     'crm-kontakty',
   'crm-kalendarz':    'crm-kalendarz',
+  'crm-kalkulator':   'crm-kalkulator',
   'owner-panel':      'owner-panel',
   'admin-ustawienia': 'ustawienia',
 };
@@ -71,6 +74,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'crm-pipeline':     'crm-pipeline',
   'crm-kontakty':     'crm-kontakty',
   'crm-kalendarz':    'crm-kalendarz',
+  'crm-kalkulator':   'crm-kalkulator',
   'owner-panel':      'owner-panel',
   ustawienia:         'admin-ustawienia',
 };
@@ -161,6 +165,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
         {tab === 'crm-pipeline' && <PipelineKanban />}
         {tab === 'crm-kontakty' && <CrmKontakty />}
         {tab === 'crm-kalendarz' && <CrmKalendarz />}
+        {tab === 'crm-kalkulator' && <CalculatorWizard />}
         {tab === 'owner-panel' && isOwner && <OwnerPanel onGoToPermissions={() => onViewChange?.('admin-ustawienia')} />}
         {tab === 'ustawienia' && isOwner && <AdminUstawienia />}
       </div>
