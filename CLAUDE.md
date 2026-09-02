@@ -14,8 +14,19 @@ npm run build   # next build (Vite fully removed — deps + config)
 npm start       # next start (production server)
 ```
 
-> Brak skryptu `preview` i brak `jest` w zależnościach. `services/payrollService.test.ts`
-> istnieje, ale jest osierocony (test runner nieskonfigurowany) — patrz „Dead Code / Audit".
+```bash
+# Testy
+npm test        # vitest run — 32 pliki, 298 testów
+npm run test:watch
+```
+
+> **Test runner JEST skonfigurowany** (`vitest.config.ts`, środowisko `node`, alias `@`).
+> Zakres: `lib/**`, `services/**`, `app/**`, `utils/**` — wszystkie `*.test.ts`.
+> Wcześniejsza notatka w tym pliku twierdziła, że runnera nie ma; było to nieaktualne
+> (sprostowane 02.09.2026). `services/payrollService.test.ts` — stary skrypt asercji bez
+> `describe/it` — został usunięty razem z resztą martwego kodu, więc `exclude` go nie
+> potrzebuje. **Uwaga: `next.config.ts` ma `typescript.ignoreBuildErrors: true`**, czyli
+> build nie pilnuje typów — `npx tsc --noEmit` i `npm test` uruchamiaj ręcznie.
 
 ## Architecture
 
@@ -241,6 +252,8 @@ Adaptacje względem BBS (uzasadnienia w specu):
 - **Numeracja migracji:** `053` zarezerwowane dla `053_chat.sql` z E6a, CRM dostał `054`.
   Naprawiony historyczny duplikat: `050_drop_permissive_voucher_accounts_insert.sql` →
   `049a_…` (był drugim plikiem `050_`; w bazie zastosowany przed `050_ksiegowosc_schema`).
+  ⚠️ **Stan 2026-09-02: `053_chat.sql` NIE ISTNIEJE — to sam zarezerwowany numer.**
+  W numeracji migracji jest więc dziura między `052` a `054` i to jest zamierzone.
 
 > ⚠️ **MARTWY KOD W ŹRÓDLE — nie portować (K9).** 1 910 z 9 734 LOC modułu CRM w BBS jest
 > martwe i **zweryfikowane dwiema drogami** (grep po importach + `information_schema` żywej bazy
@@ -462,6 +475,28 @@ Mapowanie i decyzje:
 > ze Stratton CRM — to dwa systemy o prawdopodobnie różnych schematach i to mapowanie, nie sam
 > import, jest właściwą treścią E8.
 
+**E6 (czat + poczta) — NIEZBUDOWANE. Jedyna otwarta fala.** Rozpoznanie 2026-09-02:
+w EBS nie ma **ani jednego** pliku tego modułu — brak `app/api/chat`, `lib/chat`,
+`app/api/crm/mail`, `lib/mail`, a `053_chat.sql` to sam zarezerwowany numer (patrz wyżej).
+
+Źródło do portu jest w **`Desktop/BBS-Unified`** i — w odróżnieniu od pułapki K9 —
+**jest żywe**: `components/chat/ChatApp.tsx` ma 5 importów, `VoiceCall.tsx` 1,
+`components/crm/mail/MailClient.tsx` 2. Rozmiar: **~31 plików** (14 route'ów `app/api/chat`,
+7 `app/api/crm/mail`, 2 `app/api/mail`, 3 `lib/chat`, 2 `lib/mail`, 3 komponenty).
+**Migracji schematu w BBS NIE MA** — tak jak przy E2b i E4 trzeba go zdjąć z introspekcji
+żywej bazy BBS.
+
+Co już na E6 czeka w kodzie EBS (dziś degraduje się cicho):
+- `DetailsPanel` woła `/api/crm/mail/by-contact` — endpointu nie ma, sekcja poczty przy
+  leadzie jest pusta (E6d, klucz `crm.poczta` zarezerwowany w rejestrze uprawnień).
+- Panel „Komunikator" w portalu pracownika jest schowany za `{false &&}` (E2e → E6).
+- `app/api/users/[id]/purge` ma znaczniki `// TODO E6:` — po wprowadzeniu tabel czatu
+  i poczty (`mail_account_users`, `chat_push_subscriptions`, `chat_participants`,
+  `chat_reactions`) endpoint trzeba o nie rozszerzyć, inaczej usuwanie konta zostawi sieroty.
+
+To jest wielkość osobnej fali, nie zadania — E7 dostało na to własny spec i pięć podfal.
+Zaczynać od specu w `docs/superpowers/specs/`, nie od kopiowania plików.
+
 ### State Management
 
 All application state lives in `context/StrattonContext.tsx` (StrattonProvider). It composes modular hooks:
@@ -632,7 +667,6 @@ Wszystko doklejone do dziennego crona `app/api/cron/expire-vouchers` (Vercel Hob
 
 Available in `components/ui/` and `components/bits/`:
 - `components/ui/SoftAurora.tsx` + `SoftAurora.css` — WebGL shader aurora (OGL-based), use with `ssr: false`
-- `components/ui/Orb.tsx` + `Orb.css` — animated orb
 - `components/ui/MagicRings.tsx` + `MagicRings.css`
 - `components/ui/ServiceCarousel.tsx` — Embla carousel, 4-column layout (`md:flex-[0_0_25%]`), `AppIconCard` min-height `220px`
 - `components/bits/StarBorder/`
@@ -644,14 +678,19 @@ Available in `components/ui/` and `components/bits/`:
 - `utils/formatters.ts` — `formatCurrency`, `formatDate`
 - `lib/documents/pdfUtils.ts` — `ISSUER`, `generatePdfBuffer`, `uploadPdf`
 - `lib/documents/umowaService.ts` — `createUmowaDocument`, `UmowaContext`
-- `components/hr/dashboard/HRPageHeader.tsx` — nagłówek Panelu Kadrowego + definicja typu `HRTab`
-- `components/hr/dashboard/documentBinderHelpers.ts` — `sanitizeFilename`, `generateClientSidePdf`, `enrichBatchWithRanges`
 - `components/hr/modals/HROrderPickerModal.tsx`, `HROrderHistoryModal.tsx`, `HRAddEmployeeModal.tsx`
 - `components/hr/dashboard/EmployeeCard.tsx` — `EmpDetailRow`, `EmployeeCard`
 - `components/employee/dashboard/EmployeeWidgets.tsx` — `SectionDivider`, `AppIconCard`, `FloatingTabBar`
 - `components/employee/dashboard/legal/constants.ts` — barrel re-export `wizardData`, `categoryConfig`, `documentTemplates`
 
-`HRTab` jest definiowany i eksportowany z `HRPageHeader.tsx` — importuj stamtąd, nie deklaruj lokalnie.
+`HRTab` jest definiowany i eksportowany z **`utils/hrUtils.tsx`** (`'ORDER' | 'HISTORY' |
+'EMPLOYEES' | 'PAYMENTS' | 'BUYBACK'`) — importuj stamtąd, nie deklaruj lokalnie.
+
+> ⚠️ **Sprostowanie (02.09.2026):** ten plik wcześniej kazał importować `HRTab`
+> z `components/hr/dashboard/HRPageHeader.tsx`. To był **martwy plik** (usunięty przy
+> sprzątaniu Fazy 3) i definiował **inny** typ o tej samej nazwie
+> (`'START' | 'EMPLOYEES' | …`) — pochodzący jeszcze z nieistniejącego panelu.
+> Wskazówka aktywnie kierowała w złe miejsce.
 
 ### Path Aliases
 
@@ -673,17 +712,36 @@ Audyt repo. **Faza 1 (wykonana)** — usunięto śmieci i martwe zależności:
 
 **Faza 2 — WYKONANA (stan 2026-06-30)**: `npx tsc --noEmit` daje **0 błędów**; kolumna `umowa_pdf_url` **istnieje** na `voucher_orders` (zweryfikowane w żywej bazie). Uwaga: `next.config.ts` ma `typescript.ignoreBuildErrors: true` — build nie pilnuje typów, pilnuj `tsc --noEmit` ręcznie.
 
-**Faza 3 (do zrobienia) — martwy kod (zweryfikowany, 0 importów)**, kandydaci do usunięcia:
-- `app/actions/auth.ts` (`loginAction` nieużywany — login idzie przez `supabaseBrowser` + `/api/auth/role`)
-- `hooks/useStrattonSystem.ts` (duplikat — realny w `context/StrattonContext.tsx`)
-- Osierocone przez monolit `views/DashboardNewHR.tsx` fragmenty starego panelu HR:
-  - `components/hr/dashboard/`: `HRPageHeader`, `HRDocumentBinder`, `HRCommandCenter`, `HREmployeeTable`, `HRDistributionWidget`, `HRShortcuts`, `HRDashboardGuide`, `HREmployeeGuide`, `SettlementGuide`, `HRImportHistoryTable`
-  - `components/hr/modals/`: `EmployeeEditModal`, `EmployeeHistoryModal`, `DistributionModal`, `DistributionChoiceModal`, `DistributionEvidenceModal`, `BulkTransferModal`
-  - `components/hr/`: `EmployeeImportModal`, `HRIntegrationsManager`, `HRReportCenter`
-  - inne: `components/DocumentModal.tsx`, `components/ui/Orb.tsx`, `components/employee/dashboard/EmployeeStats.tsx`, `OrangeOfferSection`, `PZUServiceSection`, `components/employee/mobile/MobileNav.tsx`, `components/ui/EmptyState.tsx`, `components/notifications/NotificationPreferences.tsx`, `MarketplaceHero`, `ElitonBanner`, `CaseListView`
-  - `services/payrollService.test.ts` (brak test runnera)
+**Faza 3 — WYKONANA (2026-09-02): usunięto 57 plików martwego kodu.** `tsc --noEmit` 0 błędów,
+`npm test` 298/298, `next build` exit 0.
 
-> 🔴 **ŻYWE — NIE usuwać** (mimo że leżą w `components/hr/**`; importowane przez działający panel): `components/hr/dashboard/EmployeeCard` (`EmpDetailRow`), `components/hr/KartotekaImportZone`, `components/hr/HRSettingsModal` (import w `EmployerDashboardClient`), `components/hr/modals/HROrderPickerModal`, `HROrderHistoryModal`, `HRAddEmployeeModal` (import w `DashboardNewHR`). Usunięcie „całego `components/hr/dashboard/`" **zepsuje build** — kasuj wyłącznie po imienne pliki z listy powyżej i sprawdź `grep -r` przed usunięciem.
+Lista w tym pliku wymieniała ~30 plików; realnie było ich **57**, bo martwy kod tworzył
+**łańcuchy**: usunięcie wierzchołka osierocało kolejną warstwę. Metoda, którą warto powtórzyć
+przy następnym sprzątaniu — kasuj, potem **ponów wykrywanie osieroconych i iteruj aż do stanu
+stabilnego** (tu: 34 → 16 → 6 → 1 → 0, cztery rundy). Przykłady łańcuchów, których pierwotna
+lista nie znała: `HRSettlementWizard` (zero importów) ciągnął `PayrollModal`;
+`HRDocumentBinder` ciągnął `documentBinderHelpers`; cały `components/Documents/**`
+(szablony PDF, `documentUtils`, `PDF_LAYOUT`) odpadł po usunięciu `DocumentModal`.
 
-**Bezpieczeństwo (osobno)**: `npm audit` zgłasza 18 podatności (1 krytyczna) — głównie `xlsx`. Rozważ migrację z `xlsx` na `exceljs` (już w projekcie).
+Warto wiedzieć, co przy okazji zniknęło: `components/security/SessionGuard.tsx` — komponent
+auto-wylogowania po bezczynności, pochodzący jeszcze z commita `init: kopia kodu EBS demo`
+i **nigdy niepodpięty** w wersji Next.js. **EBS nie ma wygaszania sesji po stronie UI**;
+sesje wygasają wyłącznie mechanizmem Supabase. Jeśli kiedyś pojawi się takie wymaganie
+(RODO, dane paszportowe na ekranie), trzeba to napisać od nowa — nie ma czego odkopywać.
+
+> 🔴 **ŻYWE — NIE usuwać** (mimo że leżą w `components/hr/**`; importowane przez działający panel): `components/hr/dashboard/EmployeeCard` (`EmpDetailRow`), `components/hr/KartotekaImportZone`, `components/hr/HRSettingsModal` (import w `EmployerDashboardClient`), `components/hr/modals/HROrderPickerModal`, `HROrderHistoryModal`, `HRAddEmployeeModal` (import w `DashboardNewHR`). Usunięcie „całego `components/hr/dashboard/`" **zepsuje build** — kasuj wyłącznie po imienne pliki i sprawdź `grep -r` przed usunięciem.
+
+**Bezpieczeństwo zależności (stan 2026-09-02): 30 → 13 podatności.**
+- `npm audit fix` bez zmian major zamknął m.in. `handlebars` (CRITICAL) i `next` (HIGH, DoS
+  w Server Components — 15.5.x podbite do 15.5.25 w obrębie `^15.5.14`). `package.json` nietknięty.
+- **`xlsx` (SheetJS) USUNIĘTY** — miał Prototype Pollution i ReDoS **bez dostępnej łatki**,
+  odpalane przy czytaniu cudzego pliku. Cały `utils/excelHr.ts` stoi na **ExcelJS**.
+  ⚠️ **Konsekwencja: nie czytamy już starego formatu `.xls`** (ExcelJS obsługuje tylko OOXML).
+  Pola uploadu zawężone do `.xlsx`, użytkownik dostaje instrukcję „zapisz jako .xlsx".
+  Regresję pilnuje `utils/excelHr.test.ts` — buduje prawdziwy plik i czyta go z powrotem
+  (data, formuła, pusta komórka, pusty wiersz w środku).
+- **Zostaje 13 i każda wymaga skoku major** — świadomie nietknięte: `puppeteer` 25 (siedzi pod
+  produkcyjnym serwerem PDF), `vitest` 4 (dev-only; CRITICAL dotyczy serwera Vitest UI,
+  którego nie uruchamiamy), `postcss` (łata się dopiero przez **next@16**), `exceljs`→`uuid`
+  (moderate; „naprawa" to downgrade exceljs do 3.4.0, czyli breaking).
 
