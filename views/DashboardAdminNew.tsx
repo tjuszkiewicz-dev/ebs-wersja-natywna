@@ -28,8 +28,11 @@ const CrmKontakty = dynamic(() => import('../components/adminNew/crm/CrmKontakty
 const CrmKalendarz = dynamic(() => import('../components/adminNew/crm/CrmKalendarz').then(m => ({ default: m.CrmKalendarz })), { ssr: false });
 // E7c: kalkulator żyje w components/crm/calculator (jak w BBS) — bez zbędnej przejściówki w adminNew.
 const CalculatorWizard = dynamic(() => import('../components/crm/calculator/CalculatorWizard'), { ssr: false });
+// CRM (E7d) — org-chart rysuje d3 na DOM-ie, więc bezwzględnie ssr:false.
+const CrmLeaderboard = dynamic(() => import('../components/adminNew/crm/CrmLeaderboard').then(m => ({ default: m.CrmLeaderboard })), { ssr: false });
+const OrgChartView = dynamic(() => import('../components/adminNew/org/OrgChartView').then(m => ({ default: m.OrgChartView })), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'owner-panel' | 'ustawienia';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'crm-leaderboard' | 'crm-org-chart' | 'owner-panel' | 'ustawienia';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -51,6 +54,8 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'crm-kontakty':     'crm-kontakty',
   'crm-kalendarz':    'crm-kalendarz',
   'crm-kalkulator':   'crm-kalkulator',
+  'crm-leaderboard':  'crm-leaderboard',
+  'crm-org-chart':    'crm-org-chart',
   'owner-panel':      'owner-panel',
   'admin-ustawienia': 'ustawienia',
 };
@@ -75,6 +80,8 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'crm-kontakty':     'crm-kontakty',
   'crm-kalendarz':    'crm-kalendarz',
   'crm-kalkulator':   'crm-kalkulator',
+  'crm-leaderboard':  'crm-leaderboard',
+  'crm-org-chart':    'crm-org-chart',
   'owner-panel':      'owner-panel',
   ustawienia:         'admin-ustawienia',
 };
@@ -166,6 +173,8 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
         {tab === 'crm-kontakty' && <CrmKontakty />}
         {tab === 'crm-kalendarz' && <CrmKalendarz />}
         {tab === 'crm-kalkulator' && <CalculatorWizard />}
+        {tab === 'crm-leaderboard' && <CrmLeaderboard />}
+        {tab === 'crm-org-chart' && <OrgChartView />}
         {tab === 'owner-panel' && isOwner && <OwnerPanel onGoToPermissions={() => onViewChange?.('admin-ustawienia')} />}
         {tab === 'ustawienia' && isOwner && <AdminUstawienia />}
       </div>

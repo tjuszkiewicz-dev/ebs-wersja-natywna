@@ -130,6 +130,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'crm-kontakty',   label: 'Kontakty',             icon: <UserRound size={20} /> },
           { id: 'crm-kalendarz',  label: 'Kalendarz',            icon: <CalendarDays size={20} /> },
           { id: 'crm-kalkulator', label: 'Kalkulator Ofertowy',  icon: <Calculator size={20} /> },
+          { id: 'crm-leaderboard',label: 'Leaderboard',           icon: <Trophy size={20} /> },
+          { id: 'crm-org-chart',  label: 'Struktura sprzedaży',   icon: <Network size={20} /> },
         ];
         // filtr „Widoku" (hiddenViews) stosowany jednolicie niżej dla wszystkich ról
         return superMenu;

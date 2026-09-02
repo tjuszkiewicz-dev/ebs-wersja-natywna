@@ -313,9 +313,44 @@ Adaptacje E7c:
   sp. z o.o., `www.elitonbenefits.pl` — strona produktowa EBS, potwierdzona
   aliasem produkcyjnym `ebs.elitonbenefits.pl` i tytułem strony; kontakt `biuro@stratton-prime.pl`).
 
-**Odłożone (E7d–E7e):** leaderboard + org-chart (dojdzie `d3`), notatki głosowe (domykają
-zaślepkę `/api/notes/from-text` z E2d). **Prowizje MLM poza zakresem** — rozbicie self 10% /
-L1 5% / L2 2% / agent 10% to zmiana reguł rozliczeń, nie port UI (K8).
+**E7d (2026-09-02) — leaderboard + org-chart.** Widoki `crm-leaderboard` →
+`components/adminNew/crm/CrmLeaderboard` (gate `crm.leaderboard`) i `crm-org-chart` →
+`components/adminNew/org/OrgChartView` (gate `crm.org-chart`; `OrgChart` + `OrgNodeEditor`
++ `OrgAddMemberModal`). Silnik rankingu: `lib/crm/leaderboard.ts`. API:
+`app/api/crm/leaderboard/{route,export}` i `app/api/org/users/{route,[id]}`.
+Widget `components/crm/sales/PartnerLeaderboardWidget` wpięty w `NetworkDashboardClient`
+dla `Role.ADVISOR`. Dep: **`d3`** (+ `@types/d3`) — używane wyłącznie w `OrgChart.tsx`
+(`select`, `tree`, `linkHorizontal`, `zoom`, `drag`); komponent ładowany `ssr:false`,
+bo rysuje po DOM-ie. Migracja `058_audyt_user_profiles.sql`.
+
+Adaptacje E7d:
+- **Dwie bramki na `/api/org/users`, nie jedna.** Odczyt: `can('crm.org-chart')`. Zapis:
+  dodatkowo rola z `ROLE_ZARZADZAJACE` (`superadmin`/`owner`/`dyrektor`/`menedzer`).
+  W BBS bramką była wyłącznie lista ról, więc nadanie uprawnienia do zakładki dawałoby
+  **prawo zakładania kont z hasłem** — ten route tworzy użytkowników w `auth`.
+- **Dochodzi `owner`** (rola nieznana BBS-owi) i `leadowiec` w rolach do utworzenia.
+- **Dwie dziury z BBS zamknięte w `PUT /api/org/users/[id]`:** `manager_id = własne id`
+  (cykl w drzewie → nieskończona rekurencja w org-charcie) i zmiana **własnej** roli
+  (można się było samemu zablokować). Oba → 400/403.
+- **Kwoty premii w eksporcie CSV NIE są zaszyte.** BBS wpisywał na sztywno 5000/3000/1000 zł
+  za złoto/srebro/brąz — to jego regulamin, nie Strattona, a plik idzie do ludzi. W EBS kwoty
+  biorą się z env `LEADERBOARD_PREMIA_{ZLOTO,SREBRO,BRAZ}`; gdy nieustawione, kolumna
+  „Premia_bazowa" po prostu nie powstaje. Reguły prowizji MLM dalej poza zakresem (K8).
+- `CRM_ROLES` z BBS → `ROLE_SPRZEDAZOWE` (`partner`/`menedzer`/`dyrektor`): to lista ról
+  **występujących w rankingu**, a nie bramka dostępu — bramkuje `can()`. Dzięki temu
+  owner/superadmin są obserwatorami rankingu, nie jego uczestnikami.
+- Korzeń zastępczy org-chartu (gdy struktura ma wiele wierzchołków): „Stratton Prime"
+  zamiast „BBS".
+- **`user_profiles` dostała audyt (migracja 058) — ale WŁASNĄ funkcją, nie `fn_audit_log()`.**
+  Standardowa funkcja zapisuje `to_jsonb(NEW)`, czyli cały wiersz, a w `user_profiles` są
+  `pesel`, `pesel_encrypted`, `iban`, `temp_password` (hasło jednorazowe otwartym tekstem),
+  telefon i adres — wpięcie jej skopiowałoby te dane do `audit_log` przy każdej edycji profilu.
+  `fn_audit_user_profiles()` zapisuje wyłącznie 9 pól strukturalnych i tylko gdy któreś
+  z nich faktycznie się zmieniło. **Nie podmieniać jej na `fn_audit_log()`.**
+
+**Odłożone (E7e):** notatki głosowe (domykają zaślepkę `/api/notes/from-text` z E2d).
+**Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% / L2 2% / agent 10% to zmiana
+reguł rozliczeń, nie port UI (K8).
 
 > **E8 — migracja danych ze Stratton CRM: ZABLOKOWANA.** Supabase MCP widzi tylko konto
 > `tjuszkiewicz-dev`; Stratton CRM stoi na koncie „stratton dev". Kolejność ustalona przez usera:
