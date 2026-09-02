@@ -83,9 +83,9 @@ export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
   // CRM (E7): role sprzedażowe dostają pipeline domyślnie — to jest ich narzędzie pracy,
   // inaczej niż agencja, która jest modułem wewnętrznym Strattona.
   pracodawca: [], pracownik: [], hr: [],
-  partner: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard'],
-  menedzer: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart'],
-  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart'],
+  partner: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.notatki'],
+  menedzer: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki'],
+  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki'],
   koordynator: [...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury'],
   platnik: [], pracownik_tymczasowy: [],
 };
@@ -106,4 +106,5 @@ export const PERMISSION_MENU: MenuDef[] = [
   { view: 'crm-kalkulator', label: 'Kalkulator Ofertowy', section: 'CRM', icon: 'calculator', anyOf: ['crm.kalkulator'] },
   { view: 'crm-leaderboard', label: 'Leaderboard', section: 'CRM', icon: 'trophy', anyOf: ['crm.leaderboard'] },
   { view: 'crm-org-chart', label: 'Struktura sprzedaży', section: 'CRM', icon: 'network', anyOf: ['crm.org-chart'] },
+  { view: 'crm-notatki', label: 'Notatki głosowe', section: 'CRM', icon: 'mic', anyOf: ['crm.notatki'] },
 ];

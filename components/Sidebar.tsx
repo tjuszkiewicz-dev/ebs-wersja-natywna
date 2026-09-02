@@ -2,14 +2,14 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Role, User } from '../types';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
-import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2 } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2, Mic } from 'lucide-react';
 
 // Ikony dla dynamicznego menu budowanego z uprawnień (PERMISSION_MENU w registry) — 1:1 z BBS
 const MENU_ICONS: Record<string, React.ReactNode> = {
   dashboard: <LayoutDashboard size={20} />, usercog: <UserCog size={20} />, book: <BookOpen size={20} />,
   users: <Users size={20} />, card: <CreditCard size={20} />, folder: <FolderOpen size={20} />,
   ticket: <Ticket size={20} />, refresh: <RefreshCw size={20} />, kanban: <KanbanSquare size={20} />,
-  mail: <Mail size={20} />, calculator: <Calculator size={20} />, user: <UserRound size={20} />,
+  mail: <Mail size={20} />, calculator: <Calculator size={20} />, user: <UserRound size={20} />, mic: <Mic size={20} />,
   trophy: <Trophy size={20} />, network: <Network size={20} />,
   file: <FileText size={20} />, history: <History size={20} />, calendar: <CalendarDays size={20} />,
   languages: <Languages size={20} />, car: <Car size={20} />, mappin: <MapPin size={20} />,
@@ -132,6 +132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'crm-kalkulator', label: 'Kalkulator Ofertowy',  icon: <Calculator size={20} /> },
           { id: 'crm-leaderboard',label: 'Leaderboard',           icon: <Trophy size={20} /> },
           { id: 'crm-org-chart',  label: 'Struktura sprzedaży',   icon: <Network size={20} /> },
+          { id: 'crm-notatki',    label: 'Notatki głosowe',      icon: <Mic size={20} /> },
         ];
         // filtr „Widoku" (hiddenViews) stosowany jednolicie niżej dla wszystkich ról
         return superMenu;

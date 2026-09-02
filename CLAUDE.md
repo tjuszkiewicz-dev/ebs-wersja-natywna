@@ -348,9 +348,45 @@ Adaptacje E7d:
   `fn_audit_user_profiles()` zapisuje wyłącznie 9 pól strukturalnych i tylko gdy któreś
   z nich faktycznie się zmieniło. **Nie podmieniać jej na `fn_audit_log()`.**
 
-**Odłożone (E7e):** notatki głosowe (domykają zaślepkę `/api/notes/from-text` z E2d).
+**E7e (2026-09-02) — notatki głosowe. FALA E7 KOMPLETNA.** Widok `crm-notatki` →
+`components/adminNew/crm/CrmNotatki` (gate `crm.notatki`): dyktowanie przez `MediaRecorder`
+albo wklejenie zapisu rozmowy → Claude wyciąga ustalenia → terminy lądują w `calendar_events`,
+zadania w `app_tasks` (`source='ai'`), maile zostają **szkicami**. Silnik:
+`lib/notes/extract.ts`. API: `app/api/notes/{route,from-text,transcribe}`.
+Migracja `059_crm_notatki_glosowe.sql` (`crm_voice_notes`).
+
+> ⚠️ **E7e NIE JEST PORTEM.** W BBS-Unified **nie ma** ani `app/api/notes/`, ani `lib/notes`,
+> ani tabeli notatek. Jedynym wywołaniem `/api/notes/from-text` w obu repozytoriach jest
+> `components/agencja/HrTlumacz.tsx:437` (przeniesiony w E2d), który degradował się cicho,
+> bo endpoint nie istniał **nigdzie**. Moduł zbudowany pod kontrakt narzucony przez tego
+> jedynego wołającego: `{text, title}` → `{title, results:{events,tasks,emails}}`.
+> Nie szukać źródła w BBS — go nie ma.
+
+Decyzje E7e:
+- **Model dostaje dzisiejszą datę i dzień tygodnia.** Bez tego „w przyszły wtorek" jest
+  nierozwiązywalne, a rozmowy handlowe brzmią właśnie tak.
+- **Odporność na model:** JSON wycinany z odpowiedzi (`{` … `}`), każde zdarzenie/zadanie
+  walidowane osobno, `due_date` przycinane do 10 znaków (kolumna jest `DATE` — pełny ISO
+  by ją wywalił), niepoprawne daty odrzucane. Zły wpis nie przewraca całej notatki:
+  wstawki lecą pojedynczo, nie wsadem.
+- **Szkice maili nigdzie nie wychodzą** — poczta CRM to E6d (K4). Do tego czasu kopiowanie.
+- **Bramka `from-text` przepuszcza też `agencja.tlumacz`**, nie tylko `crm.notatki` —
+  inaczej przycisk „Przetwórz rozmowę" w Tłumaczu byłby dla koordynatora martwy.
+- **`transcribe` celowo NIE używa `/api/hr/translate/voice`** — tamten route bramkują
+  uprawnienia agencji i zjada dzienny limit tłumacza (`translatorLimit`), który z notatkami
+  CRM nie ma nic wspólnego.
+- AI-guard jak w E2d: brak `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` → 200 `{ok:false,disabled:true}`
+  i komunikat w UI; wpisywanie notatki tekstem działa dalej.
+
+> 🔑 **STAN NA 2026-09-02: `ANTHROPIC_API_KEY` i `OPENAI_API_KEY` NIE SĄ USTAWIONE** ani
+> w `.env.local`, ani na Vercelu (sprawdzone `vercel env ls production`). Wyłączone są przez
+> to: OCR i tłumacz (E2d), analiza faktur (E4) **oraz notatki głosowe (E7e)**. CLAUDE.md
+> sugerował „skopiować z BBS" — **uwaga: BBS to inna spółka**, więc jej klucz oznaczałby, że
+> Baltic Benefits płaci za zużycie AI Stratton Prime. Wymaga decyzji właściciela, czyich
+> kluczy użyć; to nie jest szczegół techniczny.
+
 **Prowizje MLM poza zakresem** — rozbicie self 10% / L1 5% / L2 2% / agent 10% to zmiana
-reguł rozliczeń, nie port UI (K8).
+reguł rozliczeń, nie port UI (K8). **Poczta CRM → E6d.**
 
 > **E8 — migracja danych ze Stratton CRM: ZABLOKOWANA.** Supabase MCP widzi tylko konto
 > `tjuszkiewicz-dev`; Stratton CRM stoi na koncie „stratton dev". Kolejność ustalona przez usera:

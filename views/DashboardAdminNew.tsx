@@ -31,8 +31,10 @@ const CalculatorWizard = dynamic(() => import('../components/crm/calculator/Calc
 // CRM (E7d) — org-chart rysuje d3 na DOM-ie, więc bezwzględnie ssr:false.
 const CrmLeaderboard = dynamic(() => import('../components/adminNew/crm/CrmLeaderboard').then(m => ({ default: m.CrmLeaderboard })), { ssr: false });
 const OrgChartView = dynamic(() => import('../components/adminNew/org/OrgChartView').then(m => ({ default: m.OrgChartView })), { ssr: false });
+// CRM (E7e) — nagrywanie idzie przez MediaRecorder, więc tylko po stronie przeglądarki.
+const CrmNotatki = dynamic(() => import('../components/adminNew/crm/CrmNotatki').then(m => ({ default: m.CrmNotatki })), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'crm-leaderboard' | 'crm-org-chart' | 'owner-panel' | 'ustawienia';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'crm-leaderboard' | 'crm-org-chart' | 'crm-notatki' | 'owner-panel' | 'ustawienia';
 
 const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -56,6 +58,7 @@ const VIEW_TO_TAB: Record<string, AdminTab> = {
   'crm-kalkulator':   'crm-kalkulator',
   'crm-leaderboard':  'crm-leaderboard',
   'crm-org-chart':    'crm-org-chart',
+  'crm-notatki':      'crm-notatki',
   'owner-panel':      'owner-panel',
   'admin-ustawienia': 'ustawienia',
 };
@@ -82,6 +85,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   'crm-kalkulator':   'crm-kalkulator',
   'crm-leaderboard':  'crm-leaderboard',
   'crm-org-chart':    'crm-org-chart',
+  'crm-notatki':      'crm-notatki',
   'owner-panel':      'owner-panel',
   ustawienia:         'admin-ustawienia',
 };
@@ -175,6 +179,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
         {tab === 'crm-kalkulator' && <CalculatorWizard />}
         {tab === 'crm-leaderboard' && <CrmLeaderboard />}
         {tab === 'crm-org-chart' && <OrgChartView />}
+        {tab === 'crm-notatki' && <CrmNotatki />}
         {tab === 'owner-panel' && isOwner && <OwnerPanel onGoToPermissions={() => onViewChange?.('admin-ustawienia')} />}
         {tab === 'ustawienia' && isOwner && <AdminUstawienia />}
       </div>
