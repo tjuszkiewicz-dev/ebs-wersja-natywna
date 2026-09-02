@@ -675,8 +675,12 @@ export const DashboardNewHR: React.FC<Props> = ({
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.name.match(/\.xlsx?$/i)) {
-      setParseError('Dozwolone tylko pliki Excel (.xlsx, .xls)');
+    if (!/\.xlsx$/i.test(file.name)) {
+      setParseError(
+        /\.xls$/i.test(file.name)
+          ? 'Stary format .xls nie jest obsługiwany. Otwórz plik w Excelu lub Arkuszach Google i zapisz jako .xlsx.'
+          : 'Dozwolone tylko pliki Excel (.xlsx)'
+      );
       return;
     }
     setIsParsing(true);
@@ -1342,8 +1346,8 @@ export const DashboardNewHR: React.FC<Props> = ({
                   >
                     <Upload size={24} className="mx-auto text-gray-400 mb-2"/>
                     <p className="text-sm text-gray-600 font-medium">Przeciągnij plik lub kliknij aby wybrać</p>
-                    <p className="text-xs text-gray-400 mt-1">Obsługiwane formaty: .xlsx, .xls</p>
-                    <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileChange}/>
+                    <p className="text-xs text-gray-400 mt-1">Obsługiwany format: .xlsx</p>
+                    <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={handleFileChange}/>
                   </div>
 
                   {isParsing && (

@@ -1,8 +1,14 @@
 // Excel utilities for HR panel
-// Szablon (generateExcelTemplate) + eksport pracowników (exportActiveEmployees)
-// używają ExcelJS dla pełnej obsługi kolorów/stylów.
-// Parse pliku wejściowego nadal przez SheetJS (lżejszy, tylko odczyt).
-import * as XLSX from 'xlsx';
+// Cały moduł — szablony, eksporty i parsowanie plików wejściowych — stoi na ExcelJS.
+//
+// SheetJS (`xlsx`) usunięty 02.09.2026: ma niezałatane Prototype Pollution
+// (GHSA-4r6h-8v6p-xvw6) i ReDoS (GHSA-5pgg-2g8v-p4x9), a odpalają się one właśnie
+// przy czytaniu cudzego pliku — czyli dokładnie w tej ścieżce. Producent nie wydał
+// poprawki, więc jedynym wyjściem była zmiana biblioteki.
+//
+// KONSEKWENCJA, o której trzeba wiedzieć: ExcelJS **nie czyta starego formatu .xls**
+// (BIFF sprzed 2007). Pola uploadu zawężono do `.xlsx`, a `readSheetAsRows` zgłasza
+// czytelny błąd zamiast wysypać się w środku parsowania.
 import ExcelJS from 'exceljs';
 import { isValidIBAN, normalizeIBAN } from '@/lib/iban';
 
@@ -338,31 +344,104 @@ export interface EmployeeCredentialRow {
   position: string;
 }
 
-export function exportEmployeeCredentials(employees: EmployeeCredentialRow[], companyName: string): void {
+export async function exportEmployeeCredentials(
+  employees: EmployeeCredentialRow[],
+  companyName: string,
+): Promise<void> {
   const header = ['Imię i Nazwisko', 'Login (e-mail)', 'Hasło tymczasowe', 'PESEL', 'Dział', 'Stanowisko'];
-  const rows = employees.map(e => [
-    e.name,
-    e.email,
-    e.tempPassword ?? '— brak (zresetuj ręcznie)',
-    e.pesel,
-    e.department,
-    e.position,
-  ]);
+  const widths = [28, 34, 26, 14, 22, 26];
 
-  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
-  ws['!cols'] = [{ wch: 28 }, { wch: 34 }, { wch: 26 }, { wch: 14 }, { wch: 22 }, { wch: 26 }];
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'EBS — Eliton Benefits System';
+  wb.created = new Date();
 
-  for (let c = 0; c < header.length; c++) {
-    const cellRef = XLSX.utils.encode_cell({ r: 0, c });
-    if (ws[cellRef]) ws[cellRef].s = { font: { bold: true } };
+  const ws = wb.addWorksheet('Dostępy pracowników', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
+  ws.columns = widths.map(width => ({ width }));
+
+  ws.addRow(header);
+  ws.getRow(1).font = { bold: true };
+
+  for (const e of employees) {
+    ws.addRow([
+      e.name,
+      e.email,
+      e.tempPassword ?? '— brak (zresetuj ręcznie)',
+      e.pesel,
+      e.department,
+      e.position,
+    ]);
   }
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Dostępy pracowników');
 
   const today = new Date().toISOString().slice(0, 10);
   const safeName = companyName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  XLSX.writeFile(wb, `dostepy_pracownicy_${safeName}_${today}.xlsx`);
+  const fileName = `dostepy_pracownicy_${safeName}_${today}.xlsx`;
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement('a'), { href: url, download: fileName });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ── Odczyt arkusza jako tablica wierszy ──────────────────────────────────────
+// Zastępuje `XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })`.
+// Kontrakt jest ten sam co u SheetJS, żeby reszta pliku nie musiała się zmieniać:
+// wiersz = tablica indeksowana od zera (0 = kolumna A), pusta komórka = ''.
+function normalizeCell(value: unknown): string | number | boolean {
+  if (value === null || value === undefined) return '';
+  // ExcelJS zwraca daty jako Date; parseDate rozpoznaje ISO YYYY-MM-DD (patrz niżej),
+  // więc sprowadzamy je do tej postaci zamiast liczyć serial excelowy w drugą stronę.
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === 'object') {
+    const v = value as Record<string, any>;
+    // komórka z formułą — bierzemy wynik, nie zapis formuły
+    if ('result' in v) return normalizeCell(v.result);
+    // tekst formatowany fragmentami
+    if (Array.isArray(v.richText)) return v.richText.map((p: any) => p?.text ?? '').join('');
+    // hiperłącze — interesuje nas etykieta, nie URL
+    if ('text' in v) return normalizeCell(v.text);
+    // #REF!, #N/A itp. — traktujemy jak pustą komórkę, tak jak robił to SheetJS z defval
+    if ('error' in v) return '';
+    return '';
+  }
+  return value as string | number | boolean;
+}
+
+export async function readSheetAsRows(file: File): Promise<any[][]> {
+  if (/\.xls$/i.test(file.name)) {
+    throw new Error(
+      'Plik w starym formacie .xls nie jest obsługiwany. ' +
+      'Otwórz go w Excelu lub Arkuszach Google i zapisz jako .xlsx, a potem wgraj ponownie.'
+    );
+  }
+
+  const buffer = await file.arrayBuffer();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buffer);
+
+  const ws = wb.worksheets[0];
+  if (!ws) return [];
+
+  const rows: any[][] = [];
+  // includeEmpty: true — bez tego pusty wiersz zostałby pominięty i przesunął
+  // numerację, przez co nagłówek mógłby wylądować w złym miejscu.
+  ws.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+    // row.values jest rzadką tablicą z nieużywanym indeksem 0 — ścinamy go.
+    const raw = Array.isArray(row.values) ? row.values.slice(1) : [];
+    const out: any[] = [];
+    for (let i = 0; i < raw.length; i++) out[i] = normalizeCell(raw[i]);
+    rows[rowNumber - 1] = out;
+  });
+
+  // Dziury po wierszach, których ExcelJS w ogóle nie odwiedził, wypełniamy pustymi
+  // tablicami — wołający indeksuje raw[0], raw[1]… i nie spodziewa się undefined.
+  for (let i = 0; i < rows.length; i++) if (!rows[i]) rows[i] = [];
+  return rows;
 }
 
 function normalizeHeader(value: string): string {
@@ -460,10 +539,7 @@ function normalizeHireDate(value: unknown): string {
 }
 
 export async function parseExcelFile(file: File): Promise<HrExcelRow[]> {
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  const raw: any[][] = await readSheetAsRows(file);
 
   const headerRow = raw[0] ?? [];
   const colIdx = {
@@ -551,10 +627,7 @@ export async function parseExcelFile(file: File): Promise<HrExcelRow[]> {
 
 // ── Parser szablonu kartoteki (14 kolumn, bez "Zamówienie voucherów") ─────────
 export async function parseKartotekaFile(file: File): Promise<HrExcelRow[]> {
-  const buffer = await file.arrayBuffer();
-  const wb = XLSX.read(buffer, { type: 'array' });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  const raw: any[][] = await readSheetAsRows(file);
 
   const headerRow = raw[0] ?? [];
   const colIdx = {

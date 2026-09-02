@@ -39,8 +39,12 @@ export default function KartotekaImportZone({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      setParseError('Nieobsługiwany format. Wgraj plik .xlsx lub .xls.');
+    if (!file.name.toLowerCase().endsWith('.xlsx')) {
+      setParseError(
+        file.name.toLowerCase().endsWith('.xls')
+          ? 'Stary format .xls nie jest obsługiwany. Otwórz plik w Excelu lub Arkuszach Google i zapisz jako .xlsx.'
+          : 'Nieobsługiwany format. Wgraj plik .xlsx.'
+      );
       return;
     }
     setParseError(null);
@@ -54,8 +58,14 @@ export default function KartotekaImportZone({
       }));
       setRows(enriched);
       setPhase('parsed');
-    } catch {
-      setParseError('Nie udało się wczytać pliku. Sprawdź czy jest to prawidłowy plik Excel.');
+    } catch (err) {
+      // Parser potrafi powiedzieć konkretnie, co jest nie tak (np. stary format) —
+      // nie zastępuj tego ogólnikiem, bo użytkownik traci jedyną wskazówkę.
+      setParseError(
+        err instanceof Error && err.message
+          ? err.message
+          : 'Nie udało się wczytać pliku. Sprawdź czy jest to prawidłowy plik Excel.'
+      );
     }
   }, [existingEmails, existingPesels]);
 
@@ -138,7 +148,7 @@ export default function KartotekaImportZone({
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx"
           className="hidden"
           onChange={onFileChange}
         />
