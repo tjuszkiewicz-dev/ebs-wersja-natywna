@@ -310,7 +310,8 @@ Adaptacje E7c:
   i oferty mają właściciela w `created_by`. `sessions` filtruje widocznością; **w BBS route
   oddawał kalkulacje wszystkich użytkowników każdemu z rolą CRM.**
 - Branding szablonu oferty przepisany BBS→EBS (Eliton Benefits System, Stratton Prime
-  sp. z o.o., `www.stratton-prime.pl`, `biuro@stratton-prime.pl`).
+  sp. z o.o., `www.elitonbenefits.pl` — strona produktowa EBS, potwierdzona
+  aliasem produkcyjnym `ebs.elitonbenefits.pl` i tytułem strony; kontakt `biuro@stratton-prime.pl`).
 
 **Odłożone (E7d–E7e):** leaderboard + org-chart (dojdzie `d3`), notatki głosowe (domykają
 zaślepkę `/api/notes/from-text` z E2d). **Prowizje MLM poza zakresem** — rozbicie self 10% /

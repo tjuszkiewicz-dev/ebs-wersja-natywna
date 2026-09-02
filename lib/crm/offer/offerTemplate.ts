@@ -627,7 +627,7 @@ export function renderOfferHtml(data: OfferData): string {
 <section class="page content">
   <div class="page-header">
     <div class="page-header-logo">${logoDataUri ? `<img class="page-header-logo-img" src="${logoDataUri}" alt="EBS">` : 'EBS · Eliton Benefits'}</div>
-    <div class="page-header-meta">www.stratton-prime.pl</div>
+    <div class="page-header-meta">www.elitonbenefits.pl</div>
   </div>
 
   <div class="section-eyebrow">Diagnoza · 3 bariery rozwoju</div>
@@ -688,7 +688,7 @@ export function renderOfferHtml(data: OfferData): string {
 <section class="page content">
   <div class="page-header">
     <div class="page-header-logo">${logoDataUri ? `<img class="page-header-logo-img" src="${logoDataUri}" alt="EBS">` : 'EBS · Eliton Benefits'}</div>
-    <div class="page-header-meta">www.stratton-prime.pl</div>
+    <div class="page-header-meta">www.elitonbenefits.pl</div>
   </div>
 
   <div class="section-eyebrow">Twoja kalkulacja · indywidualne wyliczenie</div>
@@ -762,7 +762,7 @@ export function renderOfferHtml(data: OfferData): string {
 <section class="page content">
   <div class="page-header">
     <div class="page-header-logo">${logoDataUri ? `<img class="page-header-logo-img" src="${logoDataUri}" alt="EBS">` : 'EBS · Eliton Benefits'}</div>
-    <div class="page-header-meta">www.stratton-prime.pl</div>
+    <div class="page-header-meta">www.elitonbenefits.pl</div>
   </div>
 
   <div class="section-eyebrow">Podstawy prawne · Ugruntowany przepis · Potwierdzona praktyka</div>
@@ -829,7 +829,7 @@ export function renderOfferHtml(data: OfferData): string {
 <section class="page content">
   <div class="page-header">
     <div class="page-header-logo">${logoDataUri ? `<img class="page-header-logo-img" src="${logoDataUri}" alt="EBS">` : 'EBS · Eliton Benefits'}</div>
-    <div class="page-header-meta">www.stratton-prime.pl</div>
+    <div class="page-header-meta">www.elitonbenefits.pl</div>
   </div>
 
   <div class="section-eyebrow">Proces współpracy</div>
@@ -874,7 +874,7 @@ export function renderOfferHtml(data: OfferData): string {
       <span class="cta-tag">Odpowiedź w 48h</span>
     </div>
     <div class="cta-contact">
-      <strong>www.stratton-prime.pl</strong> · biuro@stratton-prime.pl<br>
+      <strong>www.elitonbenefits.pl</strong> · biuro@stratton-prime.pl<br>
       Doradca: ${escape(advisor.name)}${advisor.email ? ' · ' + escape(advisor.email) : ''}
     </div>
   </div>
