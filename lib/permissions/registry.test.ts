@@ -20,8 +20,21 @@ describe('permissions registry (EBS E1)', () => {
       for (const p of perms) expect(all.has(p)).toBe(true);
     }
   });
-  it('grupy: Panel systemowy, Benefity, Księgowość, Agencja Pracy i CRM', () => {
-    expect(PERMISSION_GROUPS.map(g => g.name)).toEqual(['Panel systemowy', 'Benefity', 'Księgowość', 'Agencja Pracy', 'CRM']);
+  it('grupy: Panel systemowy, Benefity, Księgowość, Agencja Pracy, CRM i Komunikator (E6a)', () => {
+    expect(PERMISSION_GROUPS.map(g => g.name)).toEqual(['Panel systemowy', 'Benefity', 'Księgowość', 'Agencja Pracy', 'CRM', 'Komunikator']);
+  });
+  it('grupa Komunikator ma jeden klucz komunikator.czat', () => {
+    const group = PERMISSION_GROUPS.find(g => g.name === 'Komunikator');
+    expect(group!.perms.map(p => p.key)).toEqual(['komunikator.czat']);
+    expect(ALL_PERMISSIONS).toContain('komunikator.czat');
+  });
+  it('komunikator (D6): cała firma domyślnie ma, role zewnętrzne pracodawca/pracownik NIE', () => {
+    for (const r of ['hr', 'partner', 'menedzer', 'dyrektor', 'koordynator', 'platnik', 'pracownik_tymczasowy', 'leadowiec']) {
+      expect(DEFAULT_ROLE_PERMS[r]).toContain('komunikator.czat');
+    }
+    for (const r of ['pracodawca', 'pracownik']) {
+      expect(DEFAULT_ROLE_PERMS[r]).not.toContain('komunikator.czat');
+    }
   });
   it('grupa Księgowość ma klucze ksiegowosc.faktury i ksiegowosc.bilans, oba w ALL_PERMISSIONS', () => {
     const group = PERMISSION_GROUPS.find(g => g.name === 'Księgowość');
@@ -36,17 +49,18 @@ describe('permissions registry (EBS E1)', () => {
     expect(AGENCJA_TABS).not.toContain('agencja.mapa');
     expect(AGENCJA_TABS).not.toContain('agencja.delete');
   });
-  it('koordynator domyślnie: AGENCJA_TABS + mapa + ksiegowosc.faktury; pracodawca/hr NIC z agencji (EBS-adaptacja)', () => {
-    expect(DEFAULT_ROLE_PERMS['koordynator']).toEqual([...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury']);
+  it('koordynator domyślnie: AGENCJA_TABS + mapa + ksiegowosc.faktury + komunikator; pracodawca/hr NIC z agencji (EBS-adaptacja)', () => {
+    expect(DEFAULT_ROLE_PERMS['koordynator']).toEqual([...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury', 'komunikator.czat']);
     for (const r of ['pracodawca', 'hr']) {
       expect((DEFAULT_ROLE_PERMS[r] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
     }
   });
-  it('dyrektor domyślnie ma pełną Księgowość i CRM, ale nic z agencji', () => {
+  it('dyrektor domyślnie ma pełną Księgowość, CRM i komunikator, ale nic z agencji', () => {
     expect(DEFAULT_ROLE_PERMS['dyrektor']).toEqual([
       'ksiegowosc.faktury', 'ksiegowosc.bilans',
       'crm.pipeline', 'crm.kontakty', 'crm.kalendarz',
       'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki',
+      'komunikator.czat',
     ]);
     expect((DEFAULT_ROLE_PERMS['dyrektor'] ?? []).some(k => k.startsWith('agencja.'))).toBe(false);
   });

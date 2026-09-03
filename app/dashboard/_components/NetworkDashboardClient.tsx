@@ -7,6 +7,8 @@ import { useStrattonSystem } from '@/context/StrattonContext';
 import { Role } from '@/types';
 // E7d: partner widzi własną pozycję w rankingu (nie cudze wyniki — tak liczy API).
 import { PartnerLeaderboardWidget } from '@/components/crm/sales/PartnerLeaderboardWidget';
+// E6a: panel sprzedaży nie ma nagłówka — komunikator jako pływający przycisk (spec E6 §4.8)
+import { ChatButton } from '@/components/chat/ChatButton';
 
 function NetworkContent() {
   const { state } = useStrattonSystem();
@@ -17,6 +19,7 @@ function NetworkContent() {
 
   return (
     <>
+      <ChatButton meId={currentUser.id} variant="floating" />
       {currentUser.role === Role.ADVISOR && (
         <div className="mb-6">
           <PartnerLeaderboardWidget />

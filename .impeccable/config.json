@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "components/chat/GroupPanel.tsx"
+        ],
+        "createdAt": "2026-09-03T10:30:35.717Z",
+        "reason": "Claude: falszywy alarm - text-slate-400 lezy na bialym wierszu z hover:bg-slate-50 (#f8fafc), nie na kolorowym tle; kontrast jak w reszcie panelu"
+      }
+    ]
+  }
+}

@@ -32,3 +32,6 @@ next-env.d.ts
 .claude/worktrees/
 /ebs-stack-report.pdf
 tsconfig.tsbuildinfo
+
+# impeccable (plugin design-hook): cache lokalny, config.json jest wspoldzielony
+.impeccable/hook.cache.json

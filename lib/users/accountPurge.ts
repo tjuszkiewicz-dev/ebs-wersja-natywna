@@ -96,15 +96,22 @@ export const FINANCIAL_FOOTPRINT: readonly TableRef[] = [
 // Nie mają wartości księgowej, a zostawienie ich przy koncie martwym
 // (zanonimizowanym) oznaczałoby żywe uprawnienia bez właściciela.
 //
-// TODO E6: BBS kasuje tu dodatkowo `mail_account_users`, `chat_push_subscriptions`,
-//          `chat_participants`, `chat_reactions` — tych tabel w EBS jeszcze NIE MA
-//          (komunikator i poczta przyjdą z falą E6). Przy E6 dopisać je do tej listy.
+// TODO E6d: BBS kasuje tu dodatkowo `mail_account_users` — tabela poczty przyjdzie z E6d;
+//           wtedy dopisać ją do tej listy. Tabele komunikatora dopisane w E6a (053).
 // ─────────────────────────────────────────────────────────────────────────────
 export const OWNED_TABLES: readonly TableRef[] = [
   { table: 'user_permissions',         column: 'user_id',        label: 'wyjątki uprawnień' },
   { table: 'user_app_entitlements',    column: 'user_id',        label: 'wyjątki dostępu do aplikacji' },
   { table: 'acc_company_members',      column: 'user_id',        label: 'członkostwo w firmach księgowych' },
   { table: 'hr_coordinator_contracts', column: 'coordinator_id', label: 'przypisane kontrakty (koordynator)' },
+
+  // KOMUNIKATOR (E6a, spec §4.5). Uczestnictwo i reakcje martwego konta nie mają wartości,
+  // a subskrypcja push to żywy kanał bez właściciela. Migracja 053 ma na tych kolumnach FK
+  // ON DELETE CASCADE — kasujemy mimo to jawnie, bo przy ANONIMIZACJI profil zostaje i nic
+  // nie kaskaduje. Treść wiadomości (chat_messages) NIE jest tu — patrz DETACH_TABLES.
+  { table: 'chat_participants',        column: 'user_id',        label: 'uczestnictwo w rozmowach komunikatora' },
+  { table: 'chat_reactions',           column: 'user_id',        label: 'reakcje w komunikatorze' },
+  { table: 'chat_push_subscriptions',  column: 'user_id',        label: 'subskrypcje powiadomień push' },
 
   // KASOWANE JAWNIE, nie kaskadowo (recenzja I1). W żywej bazie
   // `notifications.user_id` jest typu TEXT i NIE MA ŻADNEGO klucza obcego —
@@ -135,6 +142,13 @@ export const DETACH_TABLES: readonly DetachRef[] = [
   // trop, po którym da się później dokończyć usuwanie danych kadrowych.
   // Zerwanie go zamieniłoby dane paszportowe w sierotę nie do odnalezienia.
   { table: 'hr_employees',          column: 'user_id',        label: 'powiązanie z portalem pracownika', purgeOnly: true },
+
+  // KOMUNIKATOR (E6a, spec §4.5 / K7). Treść wiadomości to historia firmy — ZOSTAJE w rozmowach
+  // innych osób; znika tylko powiązanie z kontem. Tylko przy PURGE: przy anonimizacji profil
+  // istnieje jako „Konto usunięte", więc wskaźnik nie jest sierotą i nazwa w dymku degraduje
+  // się sama. (FK w 053 ma ON DELETE SET NULL — odpinamy jawnie dla porządku i planu operacji.)
+  { table: 'chat_messages',         column: 'sender_id',      label: 'wiadomości w komunikatorze (treść ZOSTAJE)', purgeOnly: true },
+  { table: 'chat_conversations',    column: 'created_by',     label: 'rozmowy założone przez tę osobę', purgeOnly: true },
 ];
 
 /** Odpięcia właściwe dla trybu. */
@@ -161,6 +175,13 @@ export const RETAINED_PERSONAL_DATA: readonly { table: string; note: string }[] 
     note: 'Dokumenty pracownicze i skany ZOSTAJĄ (odpinany jest tylko autor wgrania). '
         + 'Pliki w Storage nie są usuwane.',
   },
+  {
+    table: 'chat_messages',
+    note: 'Treści wiadomości napisanych przez tę osobę w komunikatorze ZOSTAJĄ w rozmowach '
+        + 'innych osób (historia firmy); znika tylko powiązanie z kontem — dymek pokazuje '
+        + '„Konto usunięte". Załączniki w Storage (chat-media) nie są usuwane. '
+        + 'Aby usunąć treści, trzeba je skasować w rozmowach osobno.',
+  },
 ];
 
 /**
@@ -172,6 +193,8 @@ export const IMPACT_COUNTS: readonly TableRef[] = [
   { table: 'hr_employees',             column: 'coordinator_id', label: 'pracownicy zostaną bez koordynatora' },
   { table: 'hr_employees',             column: 'user_id',        label: 'kartoteki pracownicze (dane kadrowe ZOSTAJĄ)' },
   { table: 'notifications',            column: 'user_id',        label: 'powiadomienia do skasowania' },
+  { table: 'chat_messages',            column: 'sender_id',      label: 'wiadomości w komunikatorze (treść ZOSTAJE, znika autor)' },
+  { table: 'chat_participants',        column: 'user_id',        label: 'rozmowy, z których konto zniknie' },
 ];
 
 /**

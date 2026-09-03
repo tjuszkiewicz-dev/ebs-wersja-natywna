@@ -137,7 +137,9 @@ describe('detachTablesFor — powiązanie z kartoteką kadrową', () => {
     expect(anon).toContain('user_app_entitlements.granted_by');
     expect(anon).toContain('hr_employees.coordinator_id');
     expect(anon).toContain('hr_documents.uploaded_by');
-    expect(detachTablesFor('purge').length).toBe(anon.length + 1);
+    // +3 = tylko-przy-PURGE: hr_employees.user_id (E5) oraz chat_messages.sender_id
+    //      i chat_conversations.created_by (E6a — treść zostaje, znika autor)
+    expect(detachTablesFor('purge').length).toBe(anon.length + 3);
   });
 });
 
@@ -231,6 +233,9 @@ describe('buildPlan', () => {
       'user_app_entitlements.user_id',
       'acc_company_members.user_id',
       'hr_coordinator_contracts.coordinator_id',
+      'chat_participants.user_id',
+      'chat_reactions.user_id',
+      'chat_push_subscriptions.user_id',
       'notifications.user_id',
     ];
     expect(buildPlan('anonymize').deletes).toEqual(expected);
@@ -312,5 +317,38 @@ describe('isMissingAuthUserError — zawężone (recenzja I3)', () => {
   it('nie-string → false', () => {
     expect(isMissingAuthUserError(undefined)).toBe(false);
     expect(isMissingAuthUserError(null)).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E6a — komunikator (spec E6 §4.5, K5/K7)
+// ─────────────────────────────────────────────────────────────────────────────
+import {
+  OWNED_TABLES as E6_OWNED, detachTablesFor as e6Detach,
+  RETAINED_PERSONAL_DATA as E6_RETAINED, IMPACT_COUNTS as E6_IMPACT,
+} from './accountPurge';
+
+describe('E6a — komunikator: usuwanie konta', () => {
+  it('uczestnictwo, reakcje i subskrypcje push są KASOWANE w obu trybach', () => {
+    const owned = E6_OWNED.map((t) => `${t.table}.${t.column}`);
+    expect(owned).toContain('chat_participants.user_id');
+    expect(owned).toContain('chat_reactions.user_id');
+    expect(owned).toContain('chat_push_subscriptions.user_id');
+  });
+  it('treść wiadomości ZOSTAJE: chat_messages nie jest kasowana, sender_id odpinany tylko przy PURGE', () => {
+    expect(E6_OWNED.some((t) => t.table === 'chat_messages')).toBe(false);
+    const purge = e6Detach('purge').map((t) => `${t.table}.${t.column}`);
+    const anon = e6Detach('anonymize').map((t) => `${t.table}.${t.column}`);
+    expect(purge).toContain('chat_messages.sender_id');
+    expect(purge).toContain('chat_conversations.created_by');
+    expect(anon).not.toContain('chat_messages.sender_id');
+    expect(anon).not.toContain('chat_conversations.created_by');
+  });
+  it('właściciel widzi przed potwierdzeniem, że wiadomości zostają (RODO)', () => {
+    expect(E6_RETAINED.some((r) => r.table === 'chat_messages')).toBe(true);
+    expect(E6_IMPACT.some((r) => r.table === 'chat_messages' && r.column === 'sender_id')).toBe(true);
+  });
+  it('mail_account_users (E6d) jeszcze NIE jest na liście — tabela nie istnieje', () => {
+    expect(E6_OWNED.some((t) => t.table === 'mail_account_users')).toBe(false);
   });
 });

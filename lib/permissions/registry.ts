@@ -70,6 +70,15 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'crm.delete', label: 'Usuwanie leadów i kontaktów', kind: 'action' },
     ],
   },
+  {
+    // E6a: komunikator jest OGÓLNOFIRMOWY (decyzja usera D6, 2026-09-03), nie sprzedażowy —
+    // dlatego własna grupa, a nie klucz pod `crm.*` (te dostają tylko role sprzedażowe).
+    // Poczta (E6d) idzie pod istniejącym `crm.poczta`.
+    name: 'Komunikator',
+    perms: [
+      { key: 'komunikator.czat', label: 'Komunikator firmowy (czat, załączniki, tłumaczenie)', kind: 'tab' },
+    ],
+  },
 ];
 
 export const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap(g => g.perms.map(p => p.key));
@@ -82,12 +91,19 @@ export const AGENCJA_TABS = ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.k
 export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
   // CRM (E7): role sprzedażowe dostają pipeline domyślnie — to jest ich narzędzie pracy,
   // inaczej niż agencja, która jest modułem wewnętrznym Strattona.
-  pracodawca: [], pracownik: [], hr: [],
-  partner: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.notatki'],
-  menedzer: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki'],
-  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki'],
-  koordynator: [...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury'],
-  platnik: [], pracownik_tymczasowy: [],
+  // Komunikator (E6a, D6): cała firma poza rolami ZEWNĘTRZNYMI (pracodawca, pracownik).
+  // pracownik_tymczasowy dostaje klucz — jego ograniczenie „tylko z koordynatorem" niesie
+  // lib/chat/policy, nie brak uprawnienia. Role własne (customized) dostają klucz w migracji 053.
+  pracodawca: [], pracownik: [], hr: ['komunikator.czat'],
+  partner: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.notatki', 'komunikator.czat'],
+  menedzer: ['crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki', 'komunikator.czat'],
+  dyrektor: ['ksiegowosc.faktury', 'ksiegowosc.bilans', 'crm.pipeline', 'crm.kontakty', 'crm.kalendarz', 'crm.kalkulator', 'crm.leaderboard', 'crm.org-chart', 'crm.notatki', 'komunikator.czat'],
+  koordynator: [...AGENCJA_TABS, 'agencja.mapa', 'ksiegowosc.faktury', 'komunikator.czat'],
+  platnik: ['komunikator.czat'], pracownik_tymczasowy: ['komunikator.czat'],
+  // `leadowiec` (rola z E7a) do 2026-09-03 NIE MIAŁ tu wpisu — czyli zero uprawnień domyślnych,
+  // także zero CRM (nie ma go też w app_roles, więc panel Uprawnień nie może go nadpisać).
+  // E6a dokłada komunikator; domyślne klucze CRM dla tej roli to decyzja właściciela, nie E6.
+  leadowiec: ['komunikator.czat'],
 };
 
 // Mapowanie uprawnień → pozycje menu panelu (dynamiczny sidebar dla ról agencyjnych).

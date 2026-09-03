@@ -155,8 +155,8 @@ appka `agencja` kieruje `pracownik_tymczasowy` → `/dashboard/agencja`, koordyn
 superadmin → `/dashboard/admin` (naprawia placeholder z E2a). Digest wygasania dokumentów/
 najmów/floty **doklejony do crona `expire-vouchers`** (sekcja w izolowanym `try/catch`, EBS
 `sendEmail`; adresaci superadmin/dyrektor/szef_koordynatorow) — bez nowego crona (Vercel Hobby).
-**Odłożone: czat pracownik↔koordynator (`me/worker/chat` + panel „Komunikator" ukryty za
-`{false &&}`) → E3; auto-księgowanie kosztów → E4.**
+**Odłożone (stan E2e): czat pracownik↔koordynator → zrobione w E6a (`me/worker/chat`,
+`components/worker/WorkerChat`, zakładka „Komunikator" włączona); auto-księgowanie kosztów → E4.**
 
 **E4 (2026-07-19) — MIGRACJA BBS→EBS KOMPLETNA:** moduł księgowości. Widok `admin-ksiegowosc`
 → `components/adminNew/AdminKsiegowosc` (sub-taby: bilans/firmy/kontrahenci/KPiR/VAT/magazyn/
@@ -211,9 +211,10 @@ nietknięta**). Powód: 11 kluczy obcych blokujących fizyczne usunięcie (zwery
 potwierdzenie przez przepisanie nazwy konta. Audyt do `audit_log` **przed** operacją (wyjątek
 od reguły „audyt triggerami" — nieudany zapis audytu przerywa operację).
 
-> **Zależność zwrotna E6→E5:** gdy E6 wprowadzi tabele czatu/poczty (`mail_account_users`,
-> `chat_push_subscriptions`, `chat_participants`, `chat_reactions`), endpoint purge musi zostać
-> o nie rozszerzony — inaczej zostaną sieroty. Oznaczone w kodzie `// TODO E6:`.
+> **Zależność zwrotna E6→E5:** tabele czatu (`chat_participants`, `chat_reactions`,
+> `chat_push_subscriptions`) **dopisane do purge w E6a** (+ `chat_messages.sender_id` i
+> `chat_conversations.created_by` odpinane tylko przy PURGE — treść wiadomości zostaje, spec E6 §4.5).
+> **Zostało `mail_account_users` → E6d**, znacznik `// TODO E6d:` w `lib/users/accountPurge.ts`.
 
 **Świadomie odłożone (E5):** wskaźniki-widma bez klucza obcego w wielu tabelach `hr_*`/`acc_*`
 (m.in. `hr_coordinator_pay.user_id`); czy zgłoszenia do BOK powinny blokować usunięcie konta;
@@ -252,8 +253,8 @@ Adaptacje względem BBS (uzasadnienia w specu):
 - **Numeracja migracji:** `053` zarezerwowane dla `053_chat.sql` z E6a, CRM dostał `054`.
   Naprawiony historyczny duplikat: `050_drop_permissive_voucher_accounts_insert.sql` →
   `049a_…` (był drugim plikiem `050_`; w bazie zastosowany przed `050_ksiegowosc_schema`).
-  ⚠️ **Stan 2026-09-02: `053_chat.sql` NIE ISTNIEJE — to sam zarezerwowany numer.**
-  W numeracji migracji jest więc dziura między `052` a `054` i to jest zamierzone.
+  `053_chat.sql` **istnieje od E6a (2026-09-03)** — do tego dnia był samym zarezerwowanym
+  numerem i dziura `052`→`054` była zamierzona.
 
 > ⚠️ **MARTWY KOD W ŹRÓDLE — nie portować (K9).** 1 910 z 9 734 LOC modułu CRM w BBS jest
 > martwe i **zweryfikowane dwiema drogami** (grep po importach + `information_schema` żywej bazy
@@ -475,27 +476,65 @@ Mapowanie i decyzje:
 > ze Stratton CRM — to dwa systemy o prawdopodobnie różnych schematach i to mapowanie, nie sam
 > import, jest właściwą treścią E8.
 
-**E6 (czat + poczta) — NIEZBUDOWANE. Jedyna otwarta fala.** Rozpoznanie 2026-09-02:
-w EBS nie ma **ani jednego** pliku tego modułu — brak `app/api/chat`, `lib/chat`,
-`app/api/crm/mail`, `lib/mail`, a `053_chat.sql` to sam zarezerwowany numer (patrz wyżej).
+**E6a (2026-09-03) — KOMUNIKATOR FIRMOWY (czat tekstowy) DZIAŁA.** Spec:
+`docs/superpowers/specs/2026-08-03-e6-komunikator-poczta-design.md` (napisany 03.08, **zrewidowany
+03.09** — §0 to dziennik korekt po E7/E8; czytać spec, nie ten akapit, gdy coś się nie zgadza).
+Dekompozycja: **E6a czat (zrobione) → E6b push → E6c rozmowy audio/wideo + notatki AI → E6d poczta**.
 
-Źródło do portu jest w **`Desktop/BBS-Unified`** i — w odróżnieniu od pułapki K9 —
-**jest żywe**: `components/chat/ChatApp.tsx` ma 5 importów, `VoiceCall.tsx` 1,
-`components/crm/mail/MailClient.tsx` 2. Rozmiar: **~31 plików** (14 route'ów `app/api/chat`,
-7 `app/api/crm/mail`, 2 `app/api/mail`, 3 `lib/chat`, 2 `lib/mail`, 3 komponenty).
-**Migracji schematu w BBS NIE MA** — tak jak przy E2b i E4 trzeba go zdjąć z introspekcji
-żywej bazy BBS.
+Migracja `053_chat.sql` — schemat **z introspekcji żywej bazy BBS** (`bbs-unified`,
+`pcszyyjwrkkkgbbcpzhn`), nie z kodu: 6 tabel `chat_*` (`conversations`, `messages`, `participants`,
+`reactions`, `policy`, `push_subscriptions`), `user_profiles.last_seen_at` (obecność), FK
+`calendar_events.conversation_id` (obietnica z 056), bucket `chat-media` (private), GIN `pg_trgm`
+na treści. Kolumny pod E6c (`duration_sec`, `kind` 6 wartości) i tłumaczenie (`translated_*`) są
+od razu — **E6b/E6c nie robią ALTER-ów na tabelach czatu**; jedyna nowa tabela później to
+`meeting_notes` (E6c). Kod: `lib/chat/{policy,server,realtime,translate,format}.ts`,
+`app/api/chat/*` (13 route'ów + `…/translate`), `app/api/me/worker/chat`, `components/chat/*`
+(`useChat` hook + `ChatButton`/`ChatApp`/`ConversationList`/`MessageThread`/`GroupPanel`/
+`modals/PeoplePickerModal`/`Avatar`), `components/worker/WorkerChat`.
 
-Co już na E6 czeka w kodzie EBS (dziś degraduje się cicho):
-- `DetailsPanel` woła `/api/crm/mail/by-contact` — endpointu nie ma, sekcja poczty przy
-  leadzie jest pusta (E6d, klucz `crm.poczta` zarezerwowany w rejestrze uprawnień).
-- Panel „Komunikator" w portalu pracownika jest schowany za `{false &&}` (E2e → E6).
-- `app/api/users/[id]/purge` ma znaczniki `// TODO E6:` — po wprowadzeniu tabel czatu
-  i poczty (`mail_account_users`, `chat_push_subscriptions`, `chat_participants`,
-  `chat_reactions`) endpoint trzeba o nie rozszerzyć, inaczej usuwanie konta zostawi sieroty.
+Adaptacje E6a względem BBS (uzasadnienia w specu §3, K1–K19):
+- **Dostęp = uprawnienie `komunikator.czat`** (nowa grupa „Komunikator" w rejestrze; każdy route
+  przez `can()`, brak → 403). BBS bramkował samą sesją. Domyślnie ma je **cała firma** poza
+  rolami zewnętrznymi `pracodawca`/`pracownik` (decyzja usera D6). Role własne (`customized`)
+  dostały klucz w migracji (`role_permissions`), bo nie czytają `DEFAULT_ROLE_PERMS`.
+- **Polityka „kto z kim" = czysta funkcja `lib/chat/policy.canConverse` po wykluczeniu**
+  (`EXTERNAL_ROLES`), z testami; `pracownik_tymczasowy` **tylko ze swoim koordynatorem**
+  (`hr_employees.coordinator_id`), sprawdzane przy tworzeniu rozmowy, dodawaniu **i każdej
+  wysyłce**. `chat_policy` w BBS jest pusta — logika siedziała w `NON_STAFF_ROLES`; tabela
+  zostaje jako blokady par ról dla właściciela (route `chat/policy`, **bez UI** — K16).
+- **`chat_messages.sender_id` nullowalny + FK `ON DELETE SET NULL`; FK do `user_profiles` na
+  każdej kolumnie użytkownika** (BBS: brak FK). Powód: tryb PURGE z E5 kasuje profil fizycznie;
+  treść wiadomości zostaje („Konto usunięte").
+- **Bez triggera audytu na `chat_messages`/`chat_reactions`** — `fn_audit_log` kopiuje
+  `to_jsonb(NEW)`, czyli treść prywatnych rozmów; triggery tylko na `conversations` i `participants`.
+- **`profilesMap` z `lib/crm/profiles` (E7b)** — nie dublowany w `lib/chat/server`.
+- Realtime: broadcast na `user:{id}` (RLS deny-all → `postgres_changes` nic nie widzi),
+  `typing:{convId}` klient↔klient; `chat-calls` zarezerwowany dla E6c.
+- **Tłumaczenie (D7):** na żądanie („Przetłumacz" na cudzej wiadomości → `…/translate`, cache
+  w `translated_content/lang`, edycja kasuje cache) i **automatyczne przy wysyłce w rozmowie 1:1
+  z pracownikiem tymczasowym** (pracownik→`pl`, koordynator→`hr_employees.language`
+  znormalizowany przez `normalizeLang`). Silnik: `lib/hr/translateCore` z E2d; limit dzienny
+  `consumeTranslator` tylko dla pracownika tymczasowego; AI-guard: brak klucza → wiadomość bez
+  tłumaczenia, nigdy blokada wysyłki.
+- **Kanał pracownika** `/api/me/worker/chat` = cienka nakładka na te same tabele (koordynator widzi
+  rozmowę w zwykłym `ChatApp`); kontrakt `{id, mine, worker, pl}` narzucił stub z E2e.
+- **`ChatButton` sam sprawdza uprawnienie** (`/api/me/permissions`) i renderuje nic bez niego:
+  nagłówek `AdminDashboardClient`, pływający w `NetworkDashboardClient` (brak nagłówka), zakładka
+  w `TempWorkerDashboard`. **Nie montować w `Employee`/`EmployerDashboardClient`** (role zewnętrzne).
+- Wycięte z portu do E6b/E6c: push (`sendPushTo`, `sw.js`), rozmowy głosowe/wideo (`VoiceCall`,
+  `ringtone`, sygnalizacja), nagrania, „Notatka AI" (`transcribe` → `meeting_notes`).
+- Stylistyka: układ BBS (dwa panele, dymki, ✓✓), kolory WhatsAppa zamienione na `primary-*` EBS.
 
-To jest wielkość osobnej fali, nie zadania — E7 dostało na to własny spec i pięć podfal.
-Zaczynać od specu w `docs/superpowers/specs/`, nie od kopiowania plików.
+> ⚠️ **`leadowiec` do E6a nie miał ŻADNYCH uprawnień domyślnych** (brak wpisu w
+> `DEFAULT_ROLE_PERMS` **i** w `app_roles`, więc panel Uprawnień też go nie widzi) — luka z E7a.
+> E6a dodało mu `komunikator.czat`; **domyślne klucze CRM dla tej roli to decyzja właściciela.**
+
+**E6b/E6c/E6d — NIEZBUDOWANE.** Fakty zebrane 03.09 (spec §8): EBS **nie ma `app_config`**
+(BBS trzyma tam klucze VAPID) ani zależności `web-push`, `imapflow`, `mailparser`; `MailClient`
+i `lib/mail/server.ts` (502 linie, IMAP na żywo — wiadomości nie są w bazie) czekają w
+`Desktop/BBS-Unified`; poczta idzie pod istniejącym `crm.poczta` (`DetailsPanel` woła
+`/api/crm/mail/by-contact`, dziś degraduje się cicho). Cron alertów BBS **scalić** z cronem E5
+(Vercel Hobby), env `MAIL_*`→`SMTP_*`, `mail_account_users` do purge.
 
 ### State Management
 

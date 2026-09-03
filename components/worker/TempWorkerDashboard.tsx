@@ -3,84 +3,15 @@
 // Portal pracownika tymczasowego: moje dane + dokumenty, zmiana nr konta
 // (podwójne potwierdzenie), rozliczenia, grafik (w tym automatyczna karta pracy
 // z lokalizacji — toggle zgody, ping co 2 min), tłumacz (limit 10 min/dzień).
-// czat pracownik↔koordynator: E3
+// komunikator z koordynatorem: E6a (spec E6 §4.7)
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { User, FileText, Wallet, CalendarDays, Languages, MapPin, Loader2, LogOut, Pencil, Check, X, AlertTriangle, Clock, Download, MessageSquare, Send } from 'lucide-react';
+import { MessageSquare, User, FileText, Wallet, CalendarDays, Languages, MapPin, Loader2, LogOut, Pencil, Check, X, AlertTriangle, Clock, Download } from 'lucide-react';
 import { HrTlumacz } from '@/components/agencja/HrTlumacz';
+import { WorkerChat } from '@/components/worker/WorkerChat';
 
 type Tab = 'dane' | 'rozliczenia' | 'grafik' | 'tlumacz' | 'komunikator';
 
-// ── Komunikator z koordynatorem (auto-tłumaczenie PL ↔ język pracownika) ──
-// czat pracownik↔koordynator: E3 — zakres odłożony, endpoint /api/me/worker/chat
-// jeszcze nie istnieje. Komponent zostawiony w kodzie, ale nieużywany (patrz
-// `{false && <WorkerChat />}` niżej) — brak aktywnych fetchy w tym pliku.
-function WorkerChat() {
-  const [msgs, setMsgs] = useState<any[]>([]);
-  const [text, setText] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [noCoord, setNoCoord] = useState(false);
-  const [showPl, setShowPl] = useState<Record<string, boolean>>({});
-  const endRef = useRef<HTMLDivElement | null>(null);
-
-  const load = useCallback(async () => {
-    try {
-      const r = await fetch('/api/me/worker/chat', { credentials: 'same-origin' });
-      const j = await r.json();
-      if (r.ok) { setMsgs(j.messages || []); setNoCoord(!!j.no_coordinator); }
-    } catch { /* */ } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { load(); const t = setInterval(load, 8000); return () => clearInterval(t); }, [load]);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [msgs.length]);
-
-  const send = async () => {
-    const t = text.trim();
-    if (!t || sending) return;
-    setSending(true); setText('');
-    try {
-      const r = await fetch('/api/me/worker/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ content: t }) });
-      if (!r.ok) { const j = await r.json().catch(() => ({})); window.alert(j.error || 'Błąd wysyłki'); setText(t); }
-      await load();
-    } catch { setText(t); } finally { setSending(false); }
-  };
-
-  if (loading) return <div className="flex items-center gap-2 py-10 text-sm text-slate-400"><Loader2 size={16} className="animate-spin" /> …</div>;
-  if (noCoord) return <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">Nie masz jeszcze przypisanego koordynatora. Zgłoś się do biura, aby móc pisać.</div>;
-
-  return (
-    <div className="flex h-[60vh] flex-col rounded-2xl border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-4 py-2.5">
-        <p className="flex items-center gap-2 text-sm font-semibold text-slate-700"><MessageSquare size={15} className="text-primary-500" /> Rozmowa z koordynatorem</p>
-        <p className="text-[11px] text-slate-400">Piszesz w swoim języku — koordynator dostaje tłumaczenie po polsku, a Ty jego odpowiedzi w swoim języku.</p>
-      </div>
-      <div className="flex-1 space-y-2 overflow-y-auto p-4" style={{ backgroundColor: '#f6f7f9' }}>
-        {msgs.length === 0 && <p className="py-8 text-center text-sm italic text-slate-300">Napisz pierwszą wiadomość do koordynatora</p>}
-        {msgs.map(m => (
-          <div key={m.id} className={`flex ${m.mine ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm shadow-sm ${m.mine ? 'bg-primary-600 text-white' : 'bg-white text-slate-800 ring-1 ring-slate-100'}`}>
-              <p className="whitespace-pre-wrap">{m.worker || m.pl}</p>
-              {m.pl && m.worker && m.pl !== m.worker && (
-                <button onClick={() => setShowPl(s => ({ ...s, [m.id]: !s[m.id] }))} className={`mt-1 text-[10px] underline ${m.mine ? 'text-white/70' : 'text-slate-400'}`}>
-                  {showPl[m.id] ? 'ukryj polski' : 'pokaż po polsku'}
-                </button>
-              )}
-              {showPl[m.id] && <p className={`mt-1 border-t pt-1 text-[12px] ${m.mine ? 'border-white/20 text-white/80' : 'border-slate-100 text-slate-500'}`}>{m.pl}</p>}
-              <p className={`mt-0.5 text-[10px] ${m.mine ? 'text-white/60' : 'text-slate-400'}`}>{fmtT(m.created_at)}</p>
-            </div>
-          </div>
-        ))}
-        <div ref={endRef} />
-      </div>
-      <div className="flex items-center gap-2 border-t border-slate-100 p-3">
-        <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Napisz wiadomość…" className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300" />
-        <button onClick={send} disabled={!text.trim() || sending} className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-600 text-white disabled:opacity-40">
-          {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-        </button>
-      </div>
-    </div>
-  );
-}
+// Panel „Komunikator" (rozmowa z koordynatorem) — E6a: components/worker/WorkerChat.tsx
 const PING_MS = 120_000; // pozycja co 2 minuty (decyzja usera)
 
 const zl = (n?: number | null) => (n == null ? '—' : Number(n).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł');
@@ -194,7 +125,7 @@ export function TempWorkerDashboard() {
     { id: 'dane', label: 'Moje dane', icon: <User size={16} /> },
     { id: 'rozliczenia', label: 'Rozliczenia', icon: <Wallet size={16} /> },
     { id: 'grafik', label: 'Grafik', icon: <CalendarDays size={16} /> },
-    // czat pracownik↔koordynator: E3 — zakładka „Komunikator" ukryta do czasu wdrożenia /api/me/worker/chat
+    { id: 'komunikator', label: 'Komunikator', icon: <MessageSquare size={16} /> },
     { id: 'tlumacz', label: 'Tłumacz', icon: <Languages size={16} /> },
   ];
 
@@ -389,8 +320,7 @@ export function TempWorkerDashboard() {
           </div>
         )}
 
-        {/* czat pracownik↔koordynator: E3 — ukryte do czasu wdrożenia /api/me/worker/chat */}
-        {false && tab === 'komunikator' && <WorkerChat />}
+        {tab === 'komunikator' && <WorkerChat />}
 
         {tab === 'tlumacz' && (
           <div className="rounded-2xl border border-slate-200 bg-white p-4">

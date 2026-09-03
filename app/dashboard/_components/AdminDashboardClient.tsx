@@ -8,6 +8,7 @@ import { GlobalSearch } from '@/components/GlobalSearch';
 import { ToastContainer } from '@/components/Toast';
 import { NotificationCenter } from '@/components/notifications/NotificationCenter';
 import { NotificationHistoryModal } from '@/components/notifications/NotificationHistoryModal';
+import { ChatButton } from '@/components/chat/ChatButton';
 import { useStrattonSystem } from '@/context/StrattonContext';
 import { supabaseBrowser } from '@/lib/supabase';
 import { useHistoryView } from '@/lib/useHistoryView';
@@ -128,6 +129,8 @@ function AdminLayout() {
 
           {/* RIGHT */}
           <div className="flex-1 flex items-center gap-3 justify-end">
+            {/* E6a: komunikator — przycisk sam sprawdza uprawnienie `komunikator.czat` */}
+            <ChatButton meId={currentUser.id} />
             <NotificationCenter
               notifications={myNotifications}
               unreadCount={unreadCount}
