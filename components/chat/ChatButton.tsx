@@ -5,6 +5,7 @@
 // (`header`) i pływający (`floating`, dla layoutów bez nagłówka — panel sprzedaży).
 // Port z BBS ChatApp.tsx:1353 bez nasłuchu połączeń przychodzących (E6c).
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MessageCircle } from 'lucide-react';
 import { ChatApp } from './ChatApp';
 import type { Conv } from './types';
@@ -59,7 +60,10 @@ export function ChatButton({ meId, variant = 'header' }: { meId: string; variant
           {badge}
         </button>
       )}
-      {open && <ChatApp meId={meId} onClose={() => setOpen(false)} />}
+      {/* PORTAL do <body>: przycisk siedzi w nagłówku panelu (`relative z-40`), który tworzy własny
+          kontekst warstwowania — `fixed z-[80]` modala byłby w nim uwięziony i pasek boczny
+          (wyższy z-index) przykrywał komunikator. Zaobserwowane na produkcji 2026-09-03. */}
+      {open && typeof document !== 'undefined' && createPortal(<ChatApp meId={meId} onClose={() => setOpen(false)} />, document.body)}
     </>
   );
 }

@@ -1,7 +1,8 @@
 # E6 — Komunikator i poczta (port z BBS)
 
 Data: 2026-08-03 · **Rewizja: 2026-09-03** (po falach E7a–E7e i E8; po introspekcji żywej bazy BBS)
-Status: **zaakceptowany** (D1–D5 z 03.08.2026, D6–D7 z 03.09.2026) — E6a w realizacji
+Status: **zaakceptowany** (D1–D5 z 03.08.2026, D6–D7 z 03.09.2026) — **E6a wdrożone na produkcję
+03.09.2026** (commit `b889a89` + poprawki UI po smoke-teście); E6b–E6d otwarte
 Poprzednie fale: E1 (shell), E2a–E2e (agencja), E4 (księgowość), E5 (rozszerzenia),
 **E7a–E7e (CRM), E8 (migracja danych ze Stratton CRM)**
 

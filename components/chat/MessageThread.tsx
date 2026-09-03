@@ -56,7 +56,7 @@ export function MessageThread({ chat, onClose }: { chat: ChatState; onClose: () 
 
       {/* wątek */}
       <div ref={chat.listRef} onScroll={e => { if ((e.target as HTMLDivElement).scrollTop < 60 && hasMore && !loadingOlder) chat.loadOlder(); }}
-        className="flex-1 overflow-y-auto bg-slate-100 px-4 py-3 md:px-10"
+        className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-100 px-4 py-3 md:px-10"
         style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(15,23,42,0.05) 1px, transparent 0)', backgroundSize: '22px 22px' }}>
         {loadingOlder && <div className="flex justify-center py-2"><Loader2 size={15} className="animate-spin text-slate-400" /></div>}
         {hasMore && !loadingOlder && (
@@ -187,7 +187,11 @@ function MessageBubble({ m, chat, isGroup }: { m: Msg; chat: ChatState; isGroup:
   const canTranslate = !mine && m.kind === 'text' && !!m.content && !tmp;
 
   return (
-    <div className={`group relative mb-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
+    <div className={`mb-1.5 flex ${mine ? 'justify-end' : 'justify-start'}`}>
+      {/* `relative` na OPAKOWANIU dymka, nie na całym wierszu: w BBS `right-full` liczył się od
+          pełnej szerokości wiersza i ikony akcji lądowały przy lewej krawędzi wątku (zaobserwowane
+          na produkcji 03.09) — tu siedzą tuż obok dymka */}
+      <div className="group relative max-w-[78%]">
       {/* akcje wiadomości: reakcja / przetłumacz / odpowiedz / edytuj / usuń */}
       {!tmp && (
         <div className={`absolute top-0 z-10 flex items-center gap-1 opacity-0 transition group-hover:opacity-100 ${mine ? 'right-full mr-1' : 'left-full ml-1'}`}>
@@ -212,7 +216,7 @@ function MessageBubble({ m, chat, isGroup }: { m: Msg; chat: ChatState; isGroup:
         </div>
       )}
 
-      <div className={`max-w-[78%] rounded-lg px-2.5 py-1.5 shadow-sm ${bubble}`}>
+      <div className={`rounded-lg px-2.5 py-1.5 shadow-sm ${bubble}`}>
         {senderTag}
         {m.reply_to && (
           <div className="mb-1 rounded-md border-l-[3px] border-primary-500 bg-black/5 px-2 py-1">
@@ -254,6 +258,7 @@ function MessageBubble({ m, chat, isGroup }: { m: Msg; chat: ChatState; isGroup:
           {tTime(m.created_at)}
           {mine && (readByAll ? <CheckCheck size={13} className="text-sky-500" /> : <Check size={13} className="text-slate-400" />)}
         </p>
+      </div>
       </div>
     </div>
   );
