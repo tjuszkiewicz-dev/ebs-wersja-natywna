@@ -445,6 +445,9 @@ Mapowanie i decyzje:
   Tomasz Górski (`dyrektor`) 1 · Maciej Hagno 2 · bez opiekuna 1 (w źródle też go nie ma).
 
 > ⚠️ **DWA OTWARTE PRZYPADKI OSOBOWE (do decyzji właściciela, celowo nierozstrzygnięte):**
+> · ✅ **ROZSTRZYGNIĘTE 03.09.2026** — właściciel podniósł jego konto prywatne
+> (`maciej.hagno@gmail.com`) do roli `superadmin`, więc widzi CRM i swoje leady. Konto służbowe
+> zostaje pracodawcą HAPAG-LLOYD (jedyne w tej roli). Poniższy opis zachowany jako uzasadnienie.
 > · **`m.hagno@stratton-prime.pl`** ma w EBS konto w roli **`pracodawca`** (klient benefitowy),
 > a w Stratton CRM jest DIRECTOR-em sprzedaży. Jego 2 leady są mu przypisane, ale **tej roli
 > nie widać w CRM**: `pracodawca` należy do `STATIC_MENU_ROLES` w `Sidebar` i ma menu bez
@@ -648,15 +651,27 @@ Produkcyjna baza: `ramedybmybcpqvelsmxd.supabase.co` — zawiera 12 auth users, 
 | `admin@eliton-benefits.com` | `superadmin` | System Administrator | — | — |
 | `natalia.kvk@stratton-prime.pl` | `superadmin` | Natalia Kvk | — | — |
 | `j.jablonski@stratton-prime.pl` | `superadmin` | J. Jabłoński | — | — |
-| `m.hagno@stratton-prime.pl` | `pracodawca` | Maciej Hagno | `f03ed36e` (Stratton Prime) | — |
-| `t.juszkiewicz@gmail.com` | `owner` | Tomasz Juszkiewicz | `f03ed36e` (Stratton Prime) | `uz7u2hq9rdpMBJLO37JHLM!` |
+| `m.hagno@stratton-prime.pl` | `pracodawca` | Maciej Hagno | `f03ed36e` (HAPAG-LLOYD POLSKA) | — |
+| `t.juszkiewicz@gmail.com` | `owner` | Tomasz Juszkiewicz | `f03ed36e` (HAPAG-LLOYD POLSKA) | `uz7u2hq9rdpMBJLO37JHLM!` |
 | `biuro@aneza.pl` | `pracodawca` | Agnieszka Cięciara | `8dbe726e` (Aneza) | — |
 | `pasek.agnieszka@wp.pl` | `pracownik` | AGNIESZKA PASEK | `8dbe726e` (Aneza) | `u7fjcez88jbGJHVNE6DB64!` |
 | `j.drobnikowska.bazyluk@gmail.com` | `pracownik` | JOANNA DROBNIKOWSKA-BAZYLUK | `8dbe726e` (Aneza) | `pqp51yllud3INZ0MXVDNM!` |
 | `katarzynacygan@op.pl` | `pracownik` | KATARZYNA CYGAN | `8dbe726e` (Aneza) | `BF61fczv25!` |
-| `maciej.hagno@gmail.com` | `pracownik` | Maciej Hagno | `f03ed36e` (Stratton Prime) | `wjohc1wcuwfR9VRL78GEVF!` |
+| `maciej.hagno@gmail.com` | **`superadmin`** | Maciej Hagno | `f03ed36e` (HAPAG-LLOYD POLSKA) | — (wyczyszczone 03.09.2026) |
 
 **Konta auth BEZ profilu (testowe/nieużywane):** `k.nowak@firma.pl`, `j.kowalski@firma.pl`, `dlkso@wp.pl`, `vcx@wp.pl`
+
+> ⚠️ **Sprostowanie (03.09.2026): `f03ed36e` to HAPAG-LLOYD POLSKA sp. z o.o., NIE Stratton Prime.**
+> Ta tabela nazywała ją błędnie przez miesiące. To firma-klient benefitowy: 4 pracowników, 8400 bonów,
+> a **jedynym** kontem w roli `pracodawca` jest `m.hagno@stratton-prime.pl` (nigdy się nie logowało).
+> Zmiana roli TEGO konta odcięłaby firmie panel pracodawcy — nie ruszać bez zastępstwa.
+>
+> **`maciej.hagno@gmail.com` podniesione z `pracownik` na `superadmin`** (decyzja właściciela, 03.09.2026).
+> Konto ma 1500 bonów i 2 transakcje jako beneficjent — dane zostają, ale po zalogowaniu trafia do
+> panelu administratora, nie do portalu pracownika. Hasło ustawione przez właściciela;
+> `temp_password` (stare, plaintext) **wyczyszczone** — nie odtwarzać. Ślad w `audit_log`.
+> Otwarty przypadek z E8 („czy Maciej Hagno ma widzieć CRM") **rozstrzygnięty tą drogą**:
+> jako superadmin widzi wszystko, więc jego 2 leady też. Konto służbowe zostaje pracodawcą.
 
 **Znane hasła (nie przechowywane w DB):**
 - `admin@eliton-benefits.com` → `Password123!`
