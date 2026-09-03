@@ -1,8 +1,17 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(git worktree *)",
+      "Bash(ls .claude/)",
+      "Bash(rg -n \"financial_documents\" supabase/migrations/*.sql -l)",
+      "Bash(rg -n \"pdf_url|pdf_data|html|content|bank\" supabase/migrations/*financial*.sql supabase/migrations/001_initial_schema.sql)"
+    ],
     "deny": [
       "Read(./.env)",
       "Read(./.env.*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Użytkownik\\Desktop\\ebs-wersja-natywna"
     ]
   }
 }
