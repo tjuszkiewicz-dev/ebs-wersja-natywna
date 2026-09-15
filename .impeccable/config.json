@@ -11,6 +11,30 @@
         ],
         "createdAt": "2026-09-03T10:30:35.717Z",
         "reason": "Claude: falszywy alarm - text-slate-400 lezy na bialym wierszu z hover:bg-slate-50 (#f8fafc), nie na kolorowym tle; kontrast jak w reszcie panelu"
+      },
+      {
+        "rule": "overused-font",
+        "value": "arial",
+        "createdAt": "2026-09-15T22:37:02.591Z",
+        "reason": "szablony e-maili HTML (lib/benefits/mails.ts, app/api/contact-bok/route.ts): klienci poczty wymagają fontu web-safe; spec sklepu §7 nakazuje spójność z istniejącym mailem BOK — decyzja Claude na podstawie specu"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "lib/benefits/mails.ts"
+        ],
+        "createdAt": "2026-09-15T22:37:02.742Z",
+        "reason": "lewa krawędź notki w mailu HTML = styl przejęty z app/api/contact-bok (spec sklepu §7), nie UI aplikacji — decyzja Claude na podstawie specu"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "app/api/contact-bok/route.ts"
+        ],
+        "createdAt": "2026-09-15T22:37:02.888Z",
+        "reason": "istniejący szablon maila BOK sprzed sklepu; lewa krawędź w HTML e-maila, nie w UI — decyzja Claude"
       }
     ]
   }
