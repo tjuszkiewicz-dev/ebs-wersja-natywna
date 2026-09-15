@@ -52,8 +52,8 @@ function StoreTile({ item, action, balance, onSelect }: { item: ServiceItem; act
         <span className={`absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold shadow-sm ${TONE[badge.tone]}`}>{badge.text}</span>
       </div>
       <div className="p-3">
-        <p className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">{item.name}</p>
-        {item.partner && <p className="text-xs text-slate-500 mt-1">{item.partner}</p>}
+        <span className="block text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">{item.name}</span>
+        {item.partner && <span className="block text-xs text-slate-500 mt-1">{item.partner}</span>}
       </div>
     </button>
   );

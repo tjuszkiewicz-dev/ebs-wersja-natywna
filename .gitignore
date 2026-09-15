@@ -35,3 +35,9 @@ tsconfig.tsbuildinfo
 
 # impeccable (plugin design-hook): cache lokalny, config.json jest wspoldzielony
 .impeccable/hook.cache.json
+
+# workspace skilla subagent-driven-development (ledger, briefy, raporty)
+.superpowers/
+
+# kopie zapasowe plików .env (np. .env.local.bak-przed-kluczami-ai) — nigdy do repo
+.env*.bak*

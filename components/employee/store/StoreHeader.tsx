@@ -21,7 +21,7 @@ export function StoreHeader({ query, onQuery, balance, onExit }: Props) {
             className="w-full h-10 pl-10 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-900 placeholder:text-slate-400 transition focus:outline-none focus:ring-2 focus:ring-primary-400 focus:bg-white"
           />
         </label>
-        <div className="hidden md:flex items-center gap-2 px-3 h-10 rounded-xl bg-slate-900 text-white text-sm font-semibold shrink-0" aria-label={`Saldo ${balance} punktów`}>
+        <div role="status" className="hidden md:flex items-center gap-2 px-3 h-10 rounded-xl bg-slate-900 text-white text-sm font-semibold shrink-0" aria-label={`Saldo ${balance} punktów`}>
           <Wallet size={16} /> {balance} pkt
         </div>
         <button

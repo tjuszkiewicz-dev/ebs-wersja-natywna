@@ -21,6 +21,7 @@ export async function sendEmail(input: {
   to: string | string[];
   subject: string;
   html: string;
+  text?: string;
   from?: string;
   replyTo?: string;
   attachments?: { filename: string; content: Buffer }[];
@@ -43,6 +44,7 @@ export async function sendEmail(input: {
       to: input.to,
       subject: input.subject,
       html: input.html,
+      text: input.text,
       replyTo: input.replyTo,
       attachments: input.attachments,
     });

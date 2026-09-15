@@ -55,11 +55,16 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
       setStep('PROCESSING');
       setSliderValue(100);
 
-      const result = await onConfirm();
-      if (result.ok) {
-          setStep('SUCCESS');
-      } else {
-          setErrorText(result.error ?? 'Nie udało się zrealizować zakupu.');
+      try {
+          const result = await onConfirm();
+          if (result.ok) {
+              setStep('SUCCESS');
+          } else {
+              setErrorText(result.error ?? 'Nie udało się zrealizować zakupu.');
+              setStep('ERROR');
+          }
+      } catch {
+          setErrorText('Nie udało się potwierdzić zakupu — odśwież stronę i sprawdź saldo.');
           setStep('ERROR');
       }
   };

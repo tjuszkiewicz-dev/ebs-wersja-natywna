@@ -27,7 +27,9 @@ export async function POST(req: NextRequest) {
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   if (auth.role !== 'pracownik') return NextResponse.json({ error: 'Zakupy w sklepie są dostępne tylko dla pracowników.' }, { status: 403 });
 
-  const parsed = Schema.safeParse(await req.json());
+  const body = await req.json().catch(() => null);
+  if (!body) return NextResponse.json({ error: 'Nieprawidłowe dane.' }, { status: 400 });
+  const parsed = Schema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const { serviceId, amount } = parsed.data;
 
@@ -71,11 +73,11 @@ export async function POST(req: NextRequest) {
       };
       if (input.fulfillment === 'bok') {
         const m = bokOrderMail(input);
-        const rBok = await sendEmail({ to: BOK_EMAIL, replyTo: auth.email, subject: m.subject, html: m.html });
+        const rBok = await sendEmail({ to: BOK_EMAIL, replyTo: auth.email, subject: m.subject, html: m.html, text: m.text });
         if (!rBok.ok) console.error('[purchase] mail not sent', { to: 'bok', transactionId, serviceId, userId: auth.id, reason: rBok.error ?? 'skipped' });
       }
       const e = employeeOrderMail(input);
-      const rEmployee = await sendEmail({ to: auth.email, subject: e.subject, html: e.html });
+      const rEmployee = await sendEmail({ to: auth.email, subject: e.subject, html: e.html, text: e.text });
       if (!rEmployee.ok) console.error('[purchase] mail not sent', { to: 'employee', transactionId, serviceId, userId: auth.id, reason: rEmployee.error ?? 'skipped' });
     } catch (e: any) {
       console.error('[purchase] mail failed', e?.message ?? e);

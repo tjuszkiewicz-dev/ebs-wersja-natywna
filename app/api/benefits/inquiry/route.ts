@@ -56,10 +56,10 @@ export async function POST(req: NextRequest) {
     const input = { productName: item.name, partner: item.partner, employeeName: profile?.full_name ?? 'Pracownik', employeeEmail: auth.email, companyName, when: new Date() };
 
     const b = bokInquiryMail(input);
-    const r1 = await sendEmail({ to: BOK_EMAIL, replyTo: auth.email, subject: b.subject, html: b.html });
+    const r1 = await sendEmail({ to: BOK_EMAIL, replyTo: auth.email, subject: b.subject, html: b.html, text: b.text });
     if (!r1.ok) console.error('[inquiry] mail not sent', { to: 'bok', inquiryId: row.id, serviceId: item.id, userId: auth.id, reason: r1.error ?? 'skipped' });
     const e = employeeInquiryMail(input);
-    const r2 = await sendEmail({ to: auth.email, subject: e.subject, html: e.html });
+    const r2 = await sendEmail({ to: auth.email, subject: e.subject, html: e.html, text: e.text });
     if (!r2.ok) console.error('[inquiry] mail not sent', { to: 'employee', inquiryId: row.id, serviceId: item.id, userId: auth.id, reason: r2.error ?? 'skipped' });
     mailSkipped = !!(r1.skipped || r2.skipped);
   } catch (e: any) {

@@ -109,37 +109,10 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
 
   const [systemConfig, setSystemConfig] = usePersistedState<SystemConfig>('ebs_sys_config_v1', INITIAL_SYSTEM_CONFIG);
   const [auditLogs, setAuditLogs] = usePersistedState<AuditLogEntry[]>('ebs_audit_logs_v1', INITIAL_AUDIT_LOGS);
-  const [services, setServices] = usePersistedState<ServiceItem[]>('ebs_services_v16', INITIAL_SERVICES);
+  // Katalog nie jest trwały: każda zmiana w INITIAL_SERVICES działa od następnego załadowania strony (recenzja końcowa sklepu, 2026-09-15).
+  const [services, setServices] = useState<ServiceItem[]>(INITIAL_SERVICES);
   const [quarterlyStats, setQuarterlyStats] = useState<QuarterlyPerformance[]>([]);
   const [tickets, setTickets] = usePersistedState<SupportTicket[]>('ebs_tickets_v1', INITIAL_TICKETS);
-
-  // FORCE UPDATE SERVICES IF NEEDED
-  React.useEffect(() => {
-    // Check if services need update (image presence check)
-    // We check if the FIRST service (Mental Health) has an image in STATE.
-    // If not, but INITIAL_SERVICES has it, we force reload.
-    const mentalHealthService = services.find(s => s.id === 'SRV-MENTAL-01');
-    const initialMentalHealth = INITIAL_SERVICES.find(s => s.id === 'SRV-MENTAL-01');
-    // REMOVED FUEL CARD CHECK
-
-    const needsImageUpdate = (mentalHealthService && !mentalHealthService.image && initialMentalHealth?.image);
-    
-    // Also check for new categories if they are missing entirely
-    const hasAI = services.some(s => s.id.startsWith('SRV-AI'));
-
-    // Check if Fuel Card is STILL present in state (should be removed)
-    const hasFuelCard = services.some(s => s.id === 'SRV-05');
-
-    // Check for any service not belonging to current INITIAL_SERVICES (e.g. old Orange/Światłowód services)
-    const hasUnknownServices = services.some(s => !INITIAL_SERVICES.some(is => is.id === s.id));
-
-    // Check if any current service is missing its image URL
-    const hasMissingImages = services.some(s => INITIAL_SERVICES.some(is => is.id === s.id) && !s.image);
-
-    if (needsImageUpdate || !hasAI || hasFuelCard || hasUnknownServices || hasMissingImages) {
-        setServices(INITIAL_SERVICES);
-    }
-  }, [services, setServices]); 
 
   // --- Helpers ---
   const logEvent = useCallback((action: string, details: string, targetEntityId?: string, targetEntityType?: any) => {

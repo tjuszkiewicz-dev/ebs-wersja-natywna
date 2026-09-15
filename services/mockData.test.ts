@@ -43,4 +43,12 @@ describe('INITIAL_SERVICES — katalog sklepu benefitów', () => {
     expect(price('SRV-03')).toBe(200);       // porada prawna
     expect(price('SRV-MENTAL-01')).toBe(100);
   });
+
+  it('każda cena w katalogu jest liczbą całkowitą w zakresie 0–10 000', () => {
+    for (const s of INITIAL_SERVICES) {
+      expect(Number.isInteger(s.price), `${s.id}: price nie jest liczbą całkowitą (${s.price})`).toBe(true);
+      expect(s.price, `${s.id}: price poniżej 0`).toBeGreaterThanOrEqual(0);
+      expect(s.price, `${s.id}: price powyżej 10 000`).toBeLessThanOrEqual(10_000);
+    }
+  });
 });

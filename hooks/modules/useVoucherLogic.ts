@@ -302,10 +302,33 @@ export const useVoucherLogic = (
       });
     } catch {
       // Brak połączenia — fetch odrzucił obietnicę zanim doszło do odpowiedzi serwera.
-      setUsers(prev => prev.map(u =>
-        u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance + service.price } : u
-      ));
-      const message = 'Brak połączenia — saldo nie zostało zmienione.';
+      // To NIE znaczy, że żądanie nie dotarło: mogło umorzyć vouchery i zapisać transakcję,
+      // a zgubiła się wyłącznie odpowiedź. Cofnięcie optymistycznego salda na ślepo zaprasza
+      // do podwójnego zakupu — zamiast tego dociągamy prawdziwe saldo z /api/auth/me (to samo
+      // źródło, którego DashboardBootstrap używa przy starcie sesji). Dopiero gdy resync się
+      // nie uda, wracamy do starego zachowania (optymistyczny rollback).
+      let resynced = false;
+      try {
+        const meRes = await fetch('/api/auth/me', { credentials: 'same-origin' });
+        if (meRes.ok) {
+          const me = await meRes.json();
+          const serverBalance: unknown = me?.profile?.voucherBalance;
+          if (typeof serverBalance === 'number') {
+            setUsers(prev => prev.map(u =>
+              u.id === currentUser.id ? { ...u, voucherBalance: serverBalance } : u
+            ));
+            resynced = true;
+          }
+        }
+      } catch { /* brak połączenia także tutaj — spadamy do przywrócenia optymistycznego niżej */ }
+
+      if (!resynced) {
+        setUsers(prev => prev.map(u =>
+          u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance + service.price } : u
+        ));
+      }
+
+      const message = 'Nie udało się potwierdzić zakupu (brak połączenia). Odśwież stronę i sprawdź saldo oraz historię, zanim spróbujesz ponownie.';
       addToast('Transakcja Odrzucona', message, 'ERROR');
       return { ok: false, error: message };
     }
