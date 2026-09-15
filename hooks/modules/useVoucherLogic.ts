@@ -293,11 +293,22 @@ export const useVoucherLogic = (
       u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance - service.price } : u
     ));
 
-    const res = await fetch('/api/vouchers/purchase', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ serviceId: service.id, serviceName: service.name, amount: service.price }),
-    });
+    let res: Response;
+    try {
+      res = await fetch('/api/vouchers/purchase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceId: service.id, serviceName: service.name, amount: service.price }),
+      });
+    } catch {
+      // Brak połączenia — fetch odrzucił obietnicę zanim doszło do odpowiedzi serwera.
+      setUsers(prev => prev.map(u =>
+        u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance + service.price } : u
+      ));
+      const message = 'Brak połączenia — saldo nie zostało zmienione.';
+      addToast('Transakcja Odrzucona', message, 'ERROR');
+      return { ok: false, error: message };
+    }
 
     if (!res.ok) {
       setUsers(prev => prev.map(u =>
@@ -310,9 +321,9 @@ export const useVoucherLogic = (
     }
 
     const body = await res.json().catch(() => ({}));
-    const transactionId: string = body?.transactionId || `TRX-${Date.now()}`;
+    const transactionId: string | undefined = body?.transactionId || undefined;
     const newTx: Transaction = {
-      id: transactionId, userId: currentUser.id, type: 'DEBIT',
+      id: transactionId ?? `TRX-${Date.now()}`, userId: currentUser.id, type: 'DEBIT',
       serviceId: service.id, serviceName: service.name, amount: service.price, date: new Date().toISOString(),
     };
     setTransactions(prev => [newTx, ...prev]);
