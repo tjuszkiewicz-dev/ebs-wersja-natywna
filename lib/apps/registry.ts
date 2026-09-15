@@ -25,7 +25,9 @@ export const APPS: readonly AppDef[] = [
     name: 'Agencja Pracy',
     icon: 'hard-hat',
     route: '/app/agencja',
-    defaultRoles: [Role.COORDINATOR, Role.PAYROLL, Role.TEMP_WORKER, Role.SUPERADMIN],
+    // Superadmin/owner NIE dostaje tego kafelka (decyzja właściciela 2026-09-15: w launcherze tylko
+    // Benefity i Administracja) — do agencji wchodzi z menu panelu administratora.
+    defaultRoles: [Role.COORDINATOR, Role.PAYROLL, Role.TEMP_WORKER],
   },
   {
     // Panel administratora (klienci, płatności, agencja, CRM, księgowość).

@@ -76,8 +76,14 @@ dla każdej roli, która ją widzi — `pracownik` → `/dashboard/employee`, `p
 **superadmin/owner → `/dashboard/employee` w trybie podglądu** (menu boczne pracownika wymuszone w
 `EmployeeDashboardClient`, bo pozycje admina nie działają w tym layoucie). Panel administratora ma
 **własny kafelek „Administracja"** (`administracja` w `lib/apps/registry`, `defaultRoles: [SUPERADMIN]`,
-→ `/dashboard/admin`); „Agencja Pracy" dla superadmina → `/dashboard/admin?view=hr-pracownicy` (panel otwarty od razu
-na sekcji agencji — `AdminDashboardClient` czyta `?view=` po zamontowaniu, tylko widoki z `VIEW_TO_TAB`). Do 15.09 oba kafelki
+→ `/dashboard/admin`). **Superadmin/owner widzi w launcherze TYLKO Benefity i Administrację** (decyzja
+właściciela 15.09 po południu): `agencja` nie ma już `SUPERADMIN` w `defaultRoles`, a `appsForUser` daje
+superadminowi appki z jego `defaultRoles` (wyjątki z panelu Uprawnień dalej ignorowane). Kafelek „Agencja Pracy"
+widzą koordynator, płatnik i pracownik tymczasowy; superadmin do agencji wchodzi z menu Administracji.
+**Historia:** przez kilka godzin 15.09 istniał trzeci kafelek dla superadmina (`fba8285`:
+„Agencja Pracy" → `/dashboard/admin?view=hr-pracownicy`, panel otwarty od razu
+na sekcji agencji). Mechanizm `?view=` w `AdminDashboardClient` (tylko widoki z `VIEW_TO_TAB`) **zostaje** — każdy link
+może otworzyć panel na wskazanej sekcji. Do 15.09 oba kafelki
 superadmina prowadziły do panelu admina. Cele: `lib/apps/appTargets.ts` + testy `appTargets.test.ts`.
 
 **E2a (2026-07-17):** appka `agencja` w rejestrze (placeholder `/app/agencja` do czasu E2b);

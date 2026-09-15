@@ -3,7 +3,9 @@ import { Role } from '@/types/enums';
 import type { Entitlement } from '@/types/entitlement';
 
 export function appsForUser(role: Role, entitlements: Entitlement[]): AppId[] {
-  if (role === Role.SUPERADMIN) return APPS.map(a => a.id);
+  // Superadmin: appki z jego defaultRoles, wyjątki (grant/revoke) ignorowane — nie da się mu
+  // niczego odebrać ani dosypać z panelu Uprawnień.
+  if (role === Role.SUPERADMIN) return APPS.filter(a => a.defaultRoles.includes(Role.SUPERADMIN)).map(a => a.id);
   const set = new Set<AppId>(
     APPS.filter(a => a.defaultRoles.includes(role)).map(a => a.id),
   );

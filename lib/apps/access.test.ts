@@ -11,13 +11,13 @@ describe('appsForUser (EBS E1: tylko benefity w rejestrze)', () => {
     expect(appsForUser(Role.HR, [])).toEqual(['benefity']);
   });
 
-  it('SUPERADMIN → wszystkie zarejestrowane', () => {
-    expect(appsForUser(Role.SUPERADMIN, []).sort()).toEqual(['administracja', 'agencja', 'benefity']);
+  it('SUPERADMIN → Benefity i Administracja (bez kafelka Agencja Pracy — decyzja 2026-09-15)', () => {
+    expect(appsForUser(Role.SUPERADMIN, []).sort()).toEqual(['administracja', 'benefity']);
   });
 
   it('SUPERADMIN: revoke ignorowany', () => {
     expect(appsForUser(Role.SUPERADMIN, [{ app_id: 'benefity', effect: 'revoke' }]).sort())
-      .toEqual(['administracja', 'agencja', 'benefity']);
+      .toEqual(['administracja', 'benefity']);
   });
 
   it('COORDINATOR → agencja; TEMP_WORKER → agencja; EMPLOYEE bez agencji', () => {

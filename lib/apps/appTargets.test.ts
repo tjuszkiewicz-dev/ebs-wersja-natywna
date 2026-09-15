@@ -36,7 +36,7 @@ describe('resolvePostLogin — logowanie nie zmienia się przez nowy kafelek', (
     expect(resolvePostLogin(Role.EMPLOYEE, ['benefity'])).toBe('/dashboard/employee');
   });
 
-  it('superadmin z trzema appkami ląduje w launcherze', () => {
-    expect(resolvePostLogin(Role.SUPERADMIN, ['benefity', 'agencja', 'administracja'])).toBe('/launcher');
+  it('superadmin z dwiema appkami ląduje w launcherze', () => {
+    expect(resolvePostLogin(Role.SUPERADMIN, ['benefity', 'administracja'])).toBe('/launcher');
   });
 });
