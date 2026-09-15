@@ -34,7 +34,8 @@
 //   `bg-primary-700 text-white` (~5,5:1); szczegóły przy `TONE` w StoreGrid.tsx.
 // - Dodane `focus-visible` na klikalnych elementach, które go nie miały w kodzie z brifu
 //   (przycisk zamknięcia, kategorie, "Wyczyść") — ujednolicone z kafelkami i polem szukania.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import type { ServiceItem, Transaction, PurchaseResult } from '@/types';
 import type { BenefitCategory } from '@/types/enums';
@@ -62,11 +63,22 @@ export function BenefitStore({ services, transactions, balance, userEmail, canTr
   const [selected, setSelected] = useState<ServiceItem | null>(null);
   const reduceMotion = useReducedMotion();
 
+  // Portal do document.body: ten komponent jest montowany wewnątrz prawej kolumny
+  // EmployeeDashboardClient ("flex-1 flex flex-col … relative z-10"), która tworzy własny
+  // kontekst warstwowania — z-[100] poniżej liczyłby się tylko WEWNĄTRZ niego, więc Sidebar
+  // (fixed, z-50, poza tą kolumną) i tak zasłaniał lewy pasek kategorii sklepu. Ta sama
+  // pułapka co przy komunikatorze w E6a. `mounted` unika niezgodności SSR/klienta (document
+  // nie istnieje na serwerze).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const ownedIds = useMemo(() => new Set(transactions.map(t => t.serviceId).filter((x): x is string => !!x)), [transactions]);
   const counts = useMemo(() => countByCategory(filterCatalog(services, { query })), [services, query]);
   const groups = useMemo(() => groupByCategory(filterCatalog(services, { category, query })), [services, category, query]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <motion.div
       initial={reduceMotion ? false : { opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -90,6 +102,7 @@ export function BenefitStore({ services, transactions, balance, userEmail, canTr
             onClose={() => setSelected(null)} onPurchase={onPurchase} onOpenApp={onOpenApp} />
         )}
       </AnimatePresence>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 }
