@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUserWithRole } from '@/lib/apiAuth';
 import { supabaseServer } from '@/lib/supabase';
 import { sendEmail } from '@/lib/mailer';
+import { BOK_EMAIL } from '@/lib/benefits/constants';
 import { z } from 'zod';
 
 const BodySchema = z.object({
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
   // Wysyłka ze skrzynki Stratton (SMTP); odpowiedź trafia do pracownika (replyTo).
   const res = await sendEmail({
-    to: 'bok@stratton-prime.pl',
+    to: BOK_EMAIL,
     replyTo: senderEmail,
     subject: `[EBS BOK] ${categoryLabels[category]}: ${subject}`,
     html: `
