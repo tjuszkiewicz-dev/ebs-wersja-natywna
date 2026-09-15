@@ -16,7 +16,7 @@ npm start       # next start (production server)
 
 ```bash
 # Testy
-npm test        # vitest run — 32 pliki, 298 testów
+npm test        # vitest run — 41 plików, 379 testów
 npm run test:watch
 ```
 
@@ -604,6 +604,22 @@ Faktury VAT i noty księgowe są wystawiane w **Fakturowni** (źródło prawdy),
 `views/DashboardEmployee.tsx` — 3-column content layout:
 - Left bottom banner (h=200): `<img src="/orange.png" className="w-full h-full object-cover" />`
 - Right bottom banner (h=200): `<img src="/PZU.png" className="w-full h-full object-cover" />`
+
+### Sklep benefitów v2 (2026-09-15)
+
+Spec: `docs/superpowers/specs/2026-09-15-sklep-benefitow-design.md`. Pełnoekranowy sklep
+(`components/employee/store/*`) pod `activeTab === 'CATALOG'`; katalog **w kodzie**
+(`INITIAL_SERVICES` + `category`/`partner`/`fulfillment`, klucz localStorage `ebs_services_v16`);
+logika w `lib/benefits/*` (czyste funkcje z testami). Dwie ścieżki: cena > 0 → `RedemptionModal` →
+`POST /api/vouchers/purchase` (serwer **waliduje cenę z katalogiem** i realizuje vouchery jedną
+funkcją `redeem_vouchers_for_service`, migracja 061 — jeden wpis w ledgerze, e-maile do BOK
+i pracownika); cena 0 → `POST /api/benefits/inquiry` (tabela `benefit_inquiries`, deduplikacja
+7 dni, e-maile). Aplikacje Eliton (`fulfillment: 'auto'`) odblokowują się same.
+**Stary Pulpit z karuzelami zostaje w kodzie pod `STORE_LAYOUT = 'v1'`
+(`lib/benefits/storeLayout.ts`) — nie usuwać.** Do 15.09.2026 zakup za punkty **nigdy nie zadziałał
+na produkcji** (`redeem_voucher` wymagał statusu `active`, dystrybucja nadaje `distributed`); ledger
+nie miał ani jednego wpisu `wykorzystanie`. Zgłoszenia `SupportTicketSystem` w portalu to nadal
+tylko `localStorage` — BOK pracuje z e-maili (`BOK_EMAIL`, dom. `bok@stratton-prime.pl`).
 
 ### Admin Dashboard Layout (`AdminDashboardClient.tsx`)
 
