@@ -11,12 +11,15 @@ interface RedemptionModalProps {
   onConfirm: () => Promise<PurchaseResult>;
   userEmail?: string;
   onOpenApp?: () => void;
+  /** Wywoływane przy każdej zmianie step ↔ PROCESSING — pozwala rodzicowi (StoreDetail)
+   *  zablokować własne ścieżki zamknięcia (Escape, klik w tło) w trakcie zakupu w locie. */
+  onProcessingChange?: (processing: boolean) => void;
 }
 
 type Step = 'REVIEW' | 'PROCESSING' | 'SUCCESS' | 'ERROR';
 
 export const RedemptionModal: React.FC<RedemptionModalProps> = ({
-  isOpen, onClose, service, onConfirm, userEmail, onOpenApp
+  isOpen, onClose, service, onConfirm, userEmail, onOpenApp, onProcessingChange
 }) => {
   const [step, setStep] = useState<Step>('REVIEW');
   const [sliderValue, setSliderValue] = useState(0);
@@ -31,6 +34,12 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
         setErrorText('');
     }
   }, [isOpen]);
+
+  // Zakup w locie (fetch do onConfirm) nie da się anulować — rodzic musi wiedzieć, żeby
+  // zablokować własne Escape/klik-w-tło i nie zgubić wyniku (SUCCESS/ERROR) w połowie.
+  useEffect(() => {
+    onProcessingChange?.(step === 'PROCESSING');
+  }, [step, onProcessingChange]);
 
   if (!isOpen) return null;
 
@@ -85,9 +94,11 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
                         <ShoppingCart size={64} className="text-emerald-700 relative z-10" />
                         <button
                             onClick={onClose}
-                            className="absolute top-4 right-4 bg-white/50 hover:bg-white p-2 rounded-full backdrop-blur-sm transition"
+                            disabled={isProcessing}
+                            aria-disabled={isProcessing}
+                            className={`absolute top-4 right-4 p-2 rounded-full backdrop-blur-sm transition ${isProcessing ? 'bg-white/30 cursor-not-allowed' : 'bg-white/50 hover:bg-white'}`}
                         >
-                            <X size={20} className="text-slate-800"/>
+                            <X size={20} className={isProcessing ? 'text-slate-400' : 'text-slate-800'} />
                         </button>
                     </div>
 

@@ -40,6 +40,7 @@ const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-p
 
 export function StoreDetail({ item, action, balance, canTransact, userEmail, onClose, onPurchase, onOpenApp }: Props) {
   const [buying, setBuying] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [inquiry, setInquiry] = useState<InquiryState>({ kind: 'idle' });
   const reduceMotion = useReducedMotion();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -59,15 +60,18 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
   // Escape zamyka najpierw najwyższą warstwę: modal zakupu, jeśli jest otwarty (tak samo jak
   // jego własny przycisk X), a dopiero potem panel — bez tego przypadkowy Escape w trakcie
   // „Przetwarzanie…" ucinałby cały panel (i modal razem z nim) bez pokazania wyniku zakupu.
+  // Gdy zakup jest faktycznie w locie (processing), Escape nie robi NIC — ten fetch nie da się
+  // cofnąć, więc zniknięcie modalu bez pokazania SUCCESS/ERROR ukryłoby, czy punkty zeszły.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      if (processing) return;
       if (buying) { setBuying(false); return; }
       onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [buying, onClose]);
+  }, [processing, buying, onClose]);
 
   const sendInquiry = async () => {
     setInquiry({ kind: 'sending' });
@@ -155,7 +159,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
         exit={reduceMotion ? undefined : { opacity: 0 }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
         className="fixed inset-0 z-[110] bg-slate-900/40"
-        onClick={onClose}
+        onClick={() => { if (!processing) onClose(); }}
         aria-hidden
       />
       <motion.aside
@@ -200,6 +204,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
           onConfirm={() => onPurchase(item)}
           userEmail={userEmail}
           onOpenApp={tab ? () => { setBuying(false); onClose(); onOpenApp(tab); } : undefined}
+          onProcessingChange={setProcessing}
         />
       )}
     </>
