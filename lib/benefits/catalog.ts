@@ -36,7 +36,7 @@ export const APP_TAB_BY_SERVICE: Readonly<Record<string, EmployeeAppTab>> = {
 export function normalizeSearch(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/ł/g, 'l').replace(/Ł/g, 'L')
     .toLowerCase()
     .trim();

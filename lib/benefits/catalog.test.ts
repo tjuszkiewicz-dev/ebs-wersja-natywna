@@ -33,11 +33,20 @@ describe('normalizeSearch / filterCatalog', () => {
     expect(normalizeSearch('  UBEZPIECZENIE Życiowe ')).toBe('ubezpieczenie zyciowe');
   });
 
+  it('ł/Ł też są sprowadzane do l/L (NFD ich nie rozkłada)', () => {
+    expect(normalizeSearch('Łódź żółć')).toBe('lodz zolc');
+  });
+
   it('szuka po nazwie, opisie i partnerze, bez rozróżniania wielkości liter i ogonków', () => {
     expect(filterCatalog(items, { query: 'ubezp' }).map(i => i.id)).toEqual(['A']);
     expect(filterCatalog(items, { query: 'REHABILIT' }).map(i => i.id)).toEqual(['B']);
     expect(filterCatalog(items, { query: 'profitowi' }).map(i => i.id).sort()).toEqual(['A', 'B']);
     expect(filterCatalog(items, { query: 'zycie' })).toEqual([]);
+  });
+
+  it('szuka po nazwie zawierającej ł, gdy zapytanie wpisano zwykłym l (dedykowana gałąź ł/Ł ma pokrycie w wyszukiwaniu)', () => {
+    const lokalneItems = [item({ id: 'E', name: 'Sprzęt do łowienia' })];
+    expect(filterCatalog(lokalneItems, { query: 'lowienia' }).map(i => i.id)).toEqual(['E']);
   });
 
   it('filtruje po kategorii, ALL = wszystkie aktywne', () => {
