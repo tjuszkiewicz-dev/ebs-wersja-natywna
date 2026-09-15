@@ -8,6 +8,7 @@ import { ServiceCatalog } from '../components/employee/dashboard/ServiceCatalog'
 import { EmployeeTransactionHistory } from '../components/employee/dashboard/EmployeeTransactionHistory';
 import { EmployeeBuybackList } from '../components/employee/dashboard/EmployeeBuybackList';
 import { RedemptionModal } from '../components/employee/RedemptionModal';
+import { APP_TAB_BY_SERVICE } from '../lib/benefits/catalog';
 import { WalletCard } from '../components/employee/mobile/WalletCard';
 import StarBorder from '../components/bits/StarBorder/StarBorder';
 import { SupportTicketSystem } from '../components/support/SupportTicketSystem';
@@ -733,11 +734,9 @@ export const DashboardEmployee: React.FC<Props> = ({
           isOpen={!!selectedService}
           onClose={() => setSelectedService(null)}
           service={selectedService}
-          onConfirm={() => {
-            onPurchaseService(selectedService);
-            if (selectedService.id === 'SRV-MENTAL-01') setTimeout(() => setActiveTab('WELLBEING'), 1000);
-            else if (selectedService.id === 'SRV-LEGAL-01') setTimeout(() => setActiveTab('LEGAL'), 1000);
-          }}
+          onConfirm={() => onPurchaseService(selectedService)}
+          userEmail={user.email}
+          onOpenApp={APP_TAB_BY_SERVICE[selectedService.id] ? () => { setSelectedService(null); setActiveTab(APP_TAB_BY_SERVICE[selectedService.id]); } : undefined}
         />
       )}
 
@@ -805,11 +804,9 @@ export const DashboardEmployee: React.FC<Props> = ({
             isOpen={!!selectedService}
             onClose={() => setSelectedService(null)}
             service={selectedService}
-            onConfirm={() => {
-              onPurchaseService(selectedService);
-              if (selectedService.id === 'SRV-MENTAL-01') setTimeout(() => setActiveTab('WELLBEING'), 1000);
-              else if (selectedService.id === 'SRV-LEGAL-01') setTimeout(() => setActiveTab('LEGAL'), 1000);
-            }}
+            onConfirm={() => onPurchaseService(selectedService)}
+            userEmail={user.email}
+            onOpenApp={APP_TAB_BY_SERVICE[selectedService.id] ? () => { setSelectedService(null); setActiveTab(APP_TAB_BY_SERVICE[selectedService.id]); } : undefined}
           />
         )}
         <FloatingTabBar
