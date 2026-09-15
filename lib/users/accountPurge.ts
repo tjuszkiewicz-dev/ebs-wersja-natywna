@@ -113,6 +113,10 @@ export const OWNED_TABLES: readonly TableRef[] = [
   { table: 'chat_reactions',           column: 'user_id',        label: 'reakcje w komunikatorze' },
   { table: 'chat_push_subscriptions',  column: 'user_id',        label: 'subskrypcje powiadomień push' },
 
+  // SKLEP BENEFITÓW (061). Zapytania o ofertę martwego konta nie mają wartości księgowej;
+  // FK ma ON DELETE CASCADE, ale przy ANONIMIZACJI profil zostaje — kasujemy jawnie.
+  { table: 'benefit_inquiries',        column: 'user_id',        label: 'zapytania o ofertę w sklepie benefitów' },
+
   // KASOWANE JAWNIE, nie kaskadowo (recenzja I1). W żywej bazie
   // `notifications.user_id` jest typu TEXT i NIE MA ŻADNEGO klucza obcego —
   // wbrew migracji 001, którą nadpisała 025_fix_notifications_schema.

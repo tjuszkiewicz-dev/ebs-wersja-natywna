@@ -236,6 +236,7 @@ describe('buildPlan', () => {
       'chat_participants.user_id',
       'chat_reactions.user_id',
       'chat_push_subscriptions.user_id',
+      'benefit_inquiries.user_id',
       'notifications.user_id',
     ];
     expect(buildPlan('anonymize').deletes).toEqual(expected);
