@@ -88,6 +88,8 @@ export const DashboardEmployee: React.FC<Props> = ({
     onViewChange?.('emp-catalog');
   };
 
+  const goToWallet = () => { setActiveTab('WALLET'); onViewChange?.('emp-dashboard'); };
+
   const { state, actions } = useStrattonSystem();
   const { tickets } = state;
 
@@ -109,6 +111,10 @@ export const DashboardEmployee: React.FC<Props> = ({
       }
     }
   }, [currentView]);
+
+  useEffect(() => {
+    if (activeTab !== 'CATALOG') setStoreInitialCategory(null);
+  }, [activeTab]);
 
   useEffect(() => {
     const handle = () => {
@@ -186,10 +192,10 @@ export const DashboardEmployee: React.FC<Props> = ({
 
   /* Full-screen overlays */
   if (activeTab === 'WELLBEING' && hasMentalHealthAccess) {
-    return <MentalHealthDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={() => setActiveTab('WALLET')} />;
+    return <MentalHealthDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={goToWallet} />;
   }
   if (activeTab === 'LEGAL' && hasLegalAccess) {
-    return <LegalAssistantDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={() => setActiveTab('WALLET')} />;
+    return <LegalAssistantDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={goToWallet} />;
   }
   if (activeTab === 'SECURE_MESSENGER' && hasSecureMessengerAccess) {
     return (
@@ -199,7 +205,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             <div className="bg-emerald-600 text-white p-1.5 rounded-lg"><Lock size={18} /></div>
             <span className="font-bold text-slate-900">STRATTON <span className="text-emerald-600">SECURE</span></span>
           </div>
-          <button onClick={() => setActiveTab('WALLET')} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
+          <button onClick={goToWallet} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto bg-[#f8fafc]">
           <div className="max-w-7xl mx-auto px-4 py-8 h-full">
@@ -217,10 +223,10 @@ export const DashboardEmployee: React.FC<Props> = ({
             <div className="bg-indigo-600 text-white p-1.5 rounded-lg"><ShieldCheck size={18} /></div>
             <span className="font-bold text-slate-900">DIGITAL <span className="text-indigo-600">VAULT</span></span>
           </div>
-          <button onClick={() => setActiveTab('WALLET')} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
+          <button onClick={goToWallet} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-hidden bg-[#f8fafc]">
-          <DigitalVaultApp onClose={() => setActiveTab('WALLET')} />
+          <DigitalVaultApp onClose={goToWallet} />
         </div>
       </div>
     );
@@ -236,7 +242,7 @@ export const DashboardEmployee: React.FC<Props> = ({
         initialCategory={storeInitialCategory}
         onPurchase={onPurchaseService}
         onOpenApp={(tab) => setActiveTab(tab)}
-        onExit={() => { setActiveTab('WALLET'); onViewChange?.('emp-dashboard'); }}
+        onExit={goToWallet}
       />
     );
   }
@@ -369,9 +375,9 @@ export const DashboardEmployee: React.FC<Props> = ({
         <button onClick={() => openStore(null)}
           className="w-full rounded-3xl p-6 md:p-8 text-left relative overflow-hidden border border-white/10 hover:border-primary-300/40 transition group"
           style={{ background: 'linear-gradient(135deg, rgba(48,223,106,.18), rgba(66,151,205,.12))' }}>
-          <p className="text-xs font-bold uppercase tracking-widest text-white/60">Sklep benefitów</p>
-          <p className="text-2xl md:text-3xl font-black text-white mt-2">Przeglądaj benefity →</p>
-          <p className="text-white/70 text-sm mt-2 max-w-md">Zdrowie, ubezpieczenia, finanse, rozwój, rodzina i codzienność — {services.filter(s => s.isActive).length} pozycji w jednym miejscu.</p>
+          <span className="block text-xs font-bold uppercase tracking-widest text-white/60">Sklep benefitów</span>
+          <span className="block text-2xl md:text-3xl font-black text-white mt-2">Przeglądaj benefity →</span>
+          <span className="block text-white/70 text-sm mt-2 max-w-md">Zdrowie, ubezpieczenia, finanse, rozwój, rodzina i codzienność — {services.filter(s => s.isActive).length} pozycji w jednym miejscu.</span>
         </button>
       )}
 
