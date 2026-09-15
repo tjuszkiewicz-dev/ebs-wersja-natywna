@@ -35,13 +35,14 @@
 // - Dodane `focus-visible` na klikalnych elementach, które go nie miały w kodzie z brifu
 //   (przycisk zamknięcia, kategorie, "Wyczyść") — ujednolicone z kafelkami i polem szukania.
 import React, { useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import type { ServiceItem, Transaction, PurchaseResult } from '@/types';
 import type { BenefitCategory } from '@/types/enums';
-import { filterCatalog, groupByCategory, countByCategory, type CategoryFilter, type EmployeeAppTab } from '@/lib/benefits/catalog';
+import { filterCatalog, groupByCategory, countByCategory, resolveAction, type CategoryFilter, type EmployeeAppTab } from '@/lib/benefits/catalog';
 import { StoreHeader } from './StoreHeader';
 import { StoreCategories } from './StoreCategories';
 import { StoreGrid } from './StoreGrid';
+import { StoreDetail } from './StoreDetail';
 
 export interface BenefitStoreProps {
   services: ServiceItem[];
@@ -82,8 +83,13 @@ export function BenefitStore({ services, transactions, balance, userEmail, canTr
           <StoreGrid groups={groups} ownedIds={ownedIds} balance={balance} onSelect={setSelected} query={query} onClearQuery={() => setQuery('')} />
         </main>
       </div>
-      {/* TASK 9: tu wchodzi <StoreDetail …/> */}
-      {selected && null}
+      <AnimatePresence>
+        {selected && (
+          <StoreDetail key={selected.id} item={selected} action={resolveAction(selected, ownedIds, balance)}
+            balance={balance} canTransact={canTransact} userEmail={userEmail}
+            onClose={() => setSelected(null)} onPurchase={onPurchase} onOpenApp={onOpenApp} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

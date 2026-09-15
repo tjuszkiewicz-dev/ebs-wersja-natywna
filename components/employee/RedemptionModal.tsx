@@ -74,7 +74,7 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[130] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
         <div className="bg-white w-full rounded-t-2xl md:rounded-2xl max-w-md overflow-hidden shadow-2xl transition-all h-[90vh] md:h-auto flex flex-col">
 
             {(step === 'REVIEW' || step === 'PROCESSING') && (
