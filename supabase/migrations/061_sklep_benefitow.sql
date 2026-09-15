@@ -3,6 +3,7 @@
 --   1. redeem_voucher() przyjmuje status 'distributed' — dystrybucja (019/035) nadaje ten status,
 --      a funkcja z 001 wymagała 'active', przez co żaden zakup na produkcji nigdy nie przeszedł
 --      (ledger: 0 wpisów 'wykorzystanie' na dzień 2026-09-15).
+--      Dodatkowo: twarda kontrola salda (INSUFFICIENT_BALANCE) i uprawnienia jak w nowej funkcji (recenzja Task 4).
 --   2. redeem_vouchers_for_service() — realizacja N voucherów w JEDNEJ transakcji: najkrótszy
 --      termin ważności pierwszy, za mało voucherów = nic nie schodzi, JEDEN wpis w ledgerze.
 --   3. benefit_inquiries — zgłoszenia „Zapytaj o ofertę" (deduplikacja 7 dni + ślad dla BOK).
@@ -22,10 +23,14 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Voucher niedostępny lub nieważny (serial: %)', p_serial_number; END IF;
   UPDATE vouchers SET status = 'consumed', redeemed_at = NOW(), redeemed_by_user_id = p_user_id WHERE id = v_voucher_id;
   UPDATE voucher_accounts SET balance = balance - 1 WHERE user_id = p_user_id AND balance >= 1;
+  IF NOT FOUND THEN RAISE EXCEPTION 'INSUFFICIENT_BALANCE'; END IF;
   INSERT INTO voucher_transactions (from_user_id, to_user_id, amount, type, service_id, service_name)
   VALUES (p_user_id, p_user_id, 1, 'wykorzystanie', p_service_id, p_service_name);
   RETURN v_voucher_id;
 END; $$;
+
+REVOKE ALL ON FUNCTION public.redeem_voucher(TEXT, UUID, TEXT, TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.redeem_voucher(TEXT, UUID, TEXT, TEXT) TO service_role;
 
 -- 2. Atomowa realizacja N voucherów za usługę
 CREATE OR REPLACE FUNCTION public.redeem_vouchers_for_service(
