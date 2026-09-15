@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
   if (!item || !item.isActive) return NextResponse.json({ error: 'Ta pozycja nie istnieje w katalogu.' }, { status: 400 });
   if (item.price !== 0) return NextResponse.json({ error: 'Ta pozycja ma cenę — kup ją za punkty.' }, { status: 400 });
 
-  const db = supabaseServer() as any;
+  const supabase = supabaseServer();
+  const db = supabase as any; // benefit_inquiries nie jest w types/database.ts
   const { data: last } = await db.from('benefit_inquiries')
     .select('created_at').eq('user_id', auth.id).eq('service_id', item.id)
     .order('created_at', { ascending: false }).limit(1).maybeSingle();
@@ -42,16 +43,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Nie udało się zapisać zgłoszenia.' }, { status: 500 });
   }
 
-  const { data: profile } = await db.from('user_profiles').select('full_name, company_id').eq('id', auth.id).single();
-  let companyName: string | undefined;
-  if (profile?.company_id) {
-    const { data: c } = await db.from('companies').select('name').eq('id', profile.company_id).single();
-    companyName = c?.name ?? undefined;
-  }
-  const input = { productName: item.name, partner: item.partner, employeeName: profile?.full_name ?? 'Pracownik', employeeEmail: auth.email, companyName, when: new Date() };
-
+  // Zgłoszenie jest już zapisane — od tego miejsca żaden błąd (odczyt profilu, wysyłka maila)
+  // nie może zamienić sukcesu w 500; wszystko poniżej tylko ustawia mailSkipped.
   let mailSkipped = false;
   try {
+    const { data: profile } = await supabase.from('user_profiles').select('full_name, company_id').eq('id', auth.id).single();
+    let companyName: string | undefined;
+    if (profile?.company_id) {
+      const { data: c } = await supabase.from('companies').select('name').eq('id', profile.company_id).single();
+      companyName = c?.name ?? undefined;
+    }
+    const input = { productName: item.name, partner: item.partner, employeeName: profile?.full_name ?? 'Pracownik', employeeEmail: auth.email, companyName, when: new Date() };
+
     const b = bokInquiryMail(input);
     const r1 = await sendEmail({ to: BOK_EMAIL, replyTo: auth.email, subject: b.subject, html: b.html });
     if (!r1.ok) console.error('[inquiry] mail not sent', { to: 'bok', inquiryId: row.id, serviceId: item.id, userId: auth.id, reason: r1.error ?? 'skipped' });
