@@ -2,7 +2,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Role, User } from '../types';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
-import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2, Mic } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2, Mic, ShoppingBag } from 'lucide-react';
+import { STORE_LAYOUT } from '@/lib/benefits/storeLayout';
 
 // Ikony dla dynamicznego menu budowanego z uprawnień (PERMISSION_MENU w registry) — 1:1 z BBS
 const MENU_ICONS: Record<string, React.ReactNode> = {
@@ -138,6 +139,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         return superMenu;
       }
       case Role.EMPLOYEE:
+        if (STORE_LAYOUT === 'v2') {
+          return [
+            { id: 'emp-twoje-aplikacje', label: 'Twoje Aplikacje', icon: <Smartphone size={20} /> },
+            { id: 'emp-catalog', label: 'Sklep benefitów', icon: <ShoppingBag size={20} /> },
+            { id: 'emp-history', label: 'Historia', icon: <History size={20} /> },
+            { id: 'emp-support', label: 'Centrum Pomocy', icon: <HelpCircle size={20} /> },
+            { id: 'emp-active-services', label: 'Aktywne usługi', icon: <ShieldCheck size={20} /> },
+          ];
+        }
         return [
           { id: 'emp-twoje-aplikacje', label: 'Twoje Aplikacje', icon: <Smartphone size={20} /> },
           { id: 'emp-profitowi', label: 'Profitowi', icon: <HeartPulse size={20} /> },

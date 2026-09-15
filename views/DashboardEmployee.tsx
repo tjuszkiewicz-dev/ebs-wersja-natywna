@@ -2,13 +2,15 @@
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Voucher, VoucherStatus, BuybackAgreement, ServiceItem,
-  Transaction, UserFinance, ServiceType, BenefitCategory, PurchaseResult
+  Transaction, UserFinance, ServiceType, BenefitCategory, PurchaseResult, Role
 } from '../types';
 import { ServiceCatalog } from '../components/employee/dashboard/ServiceCatalog';
 import { EmployeeTransactionHistory } from '../components/employee/dashboard/EmployeeTransactionHistory';
 import { EmployeeBuybackList } from '../components/employee/dashboard/EmployeeBuybackList';
 import { RedemptionModal } from '../components/employee/RedemptionModal';
-import { APP_TAB_BY_SERVICE } from '../lib/benefits/catalog';
+import { APP_TAB_BY_SERVICE, partnerCount } from '../lib/benefits/catalog';
+import { BenefitStore } from '../components/employee/store/BenefitStore';
+import { STORE_LAYOUT } from '../lib/benefits/storeLayout';
 import { WalletCard } from '../components/employee/mobile/WalletCard';
 import StarBorder from '../components/bits/StarBorder/StarBorder';
 import { SupportTicketSystem } from '../components/support/SupportTicketSystem';
@@ -77,7 +79,14 @@ export const DashboardEmployee: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<Tab>('WALLET');
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const [showGuide, setShowGuide] = usePersistedState<boolean>('ebs_guide_employee_v1', true);
+  const [storeInitialCategory, setStoreInitialCategory] = useState<BenefitCategory | null>(null);
   const isScrollingRef = useRef(false);
+
+  const openStore = (category: BenefitCategory | null = null) => {
+    setStoreInitialCategory(category);
+    setActiveTab('CATALOG');
+    onViewChange?.('emp-catalog');
+  };
 
   const { state, actions } = useStrattonSystem();
   const { tickets } = state;
@@ -87,8 +96,10 @@ export const DashboardEmployee: React.FC<Props> = ({
     if (currentView === 'emp-history') { setActiveTab('HISTORY'); sc.scrollTo({ top: 0 }); }
     else if (currentView === 'emp-active-services') { setActiveTab('ACTIVE_SERVICES'); sc.scrollTo({ top: 0 }); }
     else if (currentView === 'emp-support') { setActiveTab('SUPPORT'); sc.scrollTo({ top: 0 }); }
+    else if (currentView === 'emp-catalog' && STORE_LAYOUT === 'v2') { setActiveTab('CATALOG'); }
     else if (currentView.startsWith('emp-')) {
-      if (activeTab !== 'CATALOG') setActiveTab('CATALOG');
+      const target = STORE_LAYOUT === 'v2' ? 'WALLET' : 'CATALOG';
+      if (activeTab !== target) setActiveTab(target);
       if (!isScrollingRef.current) {
         setTimeout(() => {
           const elName = currentView.replace('emp-', 'sec-emp-');
@@ -101,6 +112,7 @@ export const DashboardEmployee: React.FC<Props> = ({
 
   useEffect(() => {
     const handle = () => {
+      if (STORE_LAYOUT === 'v2') return;
       if (['HISTORY', 'SUPPORT', 'WELLBEING', 'LEGAL', 'ACTIVE_SERVICES'].includes(activeTab)) return;
       isScrollingRef.current = true;
       if ((window as any)._scrollT) clearTimeout((window as any)._scrollT);
@@ -139,7 +151,7 @@ export const DashboardEmployee: React.FC<Props> = ({
     if (s.id === 'SRV-LEGAL-01' && hasLegalAccess) return false;
     if (s.id === 'SRV-SECURE-01' && hasSecureMessengerAccess) return false;
     if (s.id === 'SRV-VAULT-01' && hasVaultAccess) return false;
-    if (s.id.startsWith('SRV-ORANGE')) return false;
+    if (STORE_LAYOUT === 'v1' && s.id.startsWith('SRV-ORANGE')) return false;
     return true;
   }), [services, hasMentalHealthAccess, hasLegalAccess, hasSecureMessengerAccess, hasVaultAccess]);
 
@@ -213,6 +225,21 @@ export const DashboardEmployee: React.FC<Props> = ({
       </div>
     );
   }
+  if (STORE_LAYOUT === 'v2' && activeTab === 'CATALOG') {
+    return (
+      <BenefitStore
+        services={services}
+        transactions={transactions}
+        balance={user.voucherBalance ?? 0}
+        userEmail={user.email}
+        canTransact={user.role === Role.EMPLOYEE}
+        initialCategory={storeInitialCategory}
+        onPurchase={onPurchaseService}
+        onOpenApp={(tab) => setActiveTab(tab)}
+        onExit={() => { setActiveTab('WALLET'); onViewChange?.('emp-dashboard'); }}
+      />
+    );
+  }
 
   const renderWallet = () => (
     <motion.div
@@ -241,7 +268,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             { label: 'Aktywne uslugi', value: [hasMentalHealthAccess, hasLegalAccess, hasSecureMessengerAccess, hasVaultAccess].filter(Boolean).length, unit: 'szt.', color: '#7C3AED' },
             { label: 'Transakcje', value: transactions.length, unit: 'lacznie', color: '#2563EB' },
             { label: 'Vouchery', value: vouchers.filter(v => v.status === VoucherStatus.DISTRIBUTED).length, unit: 'aktywnych', color: '#16a34a' },
-            { label: 'Partnerzy', value: 14, unit: 'dostepnych', color: '#ea580c' },
+            { label: 'Partnerzy', value: STORE_LAYOUT === 'v2' ? partnerCount(services) : 14, unit: 'dostepnych', color: '#ea580c' },
           ].map(({ label, value, unit, color }) => (
             <div key={label} className="rounded-2xl p-5 border border-white/10 shadow-sm flex flex-col justify-center backdrop-blur-md" style={{ background: 'rgba(5, 8, 15, 0.72)' }}>
               <p className="text-2xl font-black" style={{ color }}>{value}</p>
@@ -264,6 +291,12 @@ export const DashboardEmployee: React.FC<Props> = ({
               thickness={2}
               className="flex-shrink-0 snap-start"
               onClick={() => {
+                if (STORE_LAYOUT === 'v2') {
+                  if (id === 'health' || id === 'wellbeing') openStore(BenefitCategory.ZDROWIE);
+                  else if (id === 'insurance') openStore(BenefitCategory.UBEZPIECZENIA);
+                  else if (id === 'telecom') openStore(BenefitCategory.CODZIENNOSC);
+                  return;
+                }
                 if (id === 'health') document.getElementById('section-luxmed')?.scrollIntoView({ behavior: 'smooth' });
                 if (id === 'insurance') document.getElementById('section-insurance')?.scrollIntoView({ behavior: 'smooth' });
                 if (id === 'telecom') document.getElementById('section-orange')?.scrollIntoView({ behavior: 'smooth' });
@@ -276,11 +309,13 @@ export const DashboardEmployee: React.FC<Props> = ({
           ))}
         </div>
 
+        {STORE_LAYOUT === 'v1' && (
         <div id="catalog-anchor" className="flex items-center gap-4 py-4 w-full select-none mt-4">
           <div className="h-px flex-1 bg-white/20" />
           <span className="text-sm font-bold text-white/50 uppercase tracking-widest">Katalog Usług</span>
           <div className="h-px flex-1 bg-white/20" />
         </div>
+        )}
       </div>
 
       {/* Twoje Aplikacje */}
@@ -330,7 +365,18 @@ export const DashboardEmployee: React.FC<Props> = ({
         </ServiceCarousel>
       </div>
 
+      {STORE_LAYOUT === 'v2' && (
+        <button onClick={() => openStore(null)}
+          className="w-full rounded-3xl p-6 md:p-8 text-left relative overflow-hidden border border-white/10 hover:border-primary-300/40 transition group"
+          style={{ background: 'linear-gradient(135deg, rgba(48,223,106,.18), rgba(66,151,205,.12))' }}>
+          <p className="text-xs font-bold uppercase tracking-widest text-white/60">Sklep benefitów</p>
+          <p className="text-2xl md:text-3xl font-black text-white mt-2">Przeglądaj benefity →</p>
+          <p className="text-white/70 text-sm mt-2 max-w-md">Zdrowie, ubezpieczenia, finanse, rozwój, rodzina i codzienność — {services.filter(s => s.isActive).length} pozycji w jednym miejscu.</p>
+        </button>
+      )}
+
       {/* Profitowi – Ubezpieczenia i Zdrowie */}
+      {STORE_LAYOUT === 'v1' && (
       <div id="sec-emp-profitowi">
         <SectionDivider title="Profitowi" subtitle="Ubezpieczenia i Zdrowie" accent="#10B981" />
         <ServiceCarousel>
@@ -376,8 +422,10 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
         </ServiceCarousel>
       </div>
+      )}
 
       {/* Multipolisa.pl – Ubezpieczenia i zdrowie */}
+      {STORE_LAYOUT === 'v1' && (
       <div id="sec-emp-multipolisa">
         <SectionDivider title="Multipolisa.pl" subtitle="Ubezpieczenia i zdrowie" accent="#F59E0B" />
         <ServiceCarousel>
@@ -423,8 +471,10 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
         </ServiceCarousel>
       </div>
+      )}
 
       {/* Goldman Sachs */}
+      {STORE_LAYOUT === 'v1' && (
       <div id="sec-emp-goldman">
         <SectionDivider title="Goldman Sachs" subtitle="Fundusze inwestycyjne" accent="#3B82F6" />
         <ServiceCarousel>
@@ -451,8 +501,10 @@ export const DashboardEmployee: React.FC<Props> = ({
 
         </ServiceCarousel>
       </div>
+      )}
 
       {/* Wellbeing */}
+      {STORE_LAYOUT === 'v1' && (
       <div id="sec-emp-wellbeing">
         <SectionDivider title="Wellbeing" subtitle="Jednorazowe produkty" accent="#10B981" />
         <ServiceCarousel>
@@ -518,9 +570,11 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
         </ServiceCarousel>
       </div>
+      )}
 
 
       {/* Poradniki */}
+      {STORE_LAYOUT === 'v1' && (
       <div id="sec-emp-poradniki">
         <SectionDivider title="Poradniki" subtitle="Dowiedz się więcej" accent="#F59E0B" />
         <ServiceCarousel>
@@ -566,8 +620,10 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
         </ServiceCarousel>
       </div>
+      )}
 
       {/* E-booki */}
+      {STORE_LAYOUT === 'v1' && (
       <div id="sec-emp-ebooki">
         <SectionDivider title="E-booki" subtitle="Poczytaj sobie" accent="#EC4899" />
         <ServiceCarousel>
@@ -623,6 +679,7 @@ export const DashboardEmployee: React.FC<Props> = ({
           />
         </ServiceCarousel>
       </div>
+      )}
 
       {/* Mobile: recent transactions */}
       <div className="md:hidden">
