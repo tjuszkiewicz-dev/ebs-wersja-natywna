@@ -36,7 +36,7 @@ const CrmNotatki = dynamic(() => import('../components/adminNew/crm/CrmNotatki')
 
 type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'crm-leaderboard' | 'crm-org-chart' | 'crm-notatki' | 'owner-panel' | 'ustawienia';
 
-const VIEW_TO_TAB: Record<string, AdminTab> = {
+export const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
   'admin-klienci':   'klienci',
   'admin-platnosci': 'platnosci',

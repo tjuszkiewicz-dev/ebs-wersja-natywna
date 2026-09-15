@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { DashboardBootstrap } from './DashboardBootstrap';
-import { DashboardAdminNew } from '@/views/DashboardAdminNew';
+import { DashboardAdminNew, VIEW_TO_TAB } from '@/views/DashboardAdminNew';
 import { Sidebar } from '@/components/Sidebar';
 import { GlobalSearch } from '@/components/GlobalSearch';
 import { ToastContainer } from '@/components/Toast';
@@ -21,6 +21,13 @@ function AdminLayout() {
 
   const [currentView,          setCurrentView]        = useState('admin-pulpit');
   useHistoryView(currentView, setCurrentView);
+
+  // Wejście z launchera w konkretną sekcję (kafelek „Agencja Pracy" → /dashboard/admin?view=hr-pracownicy).
+  // Po zamontowaniu, żeby nie rozjechać hydratacji: serwer renderuje zawsze Pulpit.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('view');
+    if (wanted && wanted in VIEW_TO_TAB && wanted !== 'admin-pulpit') setCurrentView(wanted);
+  }, []);
   const [isMobileSidebarOpen,  setMobileSidebarOpen]  = useState(false);
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [isSearchOpen,         setSearchOpen]         = useState(false);

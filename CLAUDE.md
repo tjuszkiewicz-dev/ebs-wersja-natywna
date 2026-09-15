@@ -76,7 +76,8 @@ dla każdej roli, która ją widzi — `pracownik` → `/dashboard/employee`, `p
 **superadmin/owner → `/dashboard/employee` w trybie podglądu** (menu boczne pracownika wymuszone w
 `EmployeeDashboardClient`, bo pozycje admina nie działają w tym layoucie). Panel administratora ma
 **własny kafelek „Administracja"** (`administracja` w `lib/apps/registry`, `defaultRoles: [SUPERADMIN]`,
-→ `/dashboard/admin`); „Agencja Pracy" dla superadmina dalej → `/dashboard/admin`. Do 15.09 oba kafelki
+→ `/dashboard/admin`); „Agencja Pracy" dla superadmina → `/dashboard/admin?view=hr-pracownicy` (panel otwarty od razu
+na sekcji agencji — `AdminDashboardClient` czyta `?view=` po zamontowaniu, tylko widoki z `VIEW_TO_TAB`). Do 15.09 oba kafelki
 superadmina prowadziły do panelu admina. Cele: `lib/apps/appTargets.ts` + testy `appTargets.test.ts`.
 
 **E2a (2026-07-17):** appka `agencja` w rejestrze (placeholder `/app/agencja` do czasu E2b);

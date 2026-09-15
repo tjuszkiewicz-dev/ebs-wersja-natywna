@@ -24,8 +24,8 @@ describe('existingAppTarget — kafelek Benefity prowadzi do portalu pracownika'
     expect(existingAppTarget('administracja', Role.COORDINATOR)).toBeNull();
   });
 
-  it('Agencja Pracy bez zmian: koordynator/płatnik/superadmin → panel admina, pracownik tymczasowy → własny portal', () => {
-    expect(existingAppTarget('agencja', Role.SUPERADMIN)).toBe('/dashboard/admin');
+  it('Agencja Pracy: superadmin → panel admina od razu na sekcji agencji, koordynator/płatnik → panel admina, pracownik tymczasowy → własny portal', () => {
+    expect(existingAppTarget('agencja', Role.SUPERADMIN)).toBe('/dashboard/admin?view=hr-pracownicy');
     expect(existingAppTarget('agencja', Role.COORDINATOR)).toBe('/dashboard/admin');
     expect(existingAppTarget('agencja', Role.TEMP_WORKER)).toBe('/dashboard/agencja');
   });

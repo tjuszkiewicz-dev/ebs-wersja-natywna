@@ -30,7 +30,7 @@ describe('existingAppTarget (agencja → dashboardy EBS)', () => {
   it('PAYROLL → /dashboard/admin', () =>
     expect(existingAppTarget('agencja', Role.PAYROLL)).toBe('/dashboard/admin'));
   it('SUPERADMIN → /dashboard/admin', () =>
-    expect(existingAppTarget('agencja', Role.SUPERADMIN)).toBe('/dashboard/admin'));
+    expect(existingAppTarget('agencja', Role.SUPERADMIN)).toBe('/dashboard/admin?view=hr-pracownicy'));
   it('EMPLOYEE → null (brak dostępu do agencji)', () =>
     expect(existingAppTarget('agencja', Role.EMPLOYEE)).toBe(null));
 });
