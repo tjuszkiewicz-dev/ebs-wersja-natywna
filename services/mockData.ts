@@ -322,7 +322,7 @@ export const INITIAL_SERVICES: ServiceItem[] = [
       price: 100, // 100 points cost
       type: ServiceType.SUBSCRIPTION,
       icon: 'Brain',
-      image: 'https://images.unsplash.com/photo-1544367563-12123d8975bd?auto=format&fit=crop&q=80&w=800',
+      image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&q=80&w=800',
       isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton', fulfillment: 'auto'
   },
   // --- AI LEGAL ASSISTANT INTEGRATION (NEW) ---
@@ -394,7 +394,7 @@ export const INITIAL_SERVICES: ServiceItem[] = [
   { id: 'SRV-MH-01', name: 'Cyfrowy detoks w 15 minut', description: 'Jak odzyskać spokój bez wyrzucania telefonu.', price: 9, type: ServiceType.ONE_TIME, icon: 'Smartphone', image: 'https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
   { id: 'SRV-MH-02', name: 'Trening odporności na stres (Resilience)', description: 'Techniki jednostek specjalnych dla korporacji.', price: 33, type: ServiceType.ONE_TIME, icon: 'Heart', image: 'https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
   { id: 'SRV-MH-03', name: 'Sztuka asertywności na Teamsach', description: 'Jak mówić "nie" bez poczucia winy.', price: 21, type: ServiceType.ONE_TIME, icon: 'MessageSquare', image: 'https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
-  { id: 'SRV-MH-04', name: 'Sen jako Twój najlepszy projekt', description: 'Biohacking nocnej regeneracji.', price: 44, type: ServiceType.ONE_TIME, icon: 'Moon', image: 'https://images.unsplash.com/photo-1511296933631-18b46797e652?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
+  { id: 'SRV-MH-04', name: 'Sen jako Twój najlepszy projekt', description: 'Biohacking nocnej regeneracji.', price: 44, type: ServiceType.ONE_TIME, icon: 'Moon', image: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
   { id: 'SRV-MH-05', name: 'Praca z domu i samotność', description: 'Jak budować relacje w trybie remote.', price: 15, type: ServiceType.ONE_TIME, icon: 'Users', image: 'https://images.unsplash.com/photo-1593642532973-d31b6557fa68?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
 
   // --- FINANCE & GROWTH ---

@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { ImageOff } from 'lucide-react';
 import type { ServiceItem } from '@/types';
 import { resolveAction, type CategoryDef, type StoreAction } from '@/lib/benefits/catalog';
@@ -35,8 +35,10 @@ function StoreTile({ item, action, balance, onSelect }: { item: ServiceItem; act
   // dokończyć ładowanie zanim React zdąży podpiąć listenery przy hydracji — zdarzenie się
   // wtedy gubi i kafelek zostaje z natywną, "połamaną" ikonką przeglądarki zamiast placeholdera.
   // Dlatego przy montowaniu dobijamy sprawdzeniem `complete && naturalWidth === 0`
-  // (tak przeglądarka znakuje już zakończone, nieudane ładowanie).
-  useEffect(() => {
+  // (tak przeglądarka znakuje już zakończone, nieudane ładowanie). `useLayoutEffect`, nie
+  // `useEffect` (poprawka Task 11a) — odpala się synchronicznie przed pierwszym malowaniem,
+  // więc połamana natywna ikonka nie zdąży mignąć nawet na jedną klatkę przed fallbackiem.
+  useLayoutEffect(() => {
     const el = imgRef.current;
     if (el && el.complete && el.naturalWidth === 0) setBroken(true);
   }, []);

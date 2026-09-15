@@ -26,7 +26,7 @@ export function StoreHeader({ query, onQuery, balance, onExit }: Props) {
         </div>
         <button
           onClick={onExit} aria-label="Zamknij sklep"
-          className="p-2 rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
+          className="p-3 -m-1 rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2"
         >
           <X size={20} />
         </button>

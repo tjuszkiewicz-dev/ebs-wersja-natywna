@@ -12,7 +12,7 @@
 // natychmiast, podczas gdy panel jeszcze zjeżdża — ujednolicone na `motion.div`, żeby wejście
 // i wyjście całej nakładki było jedną spójną animacją, tak jak w powłoce sklepu).
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { X, CheckCircle2, Loader2 } from 'lucide-react';
 import type { ServiceItem, PurchaseResult } from '@/types';
 import { APP_TAB_BY_SERVICE, type StoreAction, type EmployeeAppTab } from '@/lib/benefits/catalog';
@@ -45,6 +45,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
   const reduceMotion = useReducedMotion();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
 
   // Fokus wjeżdża w panel przy otwarciu (na przycisk zamknięcia — pierwszy sensowny,
   // widoczny cel) i wraca dokładnie tam, skąd przyszedł, przy odmontowaniu — użytkownik
@@ -64,6 +65,24 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
   // cofnąć, więc zniknięcie modalu bez pokazania SUCCESS/ERROR ukryłoby, czy punkty zeszły.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Prosty focus trap (zawijanie Tab/Shift+Tab w obrębie panelu) — tylko gdy modal zakupu
+      // nie jest zamontowany (wtedy fokus i tak żyje w jego własnym poddrzewie DOM, poza asideRef).
+      if (e.key === 'Tab' && !buying && asideRef.current) {
+        const focusable = asideRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+        return;
+      }
       if (e.key !== 'Escape') return;
       if (processing) return;
       if (buying) { setBuying(false); return; }
@@ -167,6 +186,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
         animate={{ y: 0, opacity: 1 }}
         exit={reduceMotion ? undefined : { y: 40, opacity: 0 }}
         transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
+        ref={asideRef}
         role="dialog"
         aria-modal="true"
         aria-label={item.name}
@@ -178,7 +198,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
             ref={closeButtonRef}
             onClick={onClose}
             aria-label="Zamknij"
-            className={`absolute top-3 right-3 p-2 rounded-full bg-white/90 text-slate-800 shadow transition hover:bg-white ${FOCUS_RING}`}
+            className={`absolute top-1 right-1 p-3 rounded-full bg-white/90 text-slate-800 shadow transition hover:bg-white ${FOCUS_RING}`}
           >
             <X size={18} />
           </button>
@@ -186,7 +206,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
         <div className="p-6 space-y-5">
           <div>
             {item.partner && <p className="text-xs uppercase tracking-wider text-slate-500">{item.partner}</p>}
-            <h2 className="text-xl font-bold text-slate-900 mt-1">{item.name}</h2>
+            <h2 className="text-xl font-bold text-slate-900 mt-1 text-balance">{item.name}</h2>
             <p className="text-sm text-slate-600 mt-2 leading-relaxed">{item.description}</p>
           </div>
           <div className="flex items-center justify-between rounded-xl bg-slate-50 border border-slate-200 p-4">
@@ -196,17 +216,20 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
           {cta()}
         </div>
       </motion.aside>
-      {buying && (
-        <RedemptionModal
-          isOpen
-          service={item}
-          onClose={() => { setBuying(false); onClose(); }}
-          onConfirm={() => onPurchase(item)}
-          userEmail={userEmail}
-          onOpenApp={tab ? () => { setBuying(false); onClose(); onOpenApp(tab); } : undefined}
-          onProcessingChange={setProcessing}
-        />
-      )}
+      <AnimatePresence>
+        {buying && (
+          <RedemptionModal
+            key="redemption"
+            isOpen
+            service={item}
+            onClose={() => { setBuying(false); onClose(); }}
+            onConfirm={() => onPurchase(item)}
+            userEmail={userEmail}
+            onOpenApp={tab ? () => { setBuying(false); onClose(); onOpenApp(tab); } : undefined}
+            onProcessingChange={setProcessing}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

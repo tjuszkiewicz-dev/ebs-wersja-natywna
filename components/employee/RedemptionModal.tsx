@@ -1,8 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { X, ShoppingCart, CheckCircle, ChevronRight, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ServiceType } from '../../types';
 import type { ServiceItem, PurchaseResult } from '../../types';
 import { BOK_SLA_TEXT } from '../../lib/benefits/constants';
+
+// Audyt wizualny (Task 11a): ring klawiaturowy ujednolicony z resztą sklepu (StoreHeader/
+// StoreGrid/StoreCategories/StoreDetail) — ten modal go dotąd nie miał na żadnym przycisku.
+const FOCUS_RING = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2';
 
 interface RedemptionModalProps {
   isOpen: boolean;
@@ -26,6 +32,7 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
   const [errorText, setErrorText] = useState<string>('');
   const sliderRef = useRef<HTMLInputElement>(null);
   const isProcessing = step === 'PROCESSING';
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (isOpen) {
@@ -83,20 +90,29 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[130] flex items-end md:items-center justify-center p-0 md:p-4 animate-in fade-in duration-200">
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={reduceMotion ? undefined : { opacity: 0 }}
+      transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={service.name}
+      className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[130] flex items-end md:items-center justify-center p-0 md:p-4"
+    >
         <div className="bg-white w-full rounded-t-2xl md:rounded-2xl max-w-md overflow-hidden shadow-2xl transition-all h-[90vh] md:h-auto flex flex-col">
 
             {(step === 'REVIEW' || step === 'PROCESSING') && (
                 <>
                     {/* Header Image */}
                     <div className="h-48 bg-slate-100 relative flex items-center justify-center overflow-hidden">
-                        <div className={`absolute inset-0 opacity-20 bg-emerald-500`}></div>
-                        <ShoppingCart size={64} className="text-emerald-700 relative z-10" />
+                        <div className={`absolute inset-0 opacity-20 bg-primary-500`}></div>
+                        <ShoppingCart size={64} className="text-primary-700 relative z-10" />
                         <button
                             onClick={onClose}
                             disabled={isProcessing}
-                            aria-disabled={isProcessing}
-                            className={`absolute top-4 right-4 p-2 rounded-full backdrop-blur-sm transition ${isProcessing ? 'bg-white/30 cursor-not-allowed' : 'bg-white/50 hover:bg-white'}`}
+                            aria-label="Zamknij"
+                            className={`absolute top-2 right-2 p-3 rounded-full backdrop-blur-sm transition ${FOCUS_RING} ${isProcessing ? 'bg-white/30 cursor-not-allowed' : 'bg-white/50 hover:bg-white'}`}
                         >
                             <X size={20} className={isProcessing ? 'text-slate-400' : 'text-slate-800'} />
                         </button>
@@ -115,14 +131,14 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
                             <div className="h-px bg-slate-200 my-2"></div>
                             <div className="flex justify-between items-center text-xs text-slate-500">
                                 <span>Typ usługi</span>
-                                <span className="font-medium bg-white px-2 py-1 rounded border border-slate-200">{service.type}</span>
+                                <span className="font-medium bg-white px-2 py-1 rounded border border-slate-200">{service.type === ServiceType.SUBSCRIPTION ? 'Subskrypcja' : 'Jednorazowo'}</span>
                             </div>
                         </div>
 
                         {/* SLIDE TO PAY */}
                         <div className="mt-8 relative h-14 bg-slate-100 rounded-full border border-slate-200 overflow-hidden select-none">
                             <div
-                                className="absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-75"
+                                className="absolute left-0 top-0 bottom-0 bg-primary-500 transition-all duration-75"
                                 style={{ width: `${sliderValue}%` }}
                             ></div>
 
@@ -142,15 +158,15 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
                                 onTouchEnd={handleTouchEnd}
                                 onMouseUp={handleTouchEnd}
                                 disabled={isProcessing}
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                                className="peer absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                             />
 
                             {/* Thumb Visualization */}
                             <div
-                                className="absolute top-1 bottom-1 w-12 bg-white rounded-full shadow-md flex items-center justify-center transition-all duration-75 z-10 pointer-events-none"
+                                className="absolute top-1 bottom-1 w-12 bg-white rounded-full shadow-md flex items-center justify-center transition-all duration-75 z-10 pointer-events-none peer-focus-visible:ring-4 peer-focus-visible:ring-primary-400 peer-focus-visible:ring-offset-2"
                                 style={{ left: `calc(${sliderValue}% - ${sliderValue * 0.48}px + 4px)` }}
                             >
-                                {isProcessing ? <Loader2 size={20} className="animate-spin text-emerald-600"/> : <ChevronRight size={24} className="text-emerald-600" />}
+                                {isProcessing ? <Loader2 size={20} className="animate-spin text-primary-600"/> : <ChevronRight size={24} className="text-primary-600" />}
                             </div>
                         </div>
                     </div>
@@ -159,17 +175,17 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
 
             {step === 'SUCCESS' && (
               <div className="flex flex-col h-full">
-                <div className="bg-emerald-600 p-8 text-center text-white shrink-0">
+                <div className="bg-primary-600 p-8 text-center text-white shrink-0">
                   <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle size={32} /></div>
                   <h2 className="text-2xl font-bold">{service.fulfillment === 'auto' ? 'Aplikacja aktywna' : 'Zamówienie przyjęte'}</h2>
-                  <p className="text-emerald-100 text-sm mt-1">Pobraliśmy {service.price} pkt z Twojego portfela.</p>
+                  <p className="text-primary-100 text-sm mt-1">Pobraliśmy {service.price} pkt z Twojego portfela.</p>
                 </div>
                 <div className="bg-white flex-1 p-6 flex flex-col items-center justify-center text-center gap-4">
                   {service.fulfillment === 'auto' ? (
                     <>
                       <p className="text-slate-600 text-sm max-w-xs">„{service.name}" jest już odblokowana. Znajdziesz ją też w sekcji „Twoje Aplikacje".</p>
                       {onOpenApp && (
-                        <button onClick={onOpenApp} className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                        <button onClick={onOpenApp} className={`w-full py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition flex items-center justify-center gap-2 ${FOCUS_RING}`}>
                           <ExternalLink size={18} /> Otwórz
                         </button>
                       )}
@@ -179,7 +195,7 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
                       Biuro Obsługi Klienta prześle kod lub aktywację na <span className="font-semibold text-slate-800">{userEmail ?? 'Twój e-mail'}</span> w ciągu {BOK_SLA_TEXT}.
                     </p>
                   )}
-                  <button onClick={onClose} className="w-full py-3 bg-white text-slate-700 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition">Wróć do sklepu</button>
+                  <button onClick={onClose} className={`w-full py-3 bg-white text-slate-700 font-bold rounded-xl border border-slate-200 hover:bg-slate-50 transition ${FOCUS_RING}`}>Wróć do sklepu</button>
                 </div>
               </div>
             )}
@@ -192,12 +208,12 @@ export const RedemptionModal: React.FC<RedemptionModalProps> = ({
                 </div>
                 <div className="bg-white flex-1 p-6 flex flex-col items-center justify-center text-center gap-4">
                   <p className="text-slate-600 text-sm max-w-xs">{errorText}</p>
-                  <button onClick={onClose} className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition">Zamknij</button>
+                  <button onClick={onClose} className={`w-full py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition ${FOCUS_RING}`}>Zamknij</button>
                 </div>
               </div>
             )}
 
         </div>
-    </div>
+    </motion.div>
   );
 };
