@@ -71,6 +71,14 @@ ma wszystko. Spec: `docs/superpowers/specs/2026-07-16-e1-shell-launcher-design.m
 
 Uwaga: role sieciowe (`partner`/`menedzer`/`dyrektor`) nie mają appek w E1 — po zalogowaniu lądują na `/launcher` z komunikatem o braku dostępu (dawniej `/dashboard/network`). W produkcyjnej bazie nikt tych ról nie ma.
 
+**Kafelki launchera od 2026-09-15 (decyzja właściciela):** „Benefity" = **aplikacja pracownicza**
+dla każdej roli, która ją widzi — `pracownik` → `/dashboard/employee`, `pracodawca` → `/dashboard/employer`,
+**superadmin/owner → `/dashboard/employee` w trybie podglądu** (menu boczne pracownika wymuszone w
+`EmployeeDashboardClient`, bo pozycje admina nie działają w tym layoucie). Panel administratora ma
+**własny kafelek „Administracja"** (`administracja` w `lib/apps/registry`, `defaultRoles: [SUPERADMIN]`,
+→ `/dashboard/admin`); „Agencja Pracy" dla superadmina dalej → `/dashboard/admin`. Do 15.09 oba kafelki
+superadmina prowadziły do panelu admina. Cele: `lib/apps/appTargets.ts` + testy `appTargets.test.ts`.
+
 **E2a (2026-07-17):** appka `agencja` w rejestrze (placeholder `/app/agencja` do czasu E2b);
 role agencji w DB/enum: `hr`, `koordynator`, `szef_koordynatorow`, `platnik`,
 `pracownik_tymczasowy` (migracja 049); schemat 22 tabel `hr_*` z introspekcji żywej bazy BBS

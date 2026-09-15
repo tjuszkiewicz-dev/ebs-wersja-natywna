@@ -16,6 +16,7 @@ import { supabaseBrowser } from '@/lib/supabase';
 import { useHistoryView } from '@/lib/useHistoryView';
 import { Search, Settings, Wallet, Clock, X, Menu } from 'lucide-react';
 import { EmployeeSettingsModal } from '@/components/employee/EmployeeSettingsModal';
+import { Role } from '@/types/enums';
 
 function EmployeeLayout() {
   const { state, actions } = useStrattonSystem();
@@ -104,9 +105,10 @@ function EmployeeLayout() {
         onLogout={handleLogout}
       />
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR — superadmin/owner ogląda portal w trybie podglądu: menu pracownika,
+          nie administratora (pozycje admina nie działają w tym layoucie). */}
       <Sidebar
-        currentUser={currentUser}
+        currentUser={currentUser.role === Role.EMPLOYEE ? currentUser : { ...currentUser, role: Role.EMPLOYEE }}
         currentView={currentView}
         onChangeView={setCurrentView}
         isOpen={isMobileSidebarOpen}

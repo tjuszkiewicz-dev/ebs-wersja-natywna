@@ -2,7 +2,7 @@ import { Role } from '@/types/enums';
 
 // AppId przygotowany na kolejne etapy migracji (E2: agencja+dokumenty, E3: komunikacja, E4: ksiegowosc).
 // W E1 zarejestrowana jest wyłącznie appka 'benefity'. CRM celowo nie istnieje (osobny CRM Stratton Prime).
-export type AppId = 'benefity' | 'agencja' | 'dokumenty' | 'komunikacja' | 'ksiegowosc';
+export type AppId = 'benefity' | 'agencja' | 'administracja' | 'dokumenty' | 'komunikacja' | 'ksiegowosc';
 
 export interface AppDef {
   id: AppId;
@@ -26,6 +26,15 @@ export const APPS: readonly AppDef[] = [
     icon: 'hard-hat',
     route: '/app/agencja',
     defaultRoles: [Role.COORDINATOR, Role.PAYROLL, Role.TEMP_WORKER, Role.SUPERADMIN],
+  },
+  {
+    // Panel administratora (klienci, płatności, agencja, CRM, księgowość).
+    // Osobny kafelek od 2026-09-15 — „Benefity" prowadzi superadmina do portalu pracownika.
+    id: 'administracja',
+    name: 'Administracja',
+    icon: 'settings',
+    route: '/app/administracja',
+    defaultRoles: [Role.SUPERADMIN],
   },
 ] as const;
 

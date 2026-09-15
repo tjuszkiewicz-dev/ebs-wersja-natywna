@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Gift, HardHat, FileText, MessageSquare, BookOpen, ArrowUpRight, type LucideIcon } from 'lucide-react';
+import { Gift, HardHat, FileText, MessageSquare, BookOpen, Settings2, ArrowUpRight, type LucideIcon } from 'lucide-react';
 import type { AppDef, AppId } from '@/lib/apps/registry';
 
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -8,12 +8,14 @@ const ICON_MAP: Record<string, LucideIcon> = {
   'file':     FileText,
   'chat':     MessageSquare,
   'book':     BookOpen,
+  'settings': Settings2,
 };
 
 // Krótkie opisy kafelków (Partial — przyszłe appki dopisują swoje w E2+)
 const DESCRIPTIONS: Partial<Record<AppId, string>> = {
   benefity: 'Vouchery i benefity pracownicze w jednym miejscu.',
   agencja: 'Pracownicy tymczasowi, kontrakty, noclegi i rozliczenia.',
+  administracja: 'Klienci, płatności, agencja pracy, CRM i księgowość.',
 };
 
 interface AppTileProps {

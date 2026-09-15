@@ -16,8 +16,8 @@ describe('existingAppTarget (benefity → dashboardy EBS)', () => {
     expect(existingAppTarget('benefity', Role.EMPLOYEE)).toBe('/dashboard/employee'));
   it('HR → /dashboard/employer', () =>
     expect(existingAppTarget('benefity', Role.HR)).toBe('/dashboard/employer'));
-  it('SUPERADMIN → /dashboard/admin', () =>
-    expect(existingAppTarget('benefity', Role.SUPERADMIN)).toBe('/dashboard/admin'));
+  it('SUPERADMIN → portal pracownika w trybie podglądu (decyzja 2026-09-15; panel admina = kafelek Administracja)', () =>
+    expect(existingAppTarget('benefity', Role.SUPERADMIN)).toBe('/dashboard/employee'));
   it('rola sieciowa → null (brak dashboardu benefitów)', () =>
     expect(existingAppTarget('benefity', Role.ADVISOR)).toBe(null));
 });
@@ -38,8 +38,8 @@ describe('existingAppTarget (agencja → dashboardy EBS)', () => {
 describe('resolvePostLogin (final URL po zalogowaniu)', () => {
   it('EMPLOYEE z samymi benefitami → od razu dashboard (bez hopu przez /app)', () =>
     expect(resolvePostLogin(Role.EMPLOYEE, ['benefity'])).toBe('/dashboard/employee'));
-  it('SUPERADMIN z 1 appką → od razu /dashboard/admin', () =>
-    expect(resolvePostLogin(Role.SUPERADMIN, ['benefity'])).toBe('/dashboard/admin'));
+  it('SUPERADMIN z 1 appką (benefity) → od razu portal pracownika', () =>
+    expect(resolvePostLogin(Role.SUPERADMIN, ['benefity'])).toBe('/dashboard/employee'));
   it('wiele appek → /launcher', () =>
     expect(resolvePostLogin(Role.SUPERADMIN, ['benefity', 'agencja'])).toBe('/launcher'));
   it('0 appek → /launcher (komunikat o braku dostępu)', () =>
