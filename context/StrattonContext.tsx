@@ -109,7 +109,7 @@ export const StrattonProvider = ({ children }: { children?: ReactNode }) => {
 
   const [systemConfig, setSystemConfig] = usePersistedState<SystemConfig>('ebs_sys_config_v1', INITIAL_SYSTEM_CONFIG);
   const [auditLogs, setAuditLogs] = usePersistedState<AuditLogEntry[]>('ebs_audit_logs_v1', INITIAL_AUDIT_LOGS);
-  const [services, setServices] = usePersistedState<ServiceItem[]>('ebs_services_v15', INITIAL_SERVICES);
+  const [services, setServices] = usePersistedState<ServiceItem[]>('ebs_services_v16', INITIAL_SERVICES);
   const [quarterlyStats, setQuarterlyStats] = useState<QuarterlyPerformance[]>([]);
   const [tickets, setTickets] = usePersistedState<SupportTicket[]>('ebs_tickets_v1', INITIAL_TICKETS);
 

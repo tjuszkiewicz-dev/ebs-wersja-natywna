@@ -74,3 +74,13 @@ export enum CommissionType {
   RECURRING = 'RECURRING',
   RENEWAL = 'RENEWAL'
 }
+
+/** Kategorie sklepu benefitów — po potrzebach pracownika, nie po partnerach (spec 2026-09-15 §4.1). */
+export enum BenefitCategory {
+  ZDROWIE = 'ZDROWIE',
+  UBEZPIECZENIA = 'UBEZPIECZENIA',
+  FINANSE = 'FINANSE',
+  ROZWOJ = 'ROZWOJ',
+  RODZINA = 'RODZINA',
+  CODZIENNOSC = 'CODZIENNOSC',
+}

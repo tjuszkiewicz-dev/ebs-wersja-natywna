@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Voucher, VoucherStatus, BuybackAgreement, ServiceItem,
-  Transaction, UserFinance, ServiceType
+  Transaction, UserFinance, ServiceType, BenefitCategory
 } from '../types';
 import { ServiceCatalog } from '../components/employee/dashboard/ServiceCatalog';
 import { EmployeeTransactionHistory } from '../components/employee/dashboard/EmployeeTransactionHistory';
@@ -144,11 +144,11 @@ export const DashboardEmployee: React.FC<Props> = ({
 
   const wellbeingService = useMemo(() => services.find(s => s.id === 'SRV-MENTAL-01'), [services]);
   const legalService = useMemo(() => services.find(s => s.id === 'SRV-LEGAL-01'), [services]);
-  const secureMessengerService = useMemo(() => services.find(s => s.id === 'SRV-SECURE-01') ?? { id: 'SRV-SECURE-01', name: 'Secure Messenger', description: 'Szyfrowana komunikacja end-to-end.', price: 200, type: ServiceType.SUBSCRIPTION, icon: 'Shield', isActive: true } as ServiceItem, [services]);
-  const vaultService = useMemo(() => services.find(s => s.id === 'SRV-VAULT-01') ?? { id: 'SRV-VAULT-01', name: 'Secure Digital Vault', description: 'Prywatny sejf cyfrowy 10GB. AES-256.', price: 50, type: ServiceType.SUBSCRIPTION, icon: 'HardDrive', isActive: true } as ServiceItem, [services]);
+  const secureMessengerService = useMemo(() => services.find(s => s.id === 'SRV-SECURE-01') ?? { id: 'SRV-SECURE-01', name: 'Secure Messenger', description: 'Szyfrowana komunikacja end-to-end.', price: 200, type: ServiceType.SUBSCRIPTION, icon: 'Shield', isActive: true, category: BenefitCategory.CODZIENNOSC, fulfillment: 'auto' } as ServiceItem, [services]);
+  const vaultService = useMemo(() => services.find(s => s.id === 'SRV-VAULT-01') ?? { id: 'SRV-VAULT-01', name: 'Secure Digital Vault', description: 'Prywatny sejf cyfrowy 10GB. AES-256.', price: 50, type: ServiceType.SUBSCRIPTION, icon: 'HardDrive', isActive: true, category: BenefitCategory.CODZIENNOSC, fulfillment: 'auto' } as ServiceItem, [services]);
 
   const handleManualSpend = async (amount: number, description: string) => {
-    const s: ServiceItem = { id: `INTERNAL-${Date.now()}`, name: description, description: 'Internal', price: amount, type: ServiceType.ONE_TIME, icon: 'Zap', isActive: true };
+    const s: ServiceItem = { id: `INTERNAL-${Date.now()}`, name: description, description: 'Internal', price: amount, type: ServiceType.ONE_TIME, icon: 'Zap', isActive: true, category: BenefitCategory.CODZIENNOSC };
     onPurchaseService(s);
   };
 
@@ -161,6 +161,7 @@ export const DashboardEmployee: React.FC<Props> = ({
       type: ServiceType.ONE_TIME,
       icon: 'Shield',
       isActive: true,
+      category: BenefitCategory.CODZIENNOSC,
     };
     setSelectedService(s);
   };

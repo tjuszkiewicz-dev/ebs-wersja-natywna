@@ -1,5 +1,5 @@
 
-import { Company, Role, User, Voucher, VoucherStatus, Order, OrderStatus, AuditLogEntry, Commission, Notification, NotificationConfig, NotificationTarget, NotificationTrigger, ServiceItem, ServiceType, Transaction, SystemConfig, DocumentType, ContractType, SupportTicket } from '../types';
+import { Company, Role, User, Voucher, VoucherStatus, Order, OrderStatus, AuditLogEntry, Commission, Notification, NotificationConfig, NotificationTarget, NotificationTrigger, ServiceItem, ServiceType, BenefitCategory, Transaction, SystemConfig, DocumentType, ContractType, SupportTicket } from '../types';
 
 // Struktura Sprzedaży
 const ADVISOR_ID = 'ADV-001';
@@ -315,101 +315,117 @@ export const INITIAL_NOTIFICATION_CONFIGS: NotificationConfig[] = [
 
 export const INITIAL_SERVICES: ServiceItem[] = [
   // --- MENTAL HEALTH APP INTEGRATION ---
-  { 
-      id: 'SRV-MENTAL-01', 
-      name: 'EBS Wellbeing Premium', 
-      description: 'Miesięczny dostęp do platformy Mental Health (AI Coach, Medytacje, Wideo).', 
+  {
+      id: 'SRV-MENTAL-01',
+      name: 'EBS Wellbeing Premium',
+      description: 'Miesięczny dostęp do platformy Mental Health (AI Coach, Medytacje, Wideo).',
       price: 100, // 100 points cost
-      type: ServiceType.SUBSCRIPTION, 
-      icon: 'Brain', 
+      type: ServiceType.SUBSCRIPTION,
+      icon: 'Brain',
       image: 'https://images.unsplash.com/photo-1544367563-12123d8975bd?auto=format&fit=crop&q=80&w=800',
-      isActive: true 
+      isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton', fulfillment: 'auto'
   },
   // --- AI LEGAL ASSISTANT INTEGRATION (NEW) ---
-  { 
-      id: 'SRV-LEGAL-01', 
-      name: 'AI Legal Assistant', 
-      description: 'Twój osobisty prawnik 24/7. Analiza umów i porady prawne.', 
-      price: 150, 
-      type: ServiceType.SUBSCRIPTION, 
-      icon: 'Scale', 
+  {
+      id: 'SRV-LEGAL-01',
+      name: 'AI Legal Assistant',
+      description: 'Twój osobisty prawnik 24/7. Analiza umów i porady prawne.',
+      price: 150,
+      type: ServiceType.SUBSCRIPTION,
+      icon: 'Scale',
       image: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&q=80&w=800',
-      isActive: true 
+      isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Eliton', fulfillment: 'auto'
   },
-  { 
-      id: 'SRV-LEGAL-SINGLE', 
-      name: 'Analiza Umowy (Jednorazowa)', 
-      description: 'Sprawdzenie jednego dokumentu PDF pod kątem klauzul abuzywnych.', 
-      price: 50, 
-      type: ServiceType.ONE_TIME, 
-      icon: 'FileText', 
+  {
+      id: 'SRV-LEGAL-SINGLE',
+      name: 'Analiza Umowy (Jednorazowa)',
+      description: 'Sprawdzenie jednego dokumentu PDF pod kątem klauzul abuzywnych.',
+      price: 50,
+      type: ServiceType.ONE_TIME,
+      icon: 'FileText',
       image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&q=80&w=800',
-      isActive: true 
+      isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Eliton'
   },
   // --- OFERTA ORANGE ---
-  { 
-      id: 'SRV-ORANGE-FIBER', 
-      name: 'Światłowód Pro 2.0', 
-      description: 'Super szybki internet światłowodowy do Twojego domu.', 
-      price: 59, 
-      type: ServiceType.SUBSCRIPTION, 
-      icon: 'Wifi', 
+  {
+      id: 'SRV-ORANGE-FIBER',
+      name: 'Światłowód Pro 2.0',
+      description: 'Super szybki internet światłowodowy do Twojego domu.',
+      price: 59,
+      type: ServiceType.SUBSCRIPTION,
+      icon: 'Wifi',
       image: 'https://images.unsplash.com/photo-1544197150-b99a580bbcbf?auto=format&fit=crop&q=80&w=800',
-      isActive: true 
+      isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Orange'
   },
-  { 
-      id: 'SRV-ORANGE-GSM', 
-      name: 'Plan Firmowy L', 
-      description: 'Nielimitowane rozmowy i SMSy, duży pakiet danych.', 
-      price: 45, 
-      type: ServiceType.SUBSCRIPTION, 
-      icon: 'Smartphone', 
+  {
+      id: 'SRV-ORANGE-GSM',
+      name: 'Plan Firmowy L',
+      description: 'Nielimitowane rozmowy i SMSy, duży pakiet danych.',
+      price: 45,
+      type: ServiceType.SUBSCRIPTION,
+      icon: 'Smartphone',
       image: 'https://images.unsplash.com/photo-1512428559087-560fa5ce7d02?auto=format&fit=crop&q=80&w=800',
-      isActive: true 
+      isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Orange'
   },
-  { 
-      id: 'SRV-ORANGE-LOVE', 
-      name: 'Orange Love Mini', 
-      description: 'Pakiet usług dla całej rodziny w jednej cenie.', 
-      price: 89, 
-      type: ServiceType.SUBSCRIPTION, 
-      icon: 'Heart', 
+  {
+      id: 'SRV-ORANGE-LOVE',
+      name: 'Orange Love Mini',
+      description: 'Pakiet usług dla całej rodziny w jednej cenie.',
+      price: 89,
+      type: ServiceType.SUBSCRIPTION,
+      icon: 'Heart',
       image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&q=80&w=800',
-      isActive: true 
+      isActive: true, category: BenefitCategory.RODZINA, partner: 'Orange'
   },
   // -------------------------------------
-  { id: 'SRV-01', name: 'Spotify Premium (30 dni)', description: 'Dostęp do muzyki bez reklam', price: 20, type: ServiceType.SUBSCRIPTION, icon: 'Headphones', image: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-02', name: 'Audioteka (1 Audiobook)', description: 'Dowolny audiobook z oferty', price: 35, type: ServiceType.ONE_TIME, icon: 'BookOpen', image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-03', name: 'Porada Prawna Online (Człowiek)', description: 'Konsultacja z radcą prawnym (Video)', price: 200, type: ServiceType.ONE_TIME, icon: 'Scale', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-04', name: 'Multikino (Bilet)', description: 'Bilet na dowolny seans 2D', price: 25, type: ServiceType.ONE_TIME, icon: 'Film', image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=800', isActive: true },
+  { id: 'SRV-01', name: 'Spotify Premium (30 dni)', description: 'Dostęp do muzyki bez reklam', price: 20, type: ServiceType.SUBSCRIPTION, icon: 'Headphones', image: 'https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Spotify' },
+  { id: 'SRV-02', name: 'Audioteka (1 Audiobook)', description: 'Dowolny audiobook z oferty', price: 35, type: ServiceType.ONE_TIME, icon: 'BookOpen', image: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Audioteka' },
+  { id: 'SRV-03', name: 'Porada Prawna Online (Człowiek)', description: 'Konsultacja z radcą prawnym (Video)', price: 200, type: ServiceType.ONE_TIME, icon: 'Scale', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Kancelaria partnerska' },
+  { id: 'SRV-04', name: 'Multikino (Bilet)', description: 'Bilet na dowolny seans 2D', price: 25, type: ServiceType.ONE_TIME, icon: 'Film', image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Multikino' },
 
   // --- AI & PRODUCTIVITY ---
-  { id: 'SRV-AI-01', name: 'Twój pierwszy dzień z osobistym AI', description: 'Jak delegować nudne zadania.', price: 23, type: ServiceType.ONE_TIME, icon: 'Cpu', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-AI-02', name: 'Prompt Engineering dla nietechnicznych', description: 'Jak rozmawiać z maszyną, by Cię rozumiała.', price: 41, type: ServiceType.ONE_TIME, icon: 'Zap', image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-AI-03', name: 'Głęboka praca w świecie powiadomień', description: 'Techniki koncentracji w 2026 roku.', price: 12, type: ServiceType.ONE_TIME, icon: 'Brain', image: 'https://images.unsplash.com/photo-1506784365847-bbad939e9335?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-AI-04', name: 'Automatyzacja codzienności', description: 'Proste triki na cyfrowe porządki.', price: 37, type: ServiceType.ONE_TIME, icon: 'Settings', image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-AI-05', name: 'Etyka AI w Twoim biurze', description: 'Co wolno, a czego nie, używając sztucznej inteligencji.', price: 49, type: ServiceType.ONE_TIME, icon: 'Shield', image: 'https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&q=80&w=800', isActive: true },
+  { id: 'SRV-AI-01', name: 'Twój pierwszy dzień z osobistym AI', description: 'Jak delegować nudne zadania.', price: 23, type: ServiceType.ONE_TIME, icon: 'Cpu', image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+  { id: 'SRV-AI-02', name: 'Prompt Engineering dla nietechnicznych', description: 'Jak rozmawiać z maszyną, by Cię rozumiała.', price: 41, type: ServiceType.ONE_TIME, icon: 'Zap', image: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+  { id: 'SRV-AI-03', name: 'Głęboka praca w świecie powiadomień', description: 'Techniki koncentracji w 2026 roku.', price: 12, type: ServiceType.ONE_TIME, icon: 'Brain', image: 'https://images.unsplash.com/photo-1506784365847-bbad939e9335?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+  { id: 'SRV-AI-04', name: 'Automatyzacja codzienności', description: 'Proste triki na cyfrowe porządki.', price: 37, type: ServiceType.ONE_TIME, icon: 'Settings', image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+  { id: 'SRV-AI-05', name: 'Etyka AI w Twoim biurze', description: 'Co wolno, a czego nie, używając sztucznej inteligencji.', price: 49, type: ServiceType.ONE_TIME, icon: 'Shield', image: 'https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
 
   // --- MENTAL HEALTH ---
-  { id: 'SRV-MH-01', name: 'Cyfrowy detoks w 15 minut', description: 'Jak odzyskać spokój bez wyrzucania telefonu.', price: 9, type: ServiceType.ONE_TIME, icon: 'Smartphone', image: 'https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-MH-02', name: 'Trening odporności na stres (Resilience)', description: 'Techniki jednostek specjalnych dla korporacji.', price: 33, type: ServiceType.ONE_TIME, icon: 'Heart', image: 'https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-MH-03', name: 'Sztuka asertywności na Teamsach', description: 'Jak mówić "nie" bez poczucia winy.', price: 21, type: ServiceType.ONE_TIME, icon: 'MessageSquare', image: 'https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-MH-04', name: 'Sen jako Twój najlepszy projekt', description: 'Biohacking nocnej regeneracji.', price: 44, type: ServiceType.ONE_TIME, icon: 'Moon', image: 'https://images.unsplash.com/photo-1511296933631-18b46797e652?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-MH-05', name: 'Praca z domu i samotność', description: 'Jak budować relacje w trybie remote.', price: 15, type: ServiceType.ONE_TIME, icon: 'Users', image: 'https://images.unsplash.com/photo-1593642532973-d31b6557fa68?auto=format&fit=crop&q=80&w=800', isActive: true },
+  { id: 'SRV-MH-01', name: 'Cyfrowy detoks w 15 minut', description: 'Jak odzyskać spokój bez wyrzucania telefonu.', price: 9, type: ServiceType.ONE_TIME, icon: 'Smartphone', image: 'https://images.unsplash.com/photo-1516738901171-8eb4fc13bd20?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
+  { id: 'SRV-MH-02', name: 'Trening odporności na stres (Resilience)', description: 'Techniki jednostek specjalnych dla korporacji.', price: 33, type: ServiceType.ONE_TIME, icon: 'Heart', image: 'https://images.unsplash.com/photo-1522204538344-922f76ecc041?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
+  { id: 'SRV-MH-03', name: 'Sztuka asertywności na Teamsach', description: 'Jak mówić "nie" bez poczucia winy.', price: 21, type: ServiceType.ONE_TIME, icon: 'MessageSquare', image: 'https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
+  { id: 'SRV-MH-04', name: 'Sen jako Twój najlepszy projekt', description: 'Biohacking nocnej regeneracji.', price: 44, type: ServiceType.ONE_TIME, icon: 'Moon', image: 'https://images.unsplash.com/photo-1511296933631-18b46797e652?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
+  { id: 'SRV-MH-05', name: 'Praca z domu i samotność', description: 'Jak budować relacje w trybie remote.', price: 15, type: ServiceType.ONE_TIME, icon: 'Users', image: 'https://images.unsplash.com/photo-1593642532973-d31b6557fa68?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Eliton' },
 
   // --- FINANCE & GROWTH ---
-  { id: 'SRV-FIN-01', name: 'Inwestowanie dla ostrożnych', description: 'Podstawy budowania poduszki finansowej.', price: 28, type: ServiceType.ONE_TIME, icon: 'DollarSign', image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-FIN-02', name: 'Psychologia zakupów online', description: 'Jak nie dać się zmanipulować algorytmom.', price: 7, type: ServiceType.ONE_TIME, icon: 'ShoppingCart', image: 'https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-FIN-03', name: 'Negocjacje podwyżki w 2026', description: 'Nowoczesne argumenty oparte na danych.', price: 42, type: ServiceType.ONE_TIME, icon: 'TrendingUp', image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-FIN-04', name: 'Personal Branding wewnątrz firmy', description: 'Jak być widocznym, nie będąc nachalnym.', price: 19, type: ServiceType.ONE_TIME, icon: 'UserCheck', image: 'https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-FIN-05', name: 'Emerytura 2.0', description: 'Zrozumieć PPK, IKE i IKZE bez bólu głowy.', price: 36, type: ServiceType.ONE_TIME, icon: 'Landmark', image: 'https://images.unsplash.com/photo-1565514020176-6c2235b8b3a9?auto=format&fit=crop&q=80&w=800', isActive: true },
+  { id: 'SRV-FIN-01', name: 'Inwestowanie dla ostrożnych', description: 'Podstawy budowania poduszki finansowej.', price: 28, type: ServiceType.ONE_TIME, icon: 'DollarSign', image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.FINANSE, partner: 'Eliton' },
+  { id: 'SRV-FIN-02', name: 'Psychologia zakupów online', description: 'Jak nie dać się zmanipulować algorytmom.', price: 7, type: ServiceType.ONE_TIME, icon: 'ShoppingCart', image: 'https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.FINANSE, partner: 'Eliton' },
+  { id: 'SRV-FIN-03', name: 'Negocjacje podwyżki w 2026', description: 'Nowoczesne argumenty oparte na danych.', price: 42, type: ServiceType.ONE_TIME, icon: 'TrendingUp', image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+  { id: 'SRV-FIN-04', name: 'Personal Branding wewnątrz firmy', description: 'Jak być widocznym, nie będąc nachalnym.', price: 19, type: ServiceType.ONE_TIME, icon: 'UserCheck', image: 'https://images.unsplash.com/photo-1491438590914-bc09fcaaf77a?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+  { id: 'SRV-FIN-05', name: 'Emerytura 2.0', description: 'Zrozumieć PPK, IKE i IKZE bez bólu głowy.', price: 36, type: ServiceType.ONE_TIME, icon: 'Landmark', image: 'https://images.unsplash.com/photo-1565514020176-6c2235b8b3a9?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.FINANSE, partner: 'Eliton' },
 
   // --- LIFESTYLE ---
-  { id: 'SRV-LIFE-01', name: 'Bajka na dobranoc: Robot, który chciał mieć sny', description: 'Audio dla dzieci pracowników.', price: 11, type: ServiceType.ONE_TIME, icon: 'Baby', image: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-LIFE-02', name: 'Kuchnia w 15 minut', description: 'Meal-prep dla zapracowanych.', price: 24, type: ServiceType.ONE_TIME, icon: 'Utensils', image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-LIFE-03', name: 'Hobby zamiast scrollowania', description: 'Jak znaleźć pasję, która nie wymaga ekranu.', price: 17, type: ServiceType.ONE_TIME, icon: 'Compass', image: 'https://images.unsplash.com/photo-1455355675860-e883e35ab3a7?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-LIFE-04', name: 'Podróże z nielimitowanym urlopem', description: 'Jak planować workation.', price: 48, type: ServiceType.ONE_TIME, icon: 'Plane', image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=800', isActive: true },
-  { id: 'SRV-LIFE-05', name: 'Komunikacja między pokoleniami', description: 'Jak dogadać się z Gen Z i Boomerami.', price: 39, type: ServiceType.ONE_TIME, icon: 'Users', image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=800', isActive: true }
+  { id: 'SRV-LIFE-01', name: 'Bajka na dobranoc: Robot, który chciał mieć sny', description: 'Audio dla dzieci pracowników.', price: 11, type: ServiceType.ONE_TIME, icon: 'Baby', image: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.RODZINA, partner: 'Eliton' },
+  { id: 'SRV-LIFE-02', name: 'Kuchnia w 15 minut', description: 'Meal-prep dla zapracowanych.', price: 24, type: ServiceType.ONE_TIME, icon: 'Utensils', image: 'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.RODZINA, partner: 'Eliton' },
+  { id: 'SRV-LIFE-03', name: 'Hobby zamiast scrollowania', description: 'Jak znaleźć pasję, która nie wymaga ekranu.', price: 17, type: ServiceType.ONE_TIME, icon: 'Compass', image: 'https://images.unsplash.com/photo-1455355675860-e883e35ab3a7?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Eliton' },
+  { id: 'SRV-LIFE-04', name: 'Podróże z nielimitowanym urlopem', description: 'Jak planować workation.', price: 48, type: ServiceType.ONE_TIME, icon: 'Plane', image: 'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Eliton' },
+  { id: 'SRV-LIFE-05', name: 'Komunikacja między pokoleniami', description: 'Jak dogadać się z Gen Z i Boomerami.', price: 39, type: ServiceType.ONE_TIME, icon: 'Users', image: 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ROZWOJ, partner: 'Eliton' },
+
+  // --- PARTNERZY (sklep v2, 2026-09-15) — cena 0 = „Zapytaj o ofertę" ---
+  { id: 'SRV-P-LUXMED',     name: 'Luxmed — Pakiet Optyka i Rehabilitacja', description: 'Szybki dostęp do specjalistów, optyka i rehabilitacja.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'HeartPulse', image: 'https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Profitowi' },
+  { id: 'SRV-P-TUZDROWIE',  name: 'TU Zdrowie — Pakiet badań profilaktycznych', description: 'Pakiet podstawowych badań i przeglądowy dla aktywnych.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'Stethoscope', image: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Multipolisa.pl' },
+  { id: 'SRV-P-MEDICOVER',  name: 'Medicover — Pakiet opieki medycznej', description: 'Prywatna opieka medyczna dla Ciebie i rodziny — zapytaj o ofertę dla pracowników.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'HeartPulse', image: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.ZDROWIE, partner: 'Medicover' },
+  { id: 'SRV-P-PZU',        name: 'PZU — Ubezpieczenie NNW pracownicze', description: 'Ochrona całą dobę, w pracy i poza nią.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'ShieldCheck', image: 'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.UBEZPIECZENIA, partner: 'Profitowi' },
+  { id: 'SRV-P-UNIGA',      name: 'Uniga — Ubezpieczenie na życie', description: 'Szerokie ubezpieczenie na życie dla rodziny.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'ShieldCheck', image: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.UBEZPIECZENIA, partner: 'Profitowi' },
+  { id: 'SRV-P-LOYDS',      name: 'Loyds — Ubezpieczenie od utraty dochodu', description: 'Zabezpieczenie dochodu dla menedżerów i specjalistów.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'ShieldCheck', image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.UBEZPIECZENIA, partner: 'Profitowi' },
+  { id: 'SRV-P-ERGO',       name: 'Ergo Hestia — Pakiet Bezpieczny Dom', description: 'Ochrona domu i mieszkania od wszelkich zdarzeń.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'Shield', image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.UBEZPIECZENIA, partner: 'Multipolisa.pl' },
+  { id: 'SRV-P-WARTA',      name: 'Warta — Ubezpieczenie turystyczne', description: 'Na delegacje i wakacje, w Polsce i za granicą.', price: 0, type: ServiceType.ONE_TIME, icon: 'Plane', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.UBEZPIECZENIA, partner: 'Multipolisa.pl' },
+  { id: 'SRV-P-LEADENHALL', name: 'Leadenhall — OC w życiu prywatnym', description: 'Chroni przed skutkami codziennych pomyłek.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'Shield', image: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.UBEZPIECZENIA, partner: 'Multipolisa.pl' },
+  { id: 'SRV-P-IKE',        name: 'IKE — Indywidualne Konto Emerytalne', description: 'Oszczędzanie na emeryturę z korzyściami podatkowymi.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'Landmark', image: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.FINANSE, partner: 'Goldman Sachs' },
+  { id: 'SRV-P-IKZE',       name: 'IKZE — Indywidualne Konto Zabezpieczenia Emerytalnego', description: 'Ulga podatkowa dziś, kapitał na emeryturę jutro.', price: 0, type: ServiceType.SUBSCRIPTION, icon: 'Landmark', image: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&q=80&w=800', isActive: true, category: BenefitCategory.FINANSE, partner: 'Goldman Sachs' },
+  // Aplikacje Eliton, które do tej pory istniały tylko jako obiekty zapasowe w DashboardEmployee
+  { id: 'SRV-SECURE-01',    name: 'Secure Messenger', description: 'Szyfrowana komunikacja end-to-end.', price: 200, type: ServiceType.SUBSCRIPTION, icon: 'Lock', image: '/klodka.png', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Eliton', fulfillment: 'auto' },
+  { id: 'SRV-VAULT-01',     name: 'Digital Vault', description: 'Prywatny sejf cyfrowy 10 GB. AES-256.', price: 50, type: ServiceType.SUBSCRIPTION, icon: 'ShieldCheck', image: '/sejf.png', isActive: true, category: BenefitCategory.CODZIENNOSC, partner: 'Eliton', fulfillment: 'auto' },
 ];
 
 export const INITIAL_TICKETS: SupportTicket[] = [

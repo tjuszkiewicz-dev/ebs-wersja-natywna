@@ -1,4 +1,4 @@
-import { Role, DocumentType, ServiceType } from './enums';
+import { Role, DocumentType, ServiceType, BenefitCategory } from './enums';
 import { EntityType } from './core';
 
 export type IntegrationCategory = 'FOUNDATION' | 'WORKFLOW' | 'AUTOMATION' | 'MANAGEMENT';
@@ -86,13 +86,26 @@ export interface SystemConfig {
   auditLogRetentionDays: number;
 }
 
+/** 'auto' = aplikacja Eliton odblokowuje się sama po zakupie; 'bok' = BOK realizuje ręcznie (domyślnie). */
+export type BenefitFulfillment = 'auto' | 'bok';
+
+/** Wynik zakupu za punkty — zwracany przez hook i modal (spec §6.3). */
+export interface PurchaseResult {
+  ok: boolean;
+  error?: string;
+  transactionId?: string;
+}
+
 export interface ServiceItem {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price: number;                    // punkty; 1 pkt = 1 zł vouchera; 0 = „Zapytaj o ofertę"
   type: ServiceType;
   icon: string;
   image?: string;
   isActive: boolean;
+  category: BenefitCategory;
+  partner?: string;                 // nazwa partnera/brokera na kafelku i w mailu do BOK
+  fulfillment?: BenefitFulfillment; // brak = 'bok'
 }
