@@ -298,8 +298,8 @@ też przez Pulpit — jedno źródło zamiast czterech `if`-ów).
    ('new','in_progress','done'))`, `created_at timestamptz default now()`; indeks
    `(user_id, service_id, created_at desc)`; RLS włączone bez polityk (deny-all, dostęp przez
    service_role — konwencja repo); audyt triggerem `fn_audit_log` (brak danych wrażliwych w wierszu).
-   `lib/users/accountPurge.ts` dostaje wpis dla tej tabeli (kaskada przy PURGE; przy ANONIMIZACJI
-   wiersze zostają, bo nie zawierają danych osobowych poza kluczem).
+   `lib/users/accountPurge.ts` dostaje wpis dla tej tabeli w `OWNED_TABLES` — **wiersze kasowane w OBU trybach**
+   (także przy ANONIMIZACJI: zapytanie martwego konta nie ma wartości; korekta specu po recenzji końcowej 16.09).
 4. `types/database.ts` **nie jest rozszerzane** — zapytania do `benefit_inquiries` idą przez
    `(supabase as any)`, jak `document_templates` i tabele `hr_*` (konwencja repo).
 
