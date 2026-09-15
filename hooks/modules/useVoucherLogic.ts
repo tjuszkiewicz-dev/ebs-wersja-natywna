@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   Voucher, VoucherStatus, BuybackAgreement, Transaction, User, Company,
-  ServiceItem, DistributionBatch, NotificationConfig, SystemConfig,
+  ServiceItem, DistributionBatch, NotificationConfig, SystemConfig, PurchaseResult,
 } from '../../types';
 import { LogEventFn, NotifyUserFn, AddToastFn } from '../../types/callbacks';
 
@@ -51,7 +51,7 @@ function dbTransactionToFrontend(t: any): Transaction {
   return {
     id:          t.id,
     userId:      t.to_user_id ?? t.from_user_id,
-    type:        t.transaction_type === 'redemption' ? 'DEBIT' : 'CREDIT',
+    type:        (t.type === 'wykorzystanie' || t.transaction_type === 'redemption') ? 'DEBIT' : 'CREDIT',
     serviceId:   t.service_id   ?? undefined,
     serviceName: t.service_name ?? undefined,
     amount:      t.amount,
@@ -282,13 +282,13 @@ export const useVoucherLogic = (
 
   // ── Zakup usługi (pracownik) ──────────────────────────────────────────────
 
-  const handleServicePurchase = useCallback(async (service: ServiceItem) => {
+  const handleServicePurchase = useCallback(async (service: ServiceItem): Promise<PurchaseResult> => {
     if ((currentUser.voucherBalance ?? 0) < service.price) {
       addToast('Transakcja Odrzucona', 'Niewystarczające środki.', 'ERROR');
-      return;
+      return { ok: false, error: 'Niewystarczające środki.' };
     }
 
-    // Optimistic
+    // Optymistycznie
     setUsers(prev => prev.map(u =>
       u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance - service.price } : u
     ));
@@ -303,24 +303,24 @@ export const useVoucherLogic = (
       setUsers(prev => prev.map(u =>
         u.id === currentUser.id ? { ...u, voucherBalance: u.voucherBalance + service.price } : u
       ));
-      addToast('Transakcja Odrzucona', 'Nie udało się zrealizować zakupu.', 'ERROR');
-      return;
+      let message = 'Nie udało się zrealizować zakupu.';
+      try { const body = await res.json(); if (typeof body?.error === 'string') message = body.error; } catch { /* brak treści */ }
+      addToast('Transakcja Odrzucona', message, 'ERROR');
+      return { ok: false, error: message };
     }
 
+    const body = await res.json().catch(() => ({}));
+    const transactionId: string = body?.transactionId || `TRX-${Date.now()}`;
     const newTx: Transaction = {
-      id:          `TRX-${Date.now()}`,
-      userId:      currentUser.id,
-      type:        'DEBIT',
-      serviceId:   service.id,
-      serviceName: service.name,
-      amount:      service.price,
-      date:        new Date().toISOString(),
+      id: transactionId, userId: currentUser.id, type: 'DEBIT',
+      serviceId: service.id, serviceName: service.name, amount: service.price, date: new Date().toISOString(),
     };
     setTransactions(prev => [newTx, ...prev]);
 
     logEvent('SERVICE_CONSUMPTION', `Zakup usługi: ${service.name}.`, currentUser.id, 'USER');
     notifyUser(currentUser.id, `Zakupiono: ${service.name}.`, 'SUCCESS');
-    addToast('Usługa Aktywowana', `Pobrano ${service.price} pkt.`, 'SUCCESS');
+    addToast('Zakup przyjęty', `Pobrano ${service.price} pkt.`, 'SUCCESS');
+    return { ok: true, transactionId };
   }, [currentUser, logEvent, notifyUser, addToast]);
 
   // ── Symulacja wygaśnięcia (superadmin) ────────────────────────────────────

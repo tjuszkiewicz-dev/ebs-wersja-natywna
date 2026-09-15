@@ -1,9 +1,9 @@
 
 import React, { createContext, useContext, useState, ReactNode, useCallback, useMemo } from 'react';
 import { 
-  User, Voucher, Company, Order, BuybackAgreement, AuditLogEntry, 
+  User, Voucher, Company, Order, BuybackAgreement, AuditLogEntry,
   Commission, QuarterlyPerformance, Notification, NotificationConfig, ServiceItem, Transaction,
-  SystemConfig, ImportHistoryEntry, PayrollEntry, NotificationAction, UserFinance, SupportTicket, TicketMessage, TicketCategory, TicketPriority, Role, TicketStatus, DistributionBatch
+  SystemConfig, ImportHistoryEntry, PayrollEntry, NotificationAction, UserFinance, SupportTicket, TicketMessage, TicketCategory, TicketPriority, Role, TicketStatus, DistributionBatch, PurchaseResult
 } from '../types';
 import { 
   INITIAL_AUDIT_LOGS, 
@@ -76,7 +76,7 @@ interface StrattonContextType {
     handleDeactivateEmployee: (employeeId: string) => void;
     handleUpdateEmployee: (userId: string, data: Partial<User>) => void;
     handleBulkImport: (validRows: any[], overrideCompanyId?: string) => Promise<any>;
-    handleServicePurchase: (service: ServiceItem) => void;
+    handleServicePurchase: (service: ServiceItem) => Promise<PurchaseResult>;
     simulateExpiration: () => void;
     handleApproveBuyback: (buybackId: string) => void;
     handleProcessBuybackPayment: (buybackId: string) => void;

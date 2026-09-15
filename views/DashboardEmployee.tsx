@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from 'motion/react';
 import {
   User, Voucher, VoucherStatus, BuybackAgreement, ServiceItem,
-  Transaction, UserFinance, ServiceType, BenefitCategory
+  Transaction, UserFinance, ServiceType, BenefitCategory, PurchaseResult
 } from '../types';
 import { ServiceCatalog } from '../components/employee/dashboard/ServiceCatalog';
 import { EmployeeTransactionHistory } from '../components/employee/dashboard/EmployeeTransactionHistory';
@@ -46,7 +46,7 @@ interface Props {
   services: ServiceItem[];
   transactions: Transaction[];
   onViewChange?: (view: string) => void;
-  onPurchaseService: (service: ServiceItem) => void;
+  onPurchaseService: (service: ServiceItem) => Promise<PurchaseResult>;
   onViewAgreement: (agreement: BuybackAgreement) => void;
 }
 
@@ -149,8 +149,13 @@ export const DashboardEmployee: React.FC<Props> = ({
 
   const handleManualSpend = async (amount: number, description: string) => {
     const s: ServiceItem = { id: `INTERNAL-${Date.now()}`, name: description, description: 'Internal', price: amount, type: ServiceType.ONE_TIME, icon: 'Zap', isActive: true, category: BenefitCategory.CODZIENNOSC };
-    onPurchaseService(s);
+    const r = await onPurchaseService(s);
+    return r.ok;
   };
+  // MentalHealthDashboard/LegalAssistantDashboard deklarują onSpend: Promise<void> (nie zmieniamy tych
+  // propsów — LegalAssistantDashboard sam sprowadza wynik do boolean). Realna wartość ok/error dalej
+  // płynie w runtime; rzutujemy tu wyłącznie typ na granicy wywołania.
+  const handleManualSpendVoid = handleManualSpend as unknown as (amount: number, description: string) => Promise<void>;
 
   const handlePartnerRequest = (partnerName: string, productName: string) => {
     const s: ServiceItem = {
@@ -168,10 +173,10 @@ export const DashboardEmployee: React.FC<Props> = ({
 
   /* Full-screen overlays */
   if (activeTab === 'WELLBEING' && hasMentalHealthAccess) {
-    return <MentalHealthDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpend} onExit={() => setActiveTab('WALLET')} />;
+    return <MentalHealthDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={() => setActiveTab('WALLET')} />;
   }
   if (activeTab === 'LEGAL' && hasLegalAccess) {
-    return <LegalAssistantDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpend} onExit={() => setActiveTab('WALLET')} />;
+    return <LegalAssistantDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={() => setActiveTab('WALLET')} />;
   }
   if (activeTab === 'SECURE_MESSENGER' && hasSecureMessengerAccess) {
     return (
