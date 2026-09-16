@@ -138,7 +138,7 @@ Dochodzą (nowe `id`, cena **0** = „Zapytaj o ofertę", chyba że podano):
 | `SRV-P-TUZDROWIE` | TU Zdrowie — Pakiet badań profilaktycznych | Zdrowie | Multipolisa.pl | 0 |
 | `SRV-P-MEDICOVER` | Medicover — Pakiet opieki medycznej | Zdrowie | Medicover | 0 |
 | `SRV-P-PZU` | PZU — Ubezpieczenie NNW pracownicze | Ubezpieczenia | Profitowi | 0 |
-| `SRV-P-UNIGA` | Uniga — Ubezpieczenie na życie | Ubezpieczenia | Profitowi | 0 |
+| `SRV-P-UNIQA` | UNIQA — Ubezpieczenie na życie | Ubezpieczenia | Profitowi | 0 |
 | `SRV-P-LOYDS` | Loyds — Ubezpieczenie od utraty dochodu | Ubezpieczenia | Profitowi | 0 |
 | `SRV-P-ERGO` | Ergo Hestia — Pakiet Bezpieczny Dom | Ubezpieczenia | Multipolisa.pl | 0 |
 | `SRV-P-WARTA` | Warta — Ubezpieczenie turystyczne | Ubezpieczenia | Multipolisa.pl | 0 |
@@ -149,8 +149,9 @@ Dochodzą (nowe `id`, cena **0** = „Zapytaj o ofertę", chyba że podano):
 | `SRV-VAULT-01` | Digital Vault | Codzienność | Eliton | 50, `auto` |
 
 Nazwy, opisy i obrazki partnerskie przenoszone 1:1 z dzisiejszych kafelków JSX
-(`DashboardEmployee.tsx`, sekcje Profitowi/Multipolisa/Goldman). „Uniga" zostaje w pisowni z kodu
-(właściciel poprawi w katalogu, jeśli chodzi o UNIQA). `SRV-SECURE-01`/`SRV-VAULT-01` dziś istnieją
+(`DashboardEmployee.tsx`, sekcje Profitowi/Multipolisa/Goldman). Pisownia „Uniga" z kodu
+poprawiona na **UNIQA** (id `SRV-P-UNIQA`; decyzja właściciela 17.09.2026 — w bazie nie było
+ani jednego wiersza ze starym id). `SRV-SECURE-01`/`SRV-VAULT-01` dziś istnieją
 tylko jako obiekty zapasowe w `DashboardEmployee` — wchodzą do katalogu, żeby sklep i „Twoje
 Aplikacje" czytały jedno źródło. Filtr ukrywający `SRV-ORANGE-*` w `displayServices` przestaje
 obowiązywać w v2 (Orange wraca do widoku zgodnie z przypisaniem zatwierdzonym w Q3).
@@ -391,8 +392,61 @@ potrzebne do realizacji). Wartości z katalogu i profilu są escapowane przed ws
   dla pracowników" (`resolveAction` nie zna roli — obsługa w `StoreDetail` po `user.role`).
 - **`AGENTS.md`** — nieaktualne od 02.09, nie jest źródłem prawdy.
 
-## 10. Otwarte (decyzje właściciela po wdrożeniu, nieblokujące)
+## 10. Decyzje właściciela po wdrożeniu (17.09.2026) — ROZSTRZYGNIĘTE
 
-- Realne ceny/kwoty dla pozycji partnerskich (dziś 0) i ewentualna korekta cen istniejących.
-- Pisownia „Uniga" vs „UNIQA".
-- Czy BOK chce ekranu kolejki zgłoszeń w panelu admina (dziś: e-mail + tabela).
+1. **Wydatki wewnątrz aplikacji Eliton (`INTERNAL-*`: Prawnik AI, biblioteka premium) schodzą
+   z kont** — potwierdzone; gałąź `internal` w `lib/benefits/purchaseValidation.ts` zostaje.
+   (Do 15.09 padały na 500, od naprawy `redeem_voucher` działają naprawdę.)
+2. **Pozycje partnerskie zostają na „Zapytaj o ofertę" (cena 0)**, bez realnych cen. Pracownik
+   ma dodatkowo dostać **numer telefonu do BOK** — właściciel poda go 18.09.2026. Slot gotowy:
+   `BOK_PHONE` (`NEXT_PUBLIC_BOK_PHONE`, `lib/benefits/constants.ts`) + `bokContactText()`;
+   pusty = niewidoczny, wpisany = pojawia się w mailach do pracownika i w stanie „Zgłoszone"
+   w `StoreDetail`.
+3. **UNIQA** (patrz §4.2).
+4. **BOK dostaje ekran kolejki zgłoszeń w panelu admina** — §11.
+
+## 11. Kolejka zgłoszeń BOK (panel admina, 17.09.2026)
+
+**Cel:** BOK dostaje te same zgłoszenia e-mailem, ale mail nie mówi, co jest jeszcze do zrobienia
+ani kto się tym zajął. Ekran `Zgłoszenia BOK` (Sidebar ── Benefity ──, zakładka `admin-zgloszenia`,
+komponent `components/adminNew/AdminZgloszenia.tsx`) to kolejka pracy: dwa rodzaje, statusy,
+podpis obsługującego, notatka, „po terminie".
+
+**Dwa rodzaje zgłoszeń:**
+- **Zamówienia** = zakupy za punkty. Księga (`voucher_transactions`, `type='wykorzystanie'`) jest
+  niezmienna (`trg_ledger_no_update/no_delete`), więc stan obsługi żyje obok niej w
+  `benefit_order_fulfillments` (1:1 po `transaction_id`, migracja 062). **Kolejka jest pochodną
+  księgi:** każdy odczyt listy woła najpierw `bok_sync_order_queue(p_auto_service_ids)`, która
+  dopisuje brakujące wpisy — nie da się zgubić zamówienia. Aplikacje Eliton (`fulfillment: 'auto'`)
+  i `INTERNAL-*` wchodzą od razu jako `done` z etykietą „automatyczna" (BOK nic nie robi, ale widzi
+  historię zakupów); reszta jako `new` z etykietą „realizuje BOK". Partner dokładany z katalogu przy
+  odczycie (księga go nie zna).
+- **Zapytania o ofertę** = `benefit_inquiries` (miała `status` od 061); 062 dokłada `handled_by`,
+  `handled_at`, `note`, `updated_at`.
+
+**Statusy i reguła obsługi (`lib/benefits/bokQueue.ts`, testy):** `new` → `in_progress` → `done`,
+zmiana dowolna (BOK może cofnąć). Przejście na „w toku"/„zamknięte" podpisuje `handled_by`/`handled_at`
+zalogowanym; powrót na „nowe" zdejmuje podpis. Sama notatka (≤ 500 znaków) nie zmienia statusu ani
+podpisu. Filtry: **Otwarte** (domyślny: nowe + w toku) / Nowe / W toku / Zamknięte / Wszystkie.
+**„Po terminie"** = otwarte zgłoszenie starsze niż 2 dni robocze (`isOverdue`, liczone w UTC, soboty
+i niedziele pomijane, święta świadomie nie) — pokazane tekstem z ikoną, nie samym kolorem.
+
+**API (`lib/benefits/bokQueueServer.ts`):** `GET /api/admin/bok/{orders|inquiries}?status=&limit=&offset=`
+(lista + liczniki per status), `PATCH /api/admin/bok/{kind}/{id}` `{status?, note?}`,
+`GET /api/admin/bok/summary` (liczniki obu kolejek). Bramka: **`can(auth, 'benefity.zgloszenia')`**
+(nowy klucz w grupie „Benefity" + pozycja w `PERMISSION_MENU`), żeby osobę z BOK dało się wpuścić
+rolą własną bez superadmina; brak sesji → 401, brak klucza → 403. Dane pracownika do kontaktu (imię
+i nazwisko, e-mail logowania z `auth.users` przez `listUsers` — konwencja `/api/users`, telefon,
+firma) dokładane przy odczycie; nic nie jest kopiowane do tabel kolejki.
+
+**E-maile:** maile do BOK (zamówienie, zapytanie) dostają linijkę „Status obsługi: {BOK_QUEUE_URL}"
+(`https://ebs.elitonbenefits.pl/dashboard/admin?view=admin-zgloszenia` — mechanizm `?view=`). Maile do
+pracownika linku nie dostają.
+
+**Usuwanie kont:** `handled_by` w obu tabelach odpinane tylko przy PURGE (`DETACH_TABLES`,
+`purgeOnly`), przy anonimizacji profil zostaje jako „Konto usunięte". `benefit_order_fulfillments.user_id`
+idzie z księgą (wpis `wykorzystanie` i tak wymusza anonimizację). Audyt: trigger `fn_audit_log`
+na nowej tabeli (bez danych wrażliwych; notatka BOK to treść operacyjna).
+
+**Świadomie odłożone:** plakietka z liczbą nowych zgłoszeń w menu bocznym (endpoint `summary` już
+jest), KPI na Pulpicie admina, akcje zbiorcze, filtrowanie po firmie/pracowniku.

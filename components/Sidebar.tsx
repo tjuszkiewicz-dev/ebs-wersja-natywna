@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Role, User } from '../types';
 import { PERMISSION_MENU } from '../lib/permissions/registry';
-import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2, Mic, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, ShieldCheck, DollarSign, ChevronRight, HelpCircle, Grid, CreditCard, Plus, ChevronLeft, Smartphone, HeartPulse, Shield, TrendingUp, Brain, BookOpen, History, Ticket, RefreshCw, UserCog, Calculator, KanbanSquare, UserRound, Trophy, Network, Mail, CalendarDays, Languages, Car, MapPin, FolderOpen, Settings2, Mic, ShoppingBag, Inbox } from 'lucide-react';
 import { STORE_LAYOUT } from '@/lib/benefits/storeLayout';
 
 // Ikony dla dynamicznego menu budowanego z uprawnień (PERMISSION_MENU w registry) — 1:1 z BBS
@@ -14,6 +14,7 @@ const MENU_ICONS: Record<string, React.ReactNode> = {
   trophy: <Trophy size={20} />, network: <Network size={20} />,
   file: <FileText size={20} />, history: <History size={20} />, calendar: <CalendarDays size={20} />,
   languages: <Languages size={20} />, car: <Car size={20} />, mappin: <MapPin size={20} />,
+  inbox: <Inbox size={20} />,
 };
 
 // Role z własnym, statycznym menu — reszta (koordynator, płatnik, role własne) dostaje menu z uprawnień
@@ -120,6 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           { id: 'admin-archiwum',  label: 'Archiwum',            icon: <FolderOpen size={20} /> },
           { id: 'admin-vouchery',  label: 'Vouchery',                icon: <Ticket size={20} /> },
           { id: 'admin-buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={20} /> },
+          { id: 'admin-zgloszenia', label: 'Zgłoszenia BOK',        icon: <Inbox size={20} /> },
           { id: 'hr-divider',     label: '── Agencja Pracy ──', icon: null, divider: true, section: 'Agencja Pracy' },
           { id: 'hr-pracownicy',  label: 'Pracownicy',      icon: <Users size={20} /> },
           { id: 'hr-mapa',        label: 'Mapa Pracowników', icon: <MapPin size={20} /> },

@@ -16,7 +16,7 @@ import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
 import { X, CheckCircle2, Loader2 } from 'lucide-react';
 import type { ServiceItem, PurchaseResult } from '@/types';
 import { APP_TAB_BY_SERVICE, type StoreAction, type EmployeeAppTab } from '@/lib/benefits/catalog';
-import { BOK_SLA_TEXT } from '@/lib/benefits/constants';
+import { BOK_PHONE, BOK_SLA_TEXT } from '@/lib/benefits/constants';
 import { RedemptionModal } from '../RedemptionModal';
 
 interface Props {
@@ -150,7 +150,7 @@ export function StoreDetail({ item, action, balance, canTransact, userEmail, onC
           return (
             <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-sm text-emerald-900 flex gap-3">
               <CheckCircle2 size={20} className="shrink-0 text-emerald-600" />
-              <span>{when ? `Zgłoszone ${when}.` : 'Zgłoszone ✓'} BOK odezwie się w ciągu {BOK_SLA_TEXT}.</span>
+              <span>{when ? `Zgłoszone ${when}.` : 'Zgłoszone ✓'} BOK odezwie się w ciągu {BOK_SLA_TEXT}.{BOK_PHONE ? ` Pilne? Zadzwoń: ${BOK_PHONE}.` : ''}</span>
             </div>
           );
         }

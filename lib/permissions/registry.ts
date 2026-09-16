@@ -25,6 +25,9 @@ export const PERMISSION_GROUPS: PermGroup[] = [
       { key: 'benefity.vouchery', label: 'Vouchery', kind: 'tab' },
       { key: 'benefity.buyback', label: 'Anulowanie subskrypcji', kind: 'tab' },
       { key: 'benefity.szablony', label: 'Szablony dokumentów', kind: 'tab' },
+      // Sklep benefitów v2 (2026-09-17): kolejka zamówień i zapytań o ofertę dla BOK. Klucz istnieje
+      // po to, żeby osobę z BOK dało się wpuścić rolą własną bez nadawania superadmina.
+      { key: 'benefity.zgloszenia', label: 'Zgłoszenia BOK (zamówienia i zapytania ze sklepu)', kind: 'tab' },
     ],
   },
   {
@@ -109,6 +112,7 @@ export const DEFAULT_ROLE_PERMS: Record<string, string[]> = {
 // Mapowanie uprawnień → pozycje menu panelu (dynamiczny sidebar dla ról agencyjnych).
 export interface MenuDef { view: string; label: string; section: string; icon: string; anyOf: string[] }
 export const PERMISSION_MENU: MenuDef[] = [
+  { view: 'admin-zgloszenia', label: 'Zgłoszenia BOK', section: 'Benefity', icon: 'inbox', anyOf: ['benefity.zgloszenia'] },
   { view: 'hr-pracownicy', label: 'Pracownicy', section: 'Agencja Pracy', icon: 'users',
     anyOf: ['agencja.pulpit', 'agencja.poczekalnia', 'agencja.kontrakty', 'agencja.dokumenty', 'agencja.raporty', 'agencja.rozliczenia', 'agencja.noclegi', 'agencja.archiwum', 'agencja.dowoz', 'agencja.bhp', 'agencja.legalizacja'] },
   { view: 'hr-flota', label: 'Flota', section: 'Agencja Pracy', icon: 'car', anyOf: ['agencja.flota'] },

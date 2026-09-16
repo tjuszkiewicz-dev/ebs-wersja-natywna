@@ -9,12 +9,13 @@ import { AdminBuyback } from '../components/adminNew/AdminBuyback';
 import { AdminUsers } from '../components/adminNew/AdminUsers';
 import AdminSzablony from '../components/adminNew/AdminSzablony';
 import AdminLogi from '../components/adminNew/AdminLogi';
+import AdminZgloszenia from '../components/adminNew/AdminZgloszenia';
 import { HrDashboard } from '../components/agencja/HrDashboard';
 import { HrFlota } from '../components/agencja/HrFlota';
 import { HrGeneratorDokumentow } from '../components/agencja/HrGeneratorDokumentow';
 import { HrTlumacz } from '../components/agencja/HrTlumacz';
 import { AdminKsiegowosc } from '../components/adminNew/AdminKsiegowosc';
-import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, ShieldCheck, Archive, Ticket, RefreshCw, Lock, FileText, ScrollText, Inbox } from 'lucide-react';
 
 // Leaflet (HrMapa) jest browser-only — dynamic import ssr:false, żeby nie wysadzić `next build`.
 const HrMapa = dynamic(() => import('../components/agencja/HrMapa').then(m => m.HrMapa), { ssr: false });
@@ -34,7 +35,7 @@ const OrgChartView = dynamic(() => import('../components/adminNew/org/OrgChartVi
 // CRM (E7e) — nagrywanie idzie przez MediaRecorder, więc tylko po stronie przeglądarki.
 const CrmNotatki = dynamic(() => import('../components/adminNew/crm/CrmNotatki').then(m => ({ default: m.CrmNotatki })), { ssr: false });
 
-type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'crm-leaderboard' | 'crm-org-chart' | 'crm-notatki' | 'owner-panel' | 'ustawienia';
+type AdminTab = 'pulpit' | 'klienci' | 'platnosci' | 'archiwum' | 'vouchery' | 'buyback' | 'zgloszenia' | 'uzytkowniczy' | 'szablony' | 'logi' | 'hr-pracownicy' | 'hr-flota' | 'hr-generator' | 'hr-tlumacz' | 'hr-mapa' | 'admin-ksiegowosc' | 'crm-pipeline' | 'crm-kontakty' | 'crm-kalendarz' | 'crm-kalkulator' | 'crm-leaderboard' | 'crm-org-chart' | 'crm-notatki' | 'owner-panel' | 'ustawienia';
 
 export const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-pulpit':    'pulpit',
@@ -43,6 +44,7 @@ export const VIEW_TO_TAB: Record<string, AdminTab> = {
   'admin-archiwum':  'archiwum',
   'admin-vouchery':  'vouchery',
   'admin-buyback':   'buyback',
+  'admin-zgloszenia': 'zgloszenia',
   'admin-uzytkowniczy': 'uzytkowniczy',
   'admin-szablony':  'szablony',
   'admin-logi':      'logi',
@@ -70,6 +72,7 @@ const TAB_TO_VIEW: Record<AdminTab, string> = {
   archiwum:  'admin-archiwum',
   vouchery:  'admin-vouchery',
   buyback:   'admin-buyback',
+  zgloszenia: 'admin-zgloszenia',
   uzytkowniczy: 'admin-uzytkowniczy',
   szablony:  'admin-szablony',
   logi:      'admin-logi',
@@ -116,6 +119,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
     { id: 'archiwum',  label: 'Archiwum',            icon: <Archive size={16} /> },
     { id: 'vouchery',  label: 'Vouchery',            icon: <Ticket size={16} /> },
     { id: 'buyback',   label: 'Anulowanie subskrypcji', icon: <RefreshCw size={16} /> },
+    { id: 'zgloszenia', label: 'Zgłoszenia BOK',      icon: <Inbox size={16} /> },
     { id: 'uzytkowniczy', label: 'Użytkownicy',      icon: <Lock size={16} /> },
     { id: 'szablony',  label: 'Szablony',            icon: <FileText size={16} /> },
     { id: 'logi',      label: 'Logi',                icon: <ScrollText size={16} /> },
@@ -137,8 +141,9 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
       </div>
 
       {/* ── TAB BAR (identyczny styl jak HR) ─────────────────────────────── */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-6">
-        <div className="flex gap-0">
+      {/* Pasek przewija się sam (overflow-x-auto): 10 zakładek nie mieści się już w 1440 px — bez tego przewijała się cała strona. */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 px-6 overflow-x-auto">
+        <div className="flex gap-0 min-w-max">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -164,6 +169,7 @@ export const DashboardAdminNew: React.FC<Props> = ({ currentView, onViewChange, 
         {tab === 'archiwum'  && <AdminArchiwum />}
         {tab === 'vouchery'  && <AdminVouchery />}
         {tab === 'buyback'   && <AdminBuyback />}
+        {tab === 'zgloszenia' && <AdminZgloszenia />}
         {tab === 'uzytkowniczy' && <AdminUsers />}
         {tab === 'szablony' && <AdminSzablony />}
         {tab === 'logi' && <AdminLogi />}

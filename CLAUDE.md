@@ -609,7 +609,8 @@ Faktury VAT i noty księgowe są wystawiane w **Fakturowni** (źródło prawdy),
 
 Spec: `docs/superpowers/specs/2026-09-15-sklep-benefitow-design.md`. Pełnoekranowy sklep
 (`components/employee/store/*`) pod `activeTab === 'CATALOG'`; katalog **w kodzie**
-(`INITIAL_SERVICES` + `category`/`partner`/`fulfillment`, klucz localStorage `ebs_services_v16`);
+(`INITIAL_SERVICES` + `category`/`partner`/`fulfillment`; **bez trwałości w localStorage** — zdjęta
+po recenzji końcowej 16.09, bo zamrażała ceny; zmiana katalogu działa od następnego załadowania);
 logika w `lib/benefits/*` (czyste funkcje z testami). Dwie ścieżki: cena > 0 → `RedemptionModal` →
 `POST /api/vouchers/purchase` (serwer **waliduje cenę z katalogiem** i realizuje vouchery jedną
 funkcją `redeem_vouchers_for_service`, migracja 061 — jeden wpis w ledgerze, e-maile do BOK
@@ -620,6 +621,22 @@ i pracownika); cena 0 → `POST /api/benefits/inquiry` (tabela `benefit_inquirie
 na produkcji** (`redeem_voucher` wymagał statusu `active`, dystrybucja nadaje `distributed`); ledger
 nie miał ani jednego wpisu `wykorzystanie`. Zgłoszenia `SupportTicketSystem` w portalu to nadal
 tylko `localStorage` — BOK pracuje z e-maili (`BOK_EMAIL`, dom. `bok@stratton-prime.pl`).
+
+**Decyzje właściciela 17.09.2026 (spec §10):** wydatki `INTERNAL-*` wewnątrz aplikacji Eliton
+**schodzą z kont** (zostaje); pozycje partnerskie **zostają na „Zapytaj o ofertę"** — pracownik ma
+dodatkowo dostać telefon do BOK (slot `BOK_PHONE` = env `NEXT_PUBLIC_BOK_PHONE`, pusty = ukryty;
+numer właściciel poda 18.09); pisownia **UNIQA** (`SRV-P-UNIQA`).
+
+**Kolejka zgłoszeń BOK (17.09.2026, spec §11):** Sidebar ── Benefity ── „Zgłoszenia BOK" →
+`admin-zgloszenia` → `components/adminNew/AdminZgloszenia.tsx`. Dwa rodzaje: **zamówienia**
+(`benefit_order_fulfillments`, migracja 062 — stan obsługi obok niezmiennej księgi, 1:1 po
+`transaction_id`; **kolejka jest pochodną księgi**: odczyt listy woła `bok_sync_order_queue`, więc
+zamówienia nie da się zgubić; `auto`/`INTERNAL-*` wchodzą od razu jako `done`) i **zapytania**
+(`benefit_inquiries` + `handled_by`/`handled_at`/`note`). Logika: `lib/benefits/bokQueue.ts`
+(statusy `new`→`in_progress`→`done`, podpis obsługującego, „po terminie" = 2 dni robocze w UTC),
+I/O: `lib/benefits/bokQueueServer.ts`, API `app/api/admin/bok/{summary,[kind],[kind]/[id]}`.
+Bramka **`can(auth,'benefity.zgloszenia')`** (nowy klucz + `PERMISSION_MENU`) — osobę z BOK da się
+wpuścić rolą własną bez superadmina. Maile do BOK mają link do tej kolejki (`BOK_QUEUE_URL`).
 
 ### Admin Dashboard Layout (`AdminDashboardClient.tsx`)
 

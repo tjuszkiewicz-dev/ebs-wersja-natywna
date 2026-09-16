@@ -1,5 +1,5 @@
 // Treści e-maili sklepu — czyste funkcje, szablon spójny z app/api/contact-bok.
-import { BOK_EMAIL, BOK_SLA_TEXT } from './constants';
+import { BOK_QUEUE_URL, BOK_SLA_TEXT, bokContactText } from './constants';
 
 export interface MailContent { subject: string; html: string; text: string }
 
@@ -40,7 +40,7 @@ export function bokOrderMail(i: OrderMailInput): MailContent {
     ['Pracownik', i.employeeName], ['E-mail', i.employeeEmail], ['Firma', i.companyName ?? '—'],
     ['Id transakcji', i.transactionId], ['Data', fmtDate(i.when)],
   ];
-  const note = 'Punkty zostały pobrane z konta pracownika. Prosimy o realizację zamówienia i wysłanie kodu/aktywacji na e-mail pracownika.';
+  const note = `Punkty zostały pobrane z konta pracownika. Prosimy o realizację zamówienia i wysłanie kodu/aktywacji na e-mail pracownika. Status obsługi: ${BOK_QUEUE_URL}`;
   const title = 'Nowe zamówienie ze sklepu benefitów';
   return { subject: `[EBS Sklep] Zamówienie: ${label(i)}`, html: layout(title, rows, note), text: textOf(title, rows, note) };
 }
@@ -53,7 +53,7 @@ export function employeeOrderMail(i: OrderMailInput): MailContent {
     return { subject: `Aplikacja aktywna — ${i.productName}`, html: layout(title, rows, note), text: textOf(title, rows, note) };
   }
   const title = 'Przyjęliśmy Twoje zamówienie';
-  const note = `Biuro Obsługi Klienta prześle kod lub aktywację na ten adres w ciągu ${BOK_SLA_TEXT}. Pytania: ${BOK_EMAIL}.`;
+  const note = `Biuro Obsługi Klienta prześle kod lub aktywację na ten adres w ciągu ${BOK_SLA_TEXT}. Pytania: ${bokContactText()}.`;
   return { subject: `Potwierdzenie zamówienia — ${i.productName}`, html: layout(title, rows, note), text: textOf(title, rows, note) };
 }
 
@@ -62,7 +62,7 @@ export function bokInquiryMail(i: InquiryMailInput): MailContent {
     ['Produkt', i.productName], ['Partner', i.partner ?? '—'],
     ['Pracownik', i.employeeName], ['E-mail', i.employeeEmail], ['Firma', i.companyName ?? '—'], ['Data', fmtDate(i.when)],
   ];
-  const note = 'Pracownik prosi o ofertę. Prosimy o kontakt z pracownikiem lub przekazanie zapytania do brokera.';
+  const note = `Pracownik prosi o ofertę. Prosimy o kontakt z pracownikiem lub przekazanie zapytania do brokera. Status obsługi: ${BOK_QUEUE_URL}`;
   const title = 'Zapytanie o ofertę ze sklepu benefitów';
   return { subject: `[EBS Sklep] Zapytanie o ofertę: ${label(i)}`, html: layout(title, rows, note), text: textOf(title, rows, note) };
 }
@@ -70,6 +70,6 @@ export function bokInquiryMail(i: InquiryMailInput): MailContent {
 export function employeeInquiryMail(i: InquiryMailInput): MailContent {
   const rows: [string, string][] = [['Produkt', i.productName], ['Partner', i.partner ?? '—'], ['Data', fmtDate(i.when)]];
   const title = 'Przyjęliśmy zapytanie o ofertę';
-  const note = `Biuro Obsługi Klienta skontaktuje się z Tobą w ciągu ${BOK_SLA_TEXT}. Pytania: ${BOK_EMAIL}.`;
+  const note = `Biuro Obsługi Klienta skontaktuje się z Tobą w ciągu ${BOK_SLA_TEXT}. Pytania: ${bokContactText()}.`;
   return { subject: `Przyjęliśmy zapytanie — ${i.productName}`, html: layout(title, rows, note), text: textOf(title, rows, note) };
 }

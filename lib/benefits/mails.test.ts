@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { bokOrderMail, employeeOrderMail, bokInquiryMail, employeeInquiryMail, escapeHtml } from './mails';
-import { BOK_SLA_TEXT } from './constants';
+import { BOK_EMAIL, BOK_SLA_TEXT, BOK_QUEUE_URL, bokContactText } from './constants';
 
 const when = new Date('2026-09-15T10:30:00Z');
 const order = { productName: 'Multikino (Bilet) <b>x</b>', partner: 'Multikino', pricePoints: 25, employeeName: 'Jan Testowy', employeeEmail: 'jan@example.com', companyName: 'Firma Testowa', transactionId: 'abc-123', when, fulfillment: 'bok' as const };
@@ -22,11 +22,17 @@ describe('e-maile zamówienia', () => {
     expect(m.html).toContain('&lt;b&gt;x&lt;/b&gt;');
     expect(m.text).toContain('jan@example.com');
   });
-  it('pracownik (bok): obietnica SLA i punkty', () => {
+  it('BOK: link do kolejki zgłoszeń w panelu', () => {
+    expect(bokOrderMail(order).text).toContain(BOK_QUEUE_URL);
+    expect(BOK_QUEUE_URL).toBe('https://ebs.elitonbenefits.pl/dashboard/admin?view=admin-zgloszenia');
+  });
+  it('pracownik (bok): obietnica SLA, punkty i kontakt z BOK', () => {
     const m = employeeOrderMail(order);
     expect(m.subject).toContain('Potwierdzenie zamówienia');
     expect(m.html).toContain(BOK_SLA_TEXT);
     expect(m.html).toContain('25 pkt');
+    expect(m.text).toContain(`Pytania: ${BOK_EMAIL}`);
+    expect(m.text).not.toContain(BOK_QUEUE_URL); // link do panelu admina nie idzie do pracownika
   });
   it('pracownik (auto): „Aplikacja aktywna", bez SLA', () => {
     const m = employeeOrderMail({ ...order, productName: 'Wellbeing', fulfillment: 'auto' });
@@ -41,9 +47,20 @@ describe('e-maile zapytania', () => {
     expect(m.subject).toBe('[EBS Sklep] Zapytanie o ofertę: Profitowi: PZU — NNW');
     expect(m.html).toContain('jan@example.com');
   });
-  it('pracownik: SLA', () => {
+  it('BOK: link do kolejki zgłoszeń w panelu', () => {
+    expect(bokInquiryMail(inquiry).text).toContain(BOK_QUEUE_URL);
+  });
+  it('pracownik: SLA, bez linku do panelu', () => {
     const m = employeeInquiryMail(inquiry);
     expect(m.subject).toContain('Przyjęliśmy zapytanie');
     expect(m.html).toContain(BOK_SLA_TEXT);
+    expect(m.text).not.toContain(BOK_QUEUE_URL);
+  });
+});
+
+describe('kontakt z BOK (telefon dojdzie od właściciela)', () => {
+  it('bez numeru: sam e-mail; z numerem: e-mail i telefon', () => {
+    expect(bokContactText('bok@example.com', '')).toBe('bok@example.com');
+    expect(bokContactText('bok@example.com', '+48 123 456 789')).toBe('bok@example.com, tel. +48 123 456 789');
   });
 });

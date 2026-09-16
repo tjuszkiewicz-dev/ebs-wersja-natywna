@@ -13,7 +13,7 @@ const insurers = [
   { id: 'vienna', name: 'Vienna Life', logo: 'https://stratton-prime.pl/assets/vienna-life-logo-BWVaTBY5.webp', tag: 'Ubezpieczenia Życiowe', color: '#b45309', product: 'Ubezpieczenia życiowe', desc: 'Kapitałowe i ochronne polisy na życie' },
   { id: 'allianz', name: 'Allianz', logo: null, initials: 'AZ', tag: 'Ubezpieczenia Premium', color: '#1d4ed8', product: 'Ubezpieczenia Allianz', desc: 'Globalny lider — szeroka ochrona ubezpieczeniowa' },
   { id: 'warta', name: 'Warta', logo: null, initials: 'W', tag: 'Ubezpieczenia', color: '#0f766e', product: 'Ubezpieczenia Warta', desc: 'Komunikacja, majątek i życie' },
-  { id: 'uniqa', name: 'Uniqa', logo: null, initials: 'UQ', tag: 'Ubezpieczenia Zdrowotne', color: '#7C3AED', product: 'Ubezpieczenia Uniqa', desc: 'Nowoczesne ubezpieczenia zdrowie + majątek' },
+  { id: 'uniqa', name: 'UNIQA', logo: null, initials: 'UQ', tag: 'Ubezpieczenia Zdrowotne', color: '#7C3AED', product: 'Ubezpieczenia UNIQA', desc: 'Nowoczesne ubezpieczenia zdrowie + majątek' },
   { id: 'leadenhall', name: 'Leadenhall', logo: null, initials: 'LH', tag: 'D&O do 30 mln zł', color: '#1e3a5f', product: 'Polisa D&O', desc: 'Ubezpieczenie odpowiedzialności zarządu' },
 ];
 

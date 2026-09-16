@@ -137,9 +137,15 @@ describe('detachTablesFor — powiązanie z kartoteką kadrową', () => {
     expect(anon).toContain('user_app_entitlements.granted_by');
     expect(anon).toContain('hr_employees.coordinator_id');
     expect(anon).toContain('hr_documents.uploaded_by');
-    // +3 = tylko-przy-PURGE: hr_employees.user_id (E5) oraz chat_messages.sender_id
-    //      i chat_conversations.created_by (E6a — treść zostaje, znika autor)
-    expect(detachTablesFor('purge').length).toBe(anon.length + 3);
+    // +5 = tylko-przy-PURGE: hr_employees.user_id (E5), chat_messages.sender_id
+    //      i chat_conversations.created_by (E6a — treść zostaje, znika autor) oraz podpisy
+    //      obsługującego w kolejce BOK: benefit_inquiries.handled_by
+    //      i benefit_order_fulfillments.handled_by (062)
+    expect(detachTablesFor('purge').length).toBe(anon.length + 5);
+    const purgeOnly = detachTablesFor('purge').map((t) => `${t.table}.${t.column}`);
+    expect(purgeOnly).toContain('benefit_inquiries.handled_by');
+    expect(purgeOnly).toContain('benefit_order_fulfillments.handled_by');
+    expect(anon).not.toContain('benefit_order_fulfillments.handled_by');
   });
 });
 

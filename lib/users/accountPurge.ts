@@ -153,6 +153,13 @@ export const DETACH_TABLES: readonly DetachRef[] = [
   // się sama. (FK w 053 ma ON DELETE SET NULL — odpinamy jawnie dla porządku i planu operacji.)
   { table: 'chat_messages',         column: 'sender_id',      label: 'wiadomości w komunikatorze (treść ZOSTAJE)', purgeOnly: true },
   { table: 'chat_conversations',    column: 'created_by',     label: 'rozmowy założone przez tę osobę', purgeOnly: true },
+
+  // KOLEJKA BOK (062). Podpis obsługującego na zgłoszeniu to ślad operacyjny, nie księgowy —
+  // zostaje w wierszu jako „Konto usunięte" przy anonimizacji, odpinany tylko przy PURGE
+  // (FK ma ON DELETE SET NULL; jawnie dla planu operacji, jak komunikator). Zamówienia
+  // (`benefit_order_fulfillments.user_id`) idą z księgą: wpis 'wykorzystanie' wymusza anonimizację.
+  { table: 'benefit_inquiries',           column: 'handled_by', label: 'zapytania obsłużone przez tę osobę (BOK)', purgeOnly: true },
+  { table: 'benefit_order_fulfillments',  column: 'handled_by', label: 'zamówienia obsłużone przez tę osobę (BOK)', purgeOnly: true },
 ];
 
 /** Odpięcia właściwe dla trybu. */
