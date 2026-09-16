@@ -16,7 +16,7 @@ npm start       # next start (production server)
 
 ```bash
 # Testy
-npm test        # vitest run — 41 plików, 380 testów
+npm test        # vitest run — 42 pliki, 401 testów (stan 17.09.2026)
 npm run test:watch
 ```
 
