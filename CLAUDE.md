@@ -45,6 +45,19 @@ npm run test:watch
 Supabase SSR (`@supabase/ssr`) + cookie-based sessions.
 - Supabase project: `ramedybmybcpqvelsmxd.supabase.co`
 - **Faktyczny flow logowania**: `app/(auth)/login/page.tsx` loguje przez `supabaseBrowser` (client-side `signInWithPassword`), następnie `GET /api/auth/role` ustala rolę i przekierowanie. Server-side endpoint: `POST /api/auth/login` (oraz `login-v2`).
+- **Ekrany auth (od 17.09.2026) w języku wizualnym strony marketingowej `elitonbenefits.pl`**: wspólna powłoka
+  `components/auth/AuthShell.tsx` (tło jak hero strony — `SoftAurora` `#30df6a`/`#4297cd` nad `#080c0a`, winieta
+  radialna, wygaszenie u dołu; nagłówek z logo `/ebs-black.svg` + `brightness-0 invert`; stopka „Stratton Prime
+  sp. z o.o."; `prefers-reduced-motion` → statyczna poświata zamiast WebGL) + kontrolki `components/auth/AuthControls.tsx`
+  (`AuthCard`, `AuthField` z przełącznikiem widoczności hasła, `AuthButton` = biała pigułka jak CTA strony, `AuthAlert`
+  z `role="alert"`, `AuthEyebrow`). Tokeny zdjęte z żywej strony przez `getComputedStyle`: DM Sans, karty
+  `bg-white/[0.03] border-white/[0.08]`, nagłówki `tracking-[-0.04em]`, eyebrow `#4ade80 tracking-[0.2em]`, gradient
+  ostatniej linii H1 `from-green-400 via-emerald-300 to-teal-300` (świadomy wyjątek `gradient-text` w
+  `.impeccable/config.json`), easing `ease-ebs` (`tailwind.config.js`). Login: kolumna brandowa (H1 = claim ze strony,
+  liczby `5 000+/15+/100%` z hero strony — **nie wymyślać własnych**) + karta z formularzem; „Nie pamiętam hasła"
+  przełącza tę samą kartę w tryb odzyskiwania. Panel „LOG DIAGNOSTYCZNY" z ekranu **usunięty** — kroki logowania
+  nadal lecą do konsoli jako `[EBS-LOGIN]`. `reset-password` używa tej samej powłoki (wcześniej wołał nieistniejącą
+  klasę `ebs-btn` i przycisk był bez tła). `components/ui/MagicRings.*` (stare neonowe półokręgi) **usunięte**.
 - ⚠️ `app/actions/auth.ts` (`loginAction`) jest **nieużywany** (martwy kod — patrz „Dead Code / Audit"). Nie polegać na nim.
 - Roles: `pracodawca` → `Role.HR`, `pracownik` → `Role.EMPLOYEE`, `superadmin` → `Role.SUPERADMIN`
 
@@ -786,7 +799,6 @@ Wszystko doklejone do dziennego crona `app/api/cron/expire-vouchers` (Vercel Hob
 
 Available in `components/ui/` and `components/bits/`:
 - `components/ui/SoftAurora.tsx` + `SoftAurora.css` — WebGL shader aurora (OGL-based), use with `ssr: false`
-- `components/ui/MagicRings.tsx` + `MagicRings.css`
 - `components/ui/ServiceCarousel.tsx` — Embla carousel, 4-column layout (`md:flex-[0_0_25%]`), `AppIconCard` min-height `220px`
 - `components/bits/StarBorder/`
 - `components/employee/mobile/WalletCard.tsx` — animated voucher balance card, `p-8` padding, white text

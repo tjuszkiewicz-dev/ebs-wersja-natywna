@@ -36,9 +36,15 @@ module.exports = {
           700: '#4338ca',
         }
       },
+      transitionTimingFunction: {
+        // Krzywa ze strony elitonbenefits.pl (--ease) — wspólny rytm ruchu z marketingiem.
+        ebs: 'cubic-bezier(0.15, 0.5, 0.5, 1)',
+      },
       animation: {
         'in': 'fadeIn 0.3s ease-out',
         'fade-in': 'fadeIn 0.5s ease-out',
+        'fade-in-slow': 'fadeIn 1.4s ease-out both',
+        'rise': 'rise 0.7s cubic-bezier(0.15, 0.5, 0.5, 1) both',
         'slide-in-from-right': 'slideInFromRight 0.3s ease-out',
         'zoom-in-95': 'zoomIn95 0.2s ease-out',
         'star-movement-bottom': 'star-movement-bottom linear infinite alternate',
@@ -48,6 +54,10 @@ module.exports = {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        rise: {
+          '0%': { opacity: '0', transform: 'translateY(16px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
         slideInFromRight: {
           '0%': { transform: 'translateX(100%)' },

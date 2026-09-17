@@ -35,6 +35,15 @@
         ],
         "createdAt": "2026-09-15T22:37:02.888Z",
         "reason": "istniejący szablon maila BOK sprzed sklepu; lewa krawędź w HTML e-maila, nie w UI — decyzja Claude"
+      },
+      {
+        "rule": "gradient-text",
+        "value": "*",
+        "files": [
+          "app/(auth)/login/page.tsx"
+        ],
+        "createdAt": "2026-09-17T15:23:48.364Z",
+        "reason": "Wzorzec ze strony elitonbenefits.pl: hero H1 ma ostatnią linię jako gradient text (bg-clip-text from-green-400 via-emerald-300 to-teal-300, zweryfikowane getComputedStyle 17.09.2026); login ma powtarzać ten język wizualny — zlecenie właściciela"
       }
     ]
   }

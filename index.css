@@ -12,6 +12,16 @@ body {
   color: #0f172a; /* slate-900 */
 }
 
+/* Ekrany auth: autouzupełnianie Chrome nie może zamalować ciemnego pola na biało */
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #fff;
+  -webkit-box-shadow: 0 0 0 1000px #26292d inset;
+  caret-color: #fff;
+  transition: background-color 9999s ease-out 0s;
+}
+
 /* Safe-area padding for mobile notch/home bar */
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);

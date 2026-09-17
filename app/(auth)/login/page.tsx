@@ -1,9 +1,36 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Lock, Mail, ArrowRight, AlertCircle } from 'lucide-react';
-import MagicRings from '@/components/ui/MagicRings';
+// Ekran logowania w języku wizualnym strony elitonbenefits.pl (powłoka: AuthShell).
+// Logika bez zmian: signInWithPassword po stronie przeglądarki → GET /api/auth/role
+// ustala rolę i cel przekierowania. Kroki logowania lądują w konsoli ([EBS-LOGIN]),
+// nie na ekranie.
+
+import { ArrowLeft, ArrowRight, Lock, Mail } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import AuthShell, { SITE_URL } from '@/components/auth/AuthShell';
+import {
+  AuthAlert,
+  AuthButton,
+  AuthCard,
+  AuthEyebrow,
+  AuthField,
+  AuthTextLink,
+} from '@/components/auth/AuthControls';
 import { supabaseBrowser } from '@/lib/supabase';
+
+const BOK_EMAIL = 'bok@stratton-prime.pl';
+
+// Liczby ze strony marketingowej (hero elitonbenefits.pl) — jedno źródło prawdy.
+const STATS: Array<[string, string]> = [
+  ['5 000+', 'pracowników korzysta'],
+  ['15+', 'partnerów usługowych'],
+  ['100%', 'przejrzystość voucherów'],
+];
+
+const log = (msg: string) => {
+  const ts = new Date().toISOString().slice(11, 23);
+  console.log('[EBS-LOGIN]', `[${ts}] ${msg}`);
+};
 
 export default function LoginPage() {
   const [email,       setEmail]       = useState('');
@@ -11,14 +38,6 @@ export default function LoginPage() {
   const [error,       setError]       = useState('');
   const [isPending,   setIsPending]   = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const [debugLogs,   setDebugLogs]   = useState<string[]>([]);
-
-  const addLog = (msg: string) => {
-    const ts = new Date().toISOString().slice(11, 23);
-    const line = `[${ts}] ${msg}`;
-    console.log('[EBS-LOGIN]', line);
-    setDebugLogs(prev => [...prev, line]);
-  };
 
   // ── Odzyskiwanie hasła ────────────────────────────────────────────────────
   const [showForgot,    setShowForgot]    = useState(false);
@@ -63,16 +82,28 @@ export default function LoginPage() {
     }
   };
 
+  const openForgot = () => {
+    setShowForgot(true);
+    setForgotEmail(email);
+    setForgotErr('');
+    setForgotMsg('');
+  };
+
+  const closeForgot = () => {
+    setShowForgot(false);
+    setForgotErr('');
+    setForgotMsg('');
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
-    setDebugLogs([]);
     setIsPending(true);
 
-    addLog('START: handleSubmit wywołany');
+    log('START: handleSubmit wywołany');
 
     try {
-      addLog(`STEP 1: signInWithPassword → email=${email.trim().toLowerCase()}`);
+      log(`STEP 1: signInWithPassword → email=${email.trim().toLowerCase()}`);
 
       const { data: authData, error: authError } = await supabaseBrowser.auth.signInWithPassword({
         email:    email.trim().toLowerCase(),
@@ -80,49 +111,49 @@ export default function LoginPage() {
       });
 
       if (authError) {
-        addLog(`STEP 1 ERROR: ${authError.message} (status=${authError.status})`);
+        log(`STEP 1 ERROR: ${authError.message} (status=${authError.status})`);
         const msg = authError.message ?? '';
         if (msg.includes('Invalid login credentials') || msg.includes('invalid_credentials')) {
-          setError('Nieprawidłowy email lub hasło.');
+          setError('Nieprawidłowy e-mail lub hasło. Sprawdź dane i spróbuj ponownie.');
         } else if (msg.includes('Email not confirmed')) {
-          setError('Adres email nie został potwierdzony. Sprawdź skrzynkę pocztową.');
+          setError('Adres e-mail nie został potwierdzony. Sprawdź skrzynkę pocztową.');
         } else {
           setError(msg || 'Błąd logowania. Spróbuj ponownie.');
         }
         return;
       }
 
-      addLog(`STEP 1 OK: user.id=${authData?.user?.id ?? 'brak'} | session=${authData?.session ? 'TAK' : 'NIE'}`);
+      log(`STEP 1 OK: user.id=${authData?.user?.id ?? 'brak'} | session=${authData?.session ? 'TAK' : 'NIE'}`);
 
       // Sprawdź czy ciasteczka są w document.cookie
       const cookieNames = document.cookie
         .split(';')
         .map(c => c.trim().split('=')[0])
         .filter(n => n.startsWith('sb-'));
-      addLog(`STEP 2: ciasteczka Supabase w dokumencie: [${cookieNames.join(', ') || 'BRAK'}]`);
+      log(`STEP 2: ciasteczka Supabase w dokumencie: [${cookieNames.join(', ') || 'BRAK'}]`);
 
-      addLog('STEP 3: GET /api/auth/role ...');
+      log('STEP 3: GET /api/auth/role ...');
       const res = await fetch('/api/auth/role', { credentials: 'same-origin' });
       const responseText = await res.text();
-      addLog(`STEP 3 odpowiedź: status=${res.status} body=${responseText}`);
+      log(`STEP 3 odpowiedź: status=${res.status} body=${responseText}`);
 
       let json: { redirectUrl?: string; error?: string } = {};
       try { json = JSON.parse(responseText); } catch { /* zostaw {} */ }
 
       if (!res.ok) {
-        addLog(`STEP 3 ERROR: ${json.error ?? 'nieznany błąd'}`);
+        log(`STEP 3 ERROR: ${json.error ?? 'nieznany błąd'}`);
         setError(json.error ?? 'Błąd logowania. Spróbuj ponownie.');
         return;
       }
 
       const target = json.redirectUrl ?? '/dashboard/employee';
-      addLog(`STEP 4: redirect → ${target}`);
+      log(`STEP 4: redirect → ${target}`);
       setRedirecting(true);
       window.location.href = target;
 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      addLog(`WYJĄTEK: ${msg}`);
+      log(`WYJĄTEK: ${msg}`);
       console.error('[login] error:', err);
       setError('Błąd sieci. Sprawdź połączenie i spróbuj ponownie.');
     } finally {
@@ -130,222 +161,151 @@ export default function LoginPage() {
     }
   };
 
-  return (
+  const busy = isPending || redirecting;
+
+  const brand = (
     <>
-      <style>{`
-        @keyframes ebs-grad {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes ebs-up {
-          from { opacity:0; transform: translateY(24px); }
-          to   { opacity:1; transform: translateY(0); }
-        }
-        @keyframes ebs-ping {
-          0%,100% { transform:scale(1); opacity:1; }
-          60%     { transform:scale(1.8); opacity:0; }
-        }
-        @keyframes ebs-spin { to { transform: rotate(360deg); } }
-        .ebs-up   { animation: ebs-up 0.7s cubic-bezier(.22,1,.36,1) both; }
-        .ebs-spin { animation: ebs-spin 0.9s linear infinite; }
-        .ebs-input {
-          width:100%; padding:10px 12px 10px 36px;
-          border-radius:11px; font-size:13px; color:#fff; outline:none;
-          background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.08);
-          transition: border-color .2s, box-shadow .2s;
-        }
-        .ebs-input::placeholder { color: rgba(255,255,255,0.2); }
-        .ebs-input:focus {
-          border-color: rgba(37,99,235,0.7);
-          box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
-        }
-        .ebs-btn {
-          background: linear-gradient(135deg,#1d4ed8 0%,#0891b2 50%,#1d4ed8 100%);
-          background-size: 200% auto;
-          animation: ebs-grad 3s ease infinite;
-          box-shadow: 0 6px 24px rgba(37,99,235,.4);
-          transition: transform .2s, box-shadow .2s;
-        }
-        .ebs-btn:hover:not(:disabled) { transform: scale(1.02); box-shadow: 0 10px 32px rgba(37,99,235,.55); }
-        .ebs-btn:active:not(:disabled){ transform: scale(.98); }
-        .ebs-btn:disabled { opacity:.5; cursor:not-allowed; }
-        .ebs-card-border {
-          padding: 1.5px; border-radius: 22px;
-          background: linear-gradient(135deg,#2563eb,#0891b2,#10b981,#059669,#0284c7,#2563eb);
-          background-size: 300% 300%;
-          animation: ebs-grad 5s ease infinite;
-        }
-        .ebs-log {
-          font-family: monospace; font-size: 10px; line-height: 1.5;
-          color: #86efac; background: rgba(0,0,0,0.7);
-          border: 1px solid rgba(74,222,128,0.2);
-          border-radius: 10px; padding: 10px 12px;
-          max-height: 160px; overflow-y: auto;
-          white-space: pre-wrap; word-break: break-all;
-        }
-      `}</style>
-
-      <div style={{ height:'100vh', position:'relative', background:'#030712', overflow:'hidden' }}>
-        <div style={{ position:'absolute', inset:0, zIndex:0, overflow:'hidden' }}>
-          <MagicRings />
-        </div>
-
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:10, padding:'16px', overflowY:'auto' }}>
-
-          <div className="ebs-up" style={{ width:'100%', maxWidth:264, animationDelay:'.05s' }}>
-            <div className="ebs-card-border">
-              <div style={{ borderRadius:21, overflow:'hidden', background:'rgba(5,10,22,0.96)', backdropFilter:'blur(24px)', boxShadow:'0 24px 60px rgba(0,0,0,.7)' }}>
-                <div style={{ height:2, background:'linear-gradient(90deg,#2563eb,#0891b2,#10b981,#059669,#0284c7,#2563eb)', backgroundSize:'300% 100%', animation:'ebs-grad 4s ease infinite' }}/>
-
-                <div style={{ padding:'22px 24px 24px' }}>
-                  <div style={{ marginBottom:18 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:10 }}>
-                      <div style={{ width:6, height:6, borderRadius:'50%', background:'#10b981', animation:'ebs-ping 2s ease infinite' }}/>
-                      <span style={{ color:'#6ee7b7', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase' }}>Bezpieczne połączenie</span>
-                    </div>
-                    <h2 style={{ fontSize:20, fontWeight:900, color:'#fff', marginBottom:4, letterSpacing:'-0.3px' }}>Witaj z powrotem</h2>
-                    <p style={{ color:'rgba(255,255,255,0.35)', fontSize:12 }}>Zaloguj się, żeby sprawdzić swoje benefity.</p>
-                  </div>
-
-                  <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                    <div>
-                      <label style={{ display:'block', fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.35)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:6 }}>Email służbowy</label>
-                      <div style={{ position:'relative' }}>
-                        <Mail size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,0.25)' }}/>
-                        <input
-                          type="email"
-                          required
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          placeholder="jan.kowalski@firma.pl"
-                          className="ebs-input"
-                          disabled={isPending || redirecting}
-                          autoComplete="email"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={{ display:'block', fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.35)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:6 }}>Hasło</label>
-                      <div style={{ position:'relative' }}>
-                        <Lock size={13} style={{ position:'absolute', left:11, top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,0.25)' }}/>
-                        <input
-                          type="password"
-                          required
-                          value={password}
-                          onChange={e => setPassword(e.target.value)}
-                          placeholder="••••••••••"
-                          className="ebs-input"
-                          disabled={isPending || redirecting}
-                          autoComplete="current-password"
-                        />
-                      </div>
-                    </div>
-
-                    {error && (
-                      <div style={{ padding:'9px 12px', borderRadius:10, display:'flex', alignItems:'center', gap:8, fontSize:11, color:'#fca5a5', background:'rgba(244,63,94,0.1)', border:'1.5px solid rgba(244,63,94,0.2)', animation:'ebs-up .3s ease both' }}>
-                        <AlertCircle size={13} style={{ flexShrink:0 }}/>{error}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      disabled={isPending || redirecting}
-                      className="ebs-btn"
-                      style={{ width:'100%', padding:'11px', borderRadius:12, fontSize:13, fontWeight:900, color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8, marginTop:2 }}
-                    >
-                      {(isPending || redirecting) ? (
-                        <>
-                          <span className="ebs-spin" style={{ width:14, height:14, border:'2px solid rgba(255,255,255,0.3)', borderTopColor:'#fff', borderRadius:'50%', display:'inline-block' }}/>
-                          {redirecting ? 'Przekierowanie...' : 'Autoryzacja...'}
-                        </>
-                      ) : (
-                        <> Zaloguj się <ArrowRight size={14} strokeWidth={3}/> </>
-                      )}
-                    </button>
-                  </form>
-
-                  {/* ── Nie pamiętam hasła ── */}
-                  <div style={{ marginTop:12, textAlign:'center' }}>
-                    {!showForgot ? (
-                      <button
-                        type="button"
-                        onClick={() => { setShowForgot(true); setForgotEmail(email); }}
-                        style={{ background:'none', border:'none', color:'rgba(255,255,255,0.45)', fontSize:12, cursor:'pointer', textDecoration:'underline' }}
-                      >
-                        Nie pamiętam hasła
-                      </button>
-                    ) : (
-                      <form onSubmit={handleForgot} style={{ display:'flex', flexDirection:'column', gap:8, marginTop:4 }}>
-                        <input
-                          type="email"
-                          value={forgotEmail}
-                          onChange={(ev) => setForgotEmail(ev.target.value)}
-                          placeholder="Twój adres e-mail"
-                          autoComplete="email"
-                          style={{ padding:'9px 11px', borderRadius:10, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'#fff', fontSize:12, outline:'none' }}
-                        />
-                        {forgotErr && <div style={{ color:'#fca5a5', fontSize:11 }}>{forgotErr}</div>}
-                        {forgotMsg && <div style={{ color:'#86efac', fontSize:11, lineHeight:1.5 }}>{forgotMsg}</div>}
-                        <div style={{ display:'flex', gap:8 }}>
-                          <button
-                            type="submit"
-                            disabled={forgotPending}
-                            style={{ flex:1, padding:'8px', borderRadius:10, background:'rgba(37,99,235,0.85)', border:'none', color:'#fff', fontSize:12, fontWeight:700, cursor:'pointer' }}
-                          >
-                            {forgotPending ? 'Wysyłanie…' : 'Wyślij link'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setShowForgot(false); setForgotErr(''); setForgotMsg(''); }}
-                            style={{ padding:'8px 12px', borderRadius:10, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', color:'rgba(255,255,255,0.6)', fontSize:12, cursor:'pointer' }}
-                          >
-                            Anuluj
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="animate-rise motion-reduce:animate-none">
+        <AuthEyebrow>Twoje zasoby</AuthEyebrow>
+      </div>
+      <h1
+        className="mt-4 text-balance text-[2.25rem] font-bold leading-[1.06] tracking-[-0.04em] animate-rise motion-reduce:animate-none sm:text-[3rem] xl:text-[4rem]"
+        style={{ animationDelay: '60ms' }}
+      >
+        Twoje benefity,{' '}
+        <span className="bg-gradient-to-r from-green-400 via-emerald-300 to-teal-300 bg-clip-text text-transparent">
+          warte więcej niż myślisz.
+        </span>
+      </h1>
+      <p
+        className="mt-5 hidden max-w-[460px] text-[15px] leading-relaxed text-white/60 animate-rise motion-reduce:animate-none sm:block sm:text-[17px]"
+        style={{ animationDelay: '120ms' }}
+      >
+        Każdy voucher to 1 zł + 4% ekstra co roku. Zaloguj się, żeby zarządzać
+        voucherami i korzystać z usług partnerów.
+      </p>
+      <dl
+        className="mt-10 hidden max-w-[520px] grid-cols-3 gap-6 sm:grid animate-rise motion-reduce:animate-none"
+        style={{ animationDelay: '180ms' }}
+      >
+        {STATS.map(([value, label]) => (
+          <div key={label} className="flex flex-col">
+            <dt className="text-[13px] leading-snug text-white/60">{label}</dt>
+            <dd className="order-first text-[26px] font-bold tracking-[-0.03em] tabular-nums">{value}</dd>
           </div>
+        ))}
+      </dl>
+    </>
+  );
 
-          {/* ── Panel diagnostyczny — widoczny po próbie logowania ── */}
-          {debugLogs.length > 0 && (
-            <div className="ebs-up" style={{ width:'100%', maxWidth:420, marginTop:16, animationDelay:'0s' }}>
-              <div className="ebs-log">
-                <div style={{ color:'rgba(134,239,172,0.5)', marginBottom:4, fontSize:9, letterSpacing:'0.15em', textTransform:'uppercase' }}>
-                  LOG DIAGNOSTYCZNY
-                </div>
-                {debugLogs.map((line, i) => (
-                  <div key={i}>{line}</div>
-                ))}
-              </div>
+  const headerAction = (
+    <div className="flex items-center gap-3">
+      <span className="hidden text-[14px] text-white/50 sm:inline">Nie masz konta?</span>
+      <a
+        href={`${SITE_URL}/?page=register`}
+        className="inline-flex h-10 items-center whitespace-nowrap rounded-full border border-white/[0.08] bg-[#191c1f] px-4 text-[13px] font-medium text-white transition-colors duration-300 ease-ebs hover:border-white/[0.14] hover:bg-black focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/20 sm:h-11 sm:px-5 sm:text-[14px]"
+      >
+        Dołącz do EBS
+      </a>
+    </div>
+  );
+
+  return (
+    <AuthShell aside={brand} headerAction={headerAction}>
+      <div className="animate-rise motion-reduce:animate-none" style={{ animationDelay: '140ms' }}>
+        <AuthCard>
+          {!showForgot ? (
+            <div key="login" className="animate-fade-in motion-reduce:animate-none">
+              <h2 className="text-[22px] font-bold tracking-[-0.03em]">Zaloguj się</h2>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-white/50">
+                Konto zakłada Twój pracodawca albo zespół EBS.
+              </p>
+
+              <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-5">
+                <AuthField
+                  label="Adres e-mail"
+                  type="email"
+                  icon={<Mail size={16} />}
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="jan.kowalski@firma.pl"
+                  autoComplete="email"
+                  inputMode="email"
+                  disabled={busy}
+                />
+
+                <AuthField
+                  label="Hasło"
+                  revealable
+                  icon={<Lock size={16} />}
+                  required
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Twoje hasło"
+                  autoComplete="current-password"
+                  disabled={busy}
+                  labelAction={
+                    <AuthTextLink onClick={openForgot} disabled={busy}>
+                      Nie pamiętam hasła
+                    </AuthTextLink>
+                  }
+                />
+
+                {error && <AuthAlert tone="error">{error}</AuthAlert>}
+
+                <AuthButton type="submit" loading={busy} className="mt-1">
+                  {redirecting ? 'Przekierowanie…' : isPending ? 'Logowanie…' : (
+                    <>Zaloguj się <ArrowRight size={16} strokeWidth={2.5} aria-hidden="true" /></>
+                  )}
+                </AuthButton>
+              </form>
+            </div>
+          ) : (
+            <div key="forgot" className="animate-fade-in motion-reduce:animate-none">
+              <h2 className="text-[22px] font-bold tracking-[-0.03em]">Odzyskaj hasło</h2>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-white/50">
+                Wyślemy link do ustawienia nowego hasła. Jest ważny przez godzinę.
+              </p>
+
+              <form onSubmit={handleForgot} className="mt-7 flex flex-col gap-5">
+                <AuthField
+                  label="Adres e-mail"
+                  type="email"
+                  icon={<Mail size={16} />}
+                  value={forgotEmail}
+                  onChange={ev => setForgotEmail(ev.target.value)}
+                  placeholder="jan.kowalski@firma.pl"
+                  autoComplete="email"
+                  inputMode="email"
+                  disabled={forgotPending}
+                  autoFocus
+                />
+
+                {forgotErr && <AuthAlert tone="error">{forgotErr}</AuthAlert>}
+                {forgotMsg && <AuthAlert tone="success">{forgotMsg}</AuthAlert>}
+
+                <AuthButton type="submit" loading={forgotPending} className="mt-1">
+                  {forgotPending ? 'Wysyłanie…' : 'Wyślij link'}
+                </AuthButton>
+                <AuthButton type="button" variant="ghost" onClick={closeForgot} disabled={forgotPending}>
+                  <ArrowLeft size={16} aria-hidden="true" /> Wróć do logowania
+                </AuthButton>
+              </form>
             </div>
           )}
+        </AuthCard>
 
-          <div className="ebs-up" style={{ animationDelay:'.15s', marginTop:16, textAlign:'center', maxWidth:320 }}>
-            <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13, lineHeight:1.7, fontWeight:400 }}>
-              Twoje <strong style={{ color:'rgba(255,255,255,0.75)', fontWeight:700 }}>benefity pracownicze</strong> w jednym miejscu. Vouchery, zdrowie, rozrywka i tysiące usług.
-            </p>
-            <div style={{ width:40, height:1, background:'linear-gradient(90deg,transparent,rgba(37,99,235,.6),transparent)', margin:'14px auto' }}/>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-              {[['500+','Benefitów'],['98%','Satysfakcji'],['10k+','Użytkowników']].map(([v,l],i)=>(
-                <div key={i} style={{ textAlign:'center', padding:'10px 6px', borderRadius:14, background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ fontSize:17, fontWeight:900, color:'#fff', lineHeight:1.1 }}>{v}</div>
-                  <div style={{ fontSize:10, color:'rgba(255,255,255,0.3)', fontWeight:600, marginTop:2 }}>{l}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <p style={{ marginTop:16, color:'rgba(255,255,255,0.12)', fontSize:10 }}>
-            &copy; {new Date().getFullYear()} Stratton Prime S.A. Wszystkie prawa zastrzeżone.
-          </p>
-        </div>
+        <p className="mt-5 text-center text-[13px] text-white/50">
+          Problem z logowaniem?{' '}
+          <a
+            href={`mailto:${BOK_EMAIL}`}
+            className="font-medium text-white/80 underline-offset-4 transition-colors duration-150 hover:text-white hover:underline"
+          >
+            {BOK_EMAIL}
+          </a>
+        </p>
       </div>
-    </>
+    </AuthShell>
   );
 }

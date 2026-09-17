@@ -3,13 +3,19 @@
 // Ekran ustawiania nowego hasła po kliknięciu linku z maila odzyskiwania.
 // Supabase (createBrowserClient, detectSessionInUrl=true) sam konsumuje token
 // z fragmentu URL i tworzy sesję odzyskiwania — my czekamy na nią i pozwalamy
-// ustawić nowe hasło przez updateUser().
+// ustawić nowe hasło przez updateUser(). Warstwa wizualna: ta sama powłoka co login.
 
+import { AlertCircle, ArrowRight, CheckCircle2, Lock } from 'lucide-react';
+import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
-import { Lock, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import AuthShell from '@/components/auth/AuthShell';
+import { AuthAlert, AuthButton, AuthCard, AuthEyebrow, AuthField } from '@/components/auth/AuthControls';
 import { supabaseBrowser } from '@/lib/supabase';
 
 const MIN_LEN = 8;
+
+const LINK_BUTTON =
+  'inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-6 text-[15px] font-semibold text-[#191c1f] transition-[transform,background-color] duration-150 ease-ebs hover:scale-[1.02] hover:bg-white/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/20';
 
 export default function ResetPasswordPage() {
   const [ready,     setReady]     = useState(false);
@@ -84,112 +90,99 @@ export default function ResetPasswordPage() {
     }
   };
 
-  const shell = (children: React.ReactNode) => (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', padding:20, background:'#050810' }}>
-      <div style={{ width:'100%', maxWidth:420 }}>
-        <div style={{ textAlign:'center', marginBottom:20 }}>
-          <div style={{ fontSize:20, fontWeight:900, color:'#fff', letterSpacing:'0.02em' }}>EBS</div>
-          <div style={{ fontSize:11, color:'rgba(255,255,255,0.35)', marginTop:2 }}>Eliton Benefits System</div>
-        </div>
-        <div style={{ borderRadius:18, padding:24, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+  let content: React.ReactNode;
 
   if (!ready) {
-    return shell(
-      <div style={{ textAlign:'center', color:'rgba(255,255,255,0.5)', fontSize:13, padding:'20px 0' }}>
-        Weryfikacja linku…
+    content = (
+      <div className="py-6 text-center" role="status" aria-live="polite">
+        <span
+          aria-hidden="true"
+          className="mx-auto mb-4 block h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white"
+        />
+        <p className="text-[14px] text-white/50">Sprawdzamy link…</p>
       </div>
     );
-  }
-
-  if (done) {
-    return shell(
-      <div style={{ textAlign:'center' }}>
-        <CheckCircle2 size={34} color="#4ade80" style={{ marginBottom:10 }} />
-        <h1 style={{ color:'#fff', fontSize:17, fontWeight:800, marginBottom:6 }}>Hasło zmienione</h1>
-        <p style={{ color:'rgba(255,255,255,0.5)', fontSize:13, lineHeight:1.6, marginBottom:18 }}>
+  } else if (done) {
+    content = (
+      <div className="text-center">
+        <CheckCircle2 size={36} className="mx-auto mb-4 text-[#4ade80]" aria-hidden="true" />
+        <h1 className="text-[22px] font-bold tracking-[-0.03em]">Hasło zmienione</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-white/50">
           Możesz teraz zalogować się nowym hasłem.
         </p>
-        <a
-          href="/login"
-          className="ebs-btn"
-          style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, width:'100%', padding:11, borderRadius:12, fontSize:13, fontWeight:900, color:'#fff', textDecoration:'none' }}
-        >
-          Przejdź do logowania <ArrowRight size={14} strokeWidth={3} />
-        </a>
+        <Link href="/login" className={`${LINK_BUTTON} mt-7`}>
+          Przejdź do logowania <ArrowRight size={16} strokeWidth={2.5} aria-hidden="true" />
+        </Link>
       </div>
     );
-  }
-
-  if (!linkValid) {
-    return shell(
-      <div style={{ textAlign:'center' }}>
-        <AlertCircle size={34} color="#f87171" style={{ marginBottom:10 }} />
-        <h1 style={{ color:'#fff', fontSize:17, fontWeight:800, marginBottom:6 }}>Link wygasł lub jest nieprawidłowy</h1>
-        <p style={{ color:'rgba(255,255,255,0.5)', fontSize:13, lineHeight:1.6, marginBottom:18 }}>
+  } else if (!linkValid) {
+    content = (
+      <div className="text-center">
+        <AlertCircle size={36} className="mx-auto mb-4 text-red-300" aria-hidden="true" />
+        <h1 className="text-[22px] font-bold tracking-[-0.03em]">Link wygasł lub jest nieprawidłowy</h1>
+        <p className="mt-2 text-[14px] leading-relaxed text-white/50">
           Linki do zmiany hasła są ważne przez godzinę i można ich użyć tylko raz.
           Poproś o nowy na ekranie logowania.
         </p>
-        <a href="/login" style={{ color:'#60a5fa', fontSize:13, fontWeight:700, textDecoration:'none' }}>
-          Wróć do logowania
-        </a>
+        <Link href="/login" className={`${LINK_BUTTON} mt-7`}>
+          Wróć do logowania <ArrowRight size={16} strokeWidth={2.5} aria-hidden="true" />
+        </Link>
       </div>
+    );
+  } else {
+    content = (
+      <>
+        <h1 className="text-[22px] font-bold tracking-[-0.03em]">Ustaw nowe hasło</h1>
+        <p className="mt-1.5 text-[14px] leading-relaxed text-white/50">
+          Minimum {MIN_LEN} znaków. Po zapisaniu zalogujesz się nowym hasłem.
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-5">
+          <AuthField
+            label="Nowe hasło"
+            revealable
+            icon={<Lock size={16} />}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={`Co najmniej ${MIN_LEN} znaków`}
+            autoComplete="new-password"
+            minLength={MIN_LEN}
+            required
+            disabled={isPending}
+          />
+
+          <AuthField
+            label="Powtórz nowe hasło"
+            revealable
+            icon={<Lock size={16} />}
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder="To samo hasło jeszcze raz"
+            autoComplete="new-password"
+            required
+            disabled={isPending}
+          />
+
+          {error && <AuthAlert tone="error">{error}</AuthAlert>}
+
+          <AuthButton type="submit" loading={isPending} className="mt-1">
+            {isPending ? 'Zapisywanie…' : (
+              <>Zapisz nowe hasło <ArrowRight size={16} strokeWidth={2.5} aria-hidden="true" /></>
+            )}
+          </AuthButton>
+        </form>
+      </>
     );
   }
 
-  return shell(
-    <>
-      <h1 style={{ color:'#fff', fontSize:17, fontWeight:800, marginBottom:4 }}>Ustaw nowe hasło</h1>
-      <p style={{ color:'rgba(255,255,255,0.45)', fontSize:12, marginBottom:18 }}>
-        Minimum {MIN_LEN} znaków.
-      </p>
-
-      <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        <label style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-          <Lock size={14} color="rgba(255,255,255,0.35)" />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Nowe hasło"
-            autoComplete="new-password"
-            required
-            style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#fff', fontSize:13 }}
-          />
-        </label>
-
-        <label style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:12, background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)' }}>
-          <Lock size={14} color="rgba(255,255,255,0.35)" />
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Powtórz nowe hasło"
-            autoComplete="new-password"
-            required
-            style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#fff', fontSize:13 }}
-          />
-        </label>
-
-        {error && (
-          <div style={{ display:'flex', alignItems:'center', gap:8, padding:'9px 11px', borderRadius:10, background:'rgba(248,113,113,0.1)', border:'1px solid rgba(248,113,113,0.25)', color:'#fca5a5', fontSize:12 }}>
-            <AlertCircle size={14} /> {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={isPending}
-          className="ebs-btn"
-          style={{ width:'100%', padding:11, borderRadius:12, fontSize:13, fontWeight:900, color:'#fff', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}
-        >
-          {isPending ? 'Zapisywanie…' : <>Zapisz nowe hasło <ArrowRight size={14} strokeWidth={3} /></>}
-        </button>
-      </form>
-    </>
+  return (
+    <AuthShell>
+      <div className="animate-rise motion-reduce:animate-none">
+        <div className="mb-5 text-center">
+          <AuthEyebrow pill>Odzyskiwanie hasła</AuthEyebrow>
+        </div>
+        <AuthCard>{content}</AuthCard>
+      </div>
+    </AuthShell>
   );
 }
