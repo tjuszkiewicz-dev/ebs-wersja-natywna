@@ -450,3 +450,40 @@ na nowej tabeli (bez danych wrażliwych; notatka BOK to treść operacyjna).
 
 **Świadomie odłożone:** plakietka z liczbą nowych zgłoszeń w menu bocznym (endpoint `summary` już
 jest), KPI na Pulpicie admina, akcje zbiorcze, filtrowanie po firmie/pracowniku.
+
+## 12. Sklep jako ekran startowy pracownika (17.09.2026)
+
+**Decyzja właściciela** po obejrzeniu Pulpitu v2 na produkcji („jest stary ekran z usługami"):
+*zostawić starą wersję w kodzie, żeby dało się do niej wrócić w każdej chwili, a na jej miejsce
+podpiąć nowy layout, czyli sklep*. Unieważnia S5 w części dotyczącej Pulpitu: sekcja „Twoje
+Aplikacje" i karta salda ze statystykami nie są już pierwszym ekranem po zalogowaniu.
+
+**Przełącznik:** `lib/benefits/storeLayout.ts` — `EMPLOYEE_HOME: 'store' | 'wallet'` (obok
+`STORE_LAYOUT`) i flaga `STORE_IS_HOME = STORE_LAYOUT === 'v2' && EMPLOYEE_HOME === 'store'`.
+Powrót do dawnego Pulpitu = `'wallet'`. Test `storeLayout.test.ts` pilnuje, żeby `'store'` nie szło
+w parze z `'v1'` (sklep nie istnieje w v1). Kod Pulpitu v2 (`renderWallet`) i v1 (karuzele) zostaje.
+
+**Jak wygląda (STORE_IS_HOME):**
+- `BenefitStore variant="page"` renderuje się **w miejscu treści Pulpitu, wewnątrz ramki portalu**
+  — czarny nagłówek (saldo, wygasanie, powiadomienia, ustawienia, wylogowanie) i menu boczne zostają.
+  Nakładka pełnoekranowa (`variant="overlay"`, portal do body, logo + X) zostaje dla trybu `'wallet'`.
+  Powód: nakładka jako ekran startowy odcięłaby pracownika od Historii, Pomocy, Aktywnych usług
+  i ustawień, a na mobile — od dolnego paska.
+- Sekcja z jasnym tłem idzie „od krawędzi do krawędzi" `<main>` (ujemne marginesy kasują
+  `p-4 md:p-6`), poza siatką banerów 240 px (na laptopach 1440 px ścisnęłaby siatkę do 3–4 kart
+  po ~115 px). Pasek narzędzi sklepu: tytuł + szukajka (bez logo i X); saldo w pasku tylko poniżej
+  `md` (od `md` pokazuje je karta „Twoje saldo" w kolumnie kategorii).
+- **Panel szczegółów i modal zakupu nadal przez `createPortal(…, document.body)`** — prawa kolumna
+  `EmployeeDashboardClient` ma własny kontekst warstwowania (`relative z-10`), w którym pasek boczny
+  (`z-50`) przykrywałby tło panelu (pułapka z 16.09, commit `2ac45ac`).
+- Start: `activeTab = 'CATALOG'`, `currentView = 'emp-catalog'` (menu boczne podświetla sklep od
+  pierwszego renderu, wpis historii SPA wskazuje sklep). Wyjście z aplikacji pełnoekranowych
+  (Wellbeing/Prawnik/Messenger/Vault) wraca do sklepu (`goHome`), nie do portfela. `'emp-dashboard'`
+  (Ctrl+K, etykieta „Sklep benefitów") mapuje się na sklep.
+- Menu boczne pracownika: **bez „Twoje Aplikacje"** (sekcja nie istnieje; aplikacje Eliton są w sklepie
+  w swoich kategoriach — Q5 — a kupione w „Aktywne usługi"). Dolny pasek mobile: Sklep · Moje ·
+  Historia · Pomoc (bez „Pulpit").
+
+**Świadomie odłożone:** filtr „Aplikacje Eliton" w kolumnie kategorii (namiastka dawnej sekcji „Twoje
+Aplikacje"); karta salda/statystyki jako element sklepu (dziś saldo jest w nagłówku, kolumnie kategorii
+i pasku mobile); brak salda na mobile w wariancie `overlay` (stan sprzed tej zmiany).

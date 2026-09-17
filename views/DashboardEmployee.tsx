@@ -10,7 +10,7 @@ import { EmployeeBuybackList } from '../components/employee/dashboard/EmployeeBu
 import { RedemptionModal } from '../components/employee/RedemptionModal';
 import { APP_TAB_BY_SERVICE, partnerCount } from '../lib/benefits/catalog';
 import { BenefitStore } from '../components/employee/store/BenefitStore';
-import { STORE_LAYOUT } from '../lib/benefits/storeLayout';
+import { STORE_LAYOUT, STORE_IS_HOME } from '../lib/benefits/storeLayout';
 import { WalletCard } from '../components/employee/mobile/WalletCard';
 import StarBorder from '../components/bits/StarBorder/StarBorder';
 import { SupportTicketSystem } from '../components/support/SupportTicketSystem';
@@ -56,13 +56,22 @@ interface Props {
 type Tab = 'WALLET' | 'ACTIVE_SERVICES' | 'CATALOG' | 'HISTORY' | 'SUPPORT'
          | 'WELLBEING' | 'LEGAL' | 'SECURE_MESSENGER' | 'DIGITAL_VAULT';
 
-const TABS = [
-  { id: 'WALLET', icon: Wallet, label: 'Pulpit' },
-  { id: 'CATALOG', icon: Grid, label: 'Katalog' },
-  { id: 'ACTIVE_SERVICES', icon: Zap, label: 'Moje' },
-  { id: 'HISTORY', icon: History, label: 'Historia' },
-  { id: 'SUPPORT', icon: MessageSquare, label: 'Pomoc' },
-] as const;
+// Dolny pasek (mobile). Gdy sklep jest ekranem startowym (STORE_IS_HOME), zakładka „Pulpit"
+// nie istnieje — sklep zajmuje jej miejsce.
+const TABS: readonly { id: Tab; icon: React.ElementType; label: string }[] = STORE_IS_HOME
+  ? [
+      { id: 'CATALOG', icon: Grid, label: 'Sklep' },
+      { id: 'ACTIVE_SERVICES', icon: Zap, label: 'Moje' },
+      { id: 'HISTORY', icon: History, label: 'Historia' },
+      { id: 'SUPPORT', icon: MessageSquare, label: 'Pomoc' },
+    ]
+  : [
+      { id: 'WALLET', icon: Wallet, label: 'Pulpit' },
+      { id: 'CATALOG', icon: Grid, label: 'Katalog' },
+      { id: 'ACTIVE_SERVICES', icon: Zap, label: 'Moje' },
+      { id: 'HISTORY', icon: History, label: 'Historia' },
+      { id: 'SUPPORT', icon: MessageSquare, label: 'Pomoc' },
+    ];
 
 const quickActions = [
   { id: 'health', label: 'Opieka medyczna', icon: HeartPulse, color: '#16a34a', bg: 'linear-gradient(135deg,#f0fdf4,#dcfce7)' },
@@ -76,7 +85,9 @@ export const DashboardEmployee: React.FC<Props> = ({
   currentView, user, vouchers, buybacks, services,
   transactions, onViewChange, onPurchaseService, onViewAgreement
 }) => {
-  const [activeTab, setActiveTab] = useState<Tab>('WALLET');
+  // Ekran startowy: sklep (STORE_IS_HOME) albo dawny Pulpit-portfel. Stan zakładki „WALLET" w trybie
+  // sklepu nie jest osiągalny — każde wejście na „emp-*" mapuje się niżej na CATALOG.
+  const [activeTab, setActiveTab] = useState<Tab>(STORE_IS_HOME ? 'CATALOG' : 'WALLET');
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
   const [showGuide, setShowGuide] = usePersistedState<boolean>('ebs_guide_employee_v1', true);
   const [storeInitialCategory, setStoreInitialCategory] = useState<BenefitCategory | null>(null);
@@ -89,6 +100,9 @@ export const DashboardEmployee: React.FC<Props> = ({
   };
 
   const goToWallet = () => { setActiveTab('WALLET'); onViewChange?.('emp-dashboard'); };
+  // Wyjście z aplikacji pełnoekranowej (Wellbeing/Prawnik/Messenger/Vault) i z nakładki sklepu
+  // wraca na ekran startowy — sklep albo Pulpit, zależnie od przełącznika.
+  const goHome = () => { if (STORE_IS_HOME) openStore(null); else goToWallet(); };
 
   const { state, actions } = useStrattonSystem();
   const { tickets } = state;
@@ -100,7 +114,9 @@ export const DashboardEmployee: React.FC<Props> = ({
     else if (currentView === 'emp-support') { setActiveTab('SUPPORT'); sc.scrollTo({ top: 0 }); }
     else if (currentView === 'emp-catalog' && STORE_LAYOUT === 'v2') { setActiveTab('CATALOG'); }
     else if (currentView.startsWith('emp-')) {
-      const target = STORE_LAYOUT === 'v2' ? 'WALLET' : 'CATALOG';
+      // 'emp-dashboard' (wyszukiwarka Ctrl+K) i inne 'emp-*': ekran startowy. Przy sklepie jako
+      // starcie sekcje 'sec-emp-*' nie istnieją, więc scroll niżej jest bezpiecznym no-opem.
+      const target = STORE_IS_HOME ? 'CATALOG' : STORE_LAYOUT === 'v2' ? 'WALLET' : 'CATALOG';
       if (activeTab !== target) setActiveTab(target);
       if (!isScrollingRef.current) {
         setTimeout(() => {
@@ -192,10 +208,10 @@ export const DashboardEmployee: React.FC<Props> = ({
 
   /* Full-screen overlays */
   if (activeTab === 'WELLBEING' && hasMentalHealthAccess) {
-    return <MentalHealthDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={goToWallet} />;
+    return <MentalHealthDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={goHome} />;
   }
   if (activeTab === 'LEGAL' && hasLegalAccess) {
-    return <LegalAssistantDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={goToWallet} />;
+    return <LegalAssistantDashboard currentUser={user} balance={user.voucherBalance} onSpend={handleManualSpendVoid} onExit={goHome} />;
   }
   if (activeTab === 'SECURE_MESSENGER' && hasSecureMessengerAccess) {
     return (
@@ -205,7 +221,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             <div className="bg-emerald-600 text-white p-1.5 rounded-lg"><Lock size={18} /></div>
             <span className="font-bold text-slate-900">STRATTON <span className="text-emerald-600">SECURE</span></span>
           </div>
-          <button onClick={goToWallet} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
+          <button onClick={goHome} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto bg-[#f8fafc]">
           <div className="max-w-7xl mx-auto px-4 py-8 h-full">
@@ -223,17 +239,32 @@ export const DashboardEmployee: React.FC<Props> = ({
             <div className="bg-indigo-600 text-white p-1.5 rounded-lg"><ShieldCheck size={18} /></div>
             <span className="font-bold text-slate-900">DIGITAL <span className="text-indigo-600">VAULT</span></span>
           </div>
-          <button onClick={goToWallet} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
+          <button onClick={goHome} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition"><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-hidden bg-[#f8fafc]">
-          <DigitalVaultApp onClose={goToWallet} />
+          <DigitalVaultApp onClose={goHome} />
         </div>
       </div>
     );
   }
+  // Dolny pasek (mobile) — jeden handler dla wszystkich miejsc renderowania paska.
+  const selectTab = (id: string) => {
+    const t = id as Tab;
+    setActiveTab(t);
+    if (onViewChange) {
+      if (t === 'WALLET') onViewChange('emp-dashboard');
+      else if (t === 'CATALOG') onViewChange('emp-catalog');
+      else if (t === 'HISTORY') onViewChange('emp-history');
+      else if (t === 'SUPPORT') onViewChange('emp-support');
+    }
+    const sc = document.getElementById('main-scroll-container') || window;
+    sc.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   if (STORE_LAYOUT === 'v2' && activeTab === 'CATALOG') {
-    return (
+    const store = (
       <BenefitStore
+        variant={STORE_IS_HOME ? 'page' : 'overlay'}
         services={services}
         transactions={transactions}
         balance={user.voucherBalance ?? 0}
@@ -242,8 +273,17 @@ export const DashboardEmployee: React.FC<Props> = ({
         initialCategory={storeInitialCategory}
         onPurchase={onPurchaseService}
         onOpenApp={(tab) => setActiveTab(tab)}
-        onExit={goToWallet}
+        onExit={STORE_IS_HOME ? undefined : goHome}
       />
+    );
+    if (!STORE_IS_HOME) return store;
+    // Sklep jako ekran startowy: strona w ramce portalu (poza siatką banerów — kolumny po 240 px
+    // ścisnęłyby siatkę kafelków na laptopach 1440 px). Dolny pasek zostaje, bo nic go nie zasłania.
+    return (
+      <div className="min-h-full">
+        {store}
+        <FloatingTabBar tabs={TABS} activeTab={activeTab as string} onSelect={selectTab} />
+      </div>
     );
   }
 
@@ -727,13 +767,13 @@ export const DashboardEmployee: React.FC<Props> = ({
           <div className="absolute -top-8 -right-8 w-48 h-48 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }} />
           <div className="relative z-10">
             <h2 className="text-3xl font-black text-white mb-2">Aktywne uslugi</h2>
-            <p className="text-white/70">{count > 0 ? `Korzystasz z ${count} usďż˝ug EBS.` : 'Nie aktywowaďż˝eďż˝ jeszcze ďż˝adnych usďż˝ug.'}</p>
+            <p className="text-white/70">{count > 0 ? `Korzystasz z ${count} ${count === 1 ? 'usługi' : 'usług'} EBS.` : 'Nie masz jeszcze aktywnych usług.'}</p>
           </div>
         </div>
         {count === 0 ? (
           <div className="text-center py-20 bg-white/10 backdrop-blur-sm rounded-3xl border border-white/20">
             <p className="text-white/50 text-sm mb-6">Przejdz do katalogu, aby aktywowac uslugi.</p>
-            <Button variant="primary" onClick={() => setActiveTab('CATALOG')}>Przegladaj Katalog</Button>
+            <Button variant="primary" onClick={() => openStore(null)}>Przegladaj Katalog</Button>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -803,22 +843,7 @@ export const DashboardEmployee: React.FC<Props> = ({
         />
       )}
 
-      <FloatingTabBar
-        tabs={TABS}
-        activeTab={activeTab as string}
-        onSelect={(id) => {
-          const t = id as Tab;
-          setActiveTab(t);
-          if (onViewChange) {
-            if (t === 'WALLET') onViewChange('emp-dashboard');
-            else if (t === 'CATALOG') onViewChange('emp-catalog');
-            else if (t === 'HISTORY') onViewChange('emp-history');
-            else if (t === 'SUPPORT') onViewChange('emp-support');
-          }
-          const sc = document.getElementById('main-scroll-container') || window;
-          sc.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
+      <FloatingTabBar tabs={TABS} activeTab={activeTab as string} onSelect={selectTab} />
         </div>{/* end center content */}
 
         {/* RIGHT BANNER SLOT */}
@@ -872,22 +897,7 @@ export const DashboardEmployee: React.FC<Props> = ({
             onOpenApp={APP_TAB_BY_SERVICE[selectedService.id] ? () => { setSelectedService(null); setActiveTab(APP_TAB_BY_SERVICE[selectedService.id]); } : undefined}
           />
         )}
-        <FloatingTabBar
-          tabs={TABS}
-          activeTab={activeTab as string}
-          onSelect={(id) => {
-            const t = id as Tab;
-            setActiveTab(t);
-            if (onViewChange) {
-              if (t === 'WALLET') onViewChange('emp-dashboard');
-              else if (t === 'CATALOG') onViewChange('emp-catalog');
-              else if (t === 'HISTORY') onViewChange('emp-history');
-              else if (t === 'SUPPORT') onViewChange('emp-support');
-            }
-            const sc = document.getElementById('main-scroll-container') || window;
-            sc.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-        />
+        <FloatingTabBar tabs={TABS} activeTab={activeTab as string} onSelect={selectTab} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { Search, User, FileText, Layout, ArrowRight, Command, X, CreditCard, Log
 import { useStrattonSystem } from '../context/StrattonContext';
 import { User as UserType, Role, OrderStatus, VoucherStatus } from '../types';
 import { canSeeSearchItem } from '../utils/permissions';
+import { STORE_IS_HOME } from '../lib/benefits/storeLayout';
 
 interface GlobalSearchProps {
   isOpen: boolean;
@@ -55,7 +56,10 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ isOpen, onClose, onN
        { role: Role.HR, id: 'hr-payments', label: 'Płatności i faktury', desc: 'Noty i faktury VAT', icon: <CreditCard size={18}/> },
        { role: Role.HR, id: 'hr-history', label: 'Historia zamówień', desc: 'Złożone zamówienia', icon: <BarChart3 size={18}/> },
        // Employee
-       { role: Role.EMPLOYEE, id: 'emp-dashboard', label: 'Mój Portfel', desc: 'Saldo i usługi', icon: <Wallet size={18}/> },
+       // Ekran startowy pracownika: sklep (STORE_IS_HOME) albo dawny portfel — ten sam widok 'emp-dashboard'.
+       STORE_IS_HOME
+         ? { role: Role.EMPLOYEE, id: 'emp-dashboard', label: 'Sklep benefitów', desc: 'Katalog benefitów i saldo', icon: <Wallet size={18}/> }
+         : { role: Role.EMPLOYEE, id: 'emp-dashboard', label: 'Mój Portfel', desc: 'Saldo i usługi', icon: <Wallet size={18}/> },
        { role: Role.EMPLOYEE, id: 'emp-history', label: 'Historia', desc: 'Transakcje i umowy', icon: <Calendar size={18}/> },
        // Sales
        { role: Role.ADVISOR, id: 'sales-dashboard', label: 'Panel Sprzedaży', desc: 'Twoi klienci', icon: <Briefcase size={18}/> },

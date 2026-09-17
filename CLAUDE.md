@@ -16,7 +16,7 @@ npm start       # next start (production server)
 
 ```bash
 # Testy
-npm test        # vitest run — 42 pliki, 401 testów (stan 17.09.2026)
+npm test        # vitest run — 43 pliki, 404 testy (stan 17.09.2026)
 npm run test:watch
 ```
 
@@ -626,6 +626,16 @@ tylko `localStorage` — BOK pracuje z e-maili (`BOK_EMAIL`, dom. `bok@stratton-
 **schodzą z kont** (zostaje); pozycje partnerskie **zostają na „Zapytaj o ofertę"** — pracownik ma
 dodatkowo dostać telefon do BOK (slot `BOK_PHONE` = env `NEXT_PUBLIC_BOK_PHONE`, pusty = ukryty;
 numer właściciel poda 18.09); pisownia **UNIQA** (`SRV-P-UNIQA`).
+
+**Sklep jako ekran startowy (17.09.2026, spec §12):** po zalogowaniu pracownik ląduje **w sklepie**,
+nie w dawnym Pulpicie (karta salda + „Twoje Aplikacje" + kafelek) — decyzja właściciela po obejrzeniu
+produkcji. Przełącznik `EMPLOYEE_HOME: 'store' | 'wallet'` w `lib/benefits/storeLayout.ts` (flaga
+`STORE_IS_HOME`); **`'wallet'` przywraca stary Pulpit — kod obu wersji zostaje, nie usuwać.**
+`BenefitStore variant="page"` renderuje się w miejscu treści Pulpitu **wewnątrz ramki portalu**
+(nagłówek + menu boczne zostają; nakładka `variant="overlay"` tylko w trybie `'wallet'`); panel
+szczegółów i modal zakupu **zawsze przez portal do body** (kolumna `EmployeeDashboardClient` ma
+`relative z-10` i pasek boczny `z-50` zasłaniałby tło). Menu boczne bez „Twoje Aplikacje", dolny
+pasek mobile bez „Pulpit"; wyjścia z aplikacji pełnoekranowych wracają do sklepu (`goHome`).
 
 **Kolejka zgłoszeń BOK (17.09.2026, spec §11):** Sidebar ── Benefity ── „Zgłoszenia BOK" →
 `admin-zgloszenia` → `components/adminNew/AdminZgloszenia.tsx`. Dwa rodzaje: **zamówienia**

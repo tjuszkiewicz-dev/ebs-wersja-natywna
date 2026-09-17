@@ -17,13 +17,16 @@ import { useHistoryView } from '@/lib/useHistoryView';
 import { Search, Settings, Wallet, Clock, X, Menu } from 'lucide-react';
 import { EmployeeSettingsModal } from '@/components/employee/EmployeeSettingsModal';
 import { Role } from '@/types/enums';
+import { STORE_IS_HOME } from '@/lib/benefits/storeLayout';
 
 function EmployeeLayout() {
   const { state, actions } = useStrattonSystem();
   const { vouchers, buybacks, services, transactions, notifications, toasts } = state;
   const currentUser = state.currentUser;
 
-  const [currentView,          setCurrentView]        = useState('WALLET');
+  // Sklep jako ekran startowy: od pierwszego renderu menu boczne podświetla „Sklep benefitów"
+  // i wpis historii SPA wskazuje na sklep (useHistoryView zapisuje pierwszy widok replaceState).
+  const [currentView,          setCurrentView]        = useState(STORE_IS_HOME ? 'emp-catalog' : 'WALLET');
   useHistoryView(currentView, setCurrentView);
   const [isMobileSidebarOpen,  setMobileSidebarOpen]  = useState(false);
   const [isDesktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
