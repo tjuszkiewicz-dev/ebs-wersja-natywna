@@ -1,6 +1,6 @@
 'use client';
 import React from 'react';
-import { Search, X, Wallet, ShoppingBag } from 'lucide-react';
+import { Search, X, Wallet } from 'lucide-react';
 import { STORE_TITLE } from '@/lib/benefits/constants';
 
 interface Props {
@@ -8,7 +8,8 @@ interface Props {
   onQuery: (q: string) => void;
   balance: number;
   /** 'overlay' (domyślnie) — nakładka pełnoekranowa: logo + X; 'page' — sklep jako ekran startowy
-   *  wewnątrz ramki portalu: logo i X ma już nagłówek portalu, więc tu zostaje tytuł + szukajka. */
+   *  wewnątrz ramki portalu: logo i X ma nagłówek portalu, tytuł — lewa kolumna (EmployeeNav),
+   *  więc tu zostaje sama szukajka (+ saldo na mobile). */
   variant?: 'overlay' | 'page';
   onExit?: () => void;
 }
@@ -18,11 +19,7 @@ export function StoreHeader({ query, onQuery, balance, variant = 'overlay', onEx
   return (
     <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200">
       <div className="mx-auto max-w-7xl px-4 md:px-6 h-16 flex items-center gap-3 md:gap-6">
-        {page ? (
-          <h1 className="hidden md:flex items-center gap-2 font-bold text-slate-900 tracking-tight shrink-0">
-            <ShoppingBag size={20} className="text-primary-700" aria-hidden /> {STORE_TITLE}
-          </h1>
-        ) : (
+        {!page && (
           <div className="flex items-center gap-2 shrink-0">
             <img src="/ebs-black.svg" alt="EBS" className="h-6 w-auto" />
             <span className="hidden sm:inline font-bold text-slate-900 tracking-tight">{STORE_TITLE}</span>

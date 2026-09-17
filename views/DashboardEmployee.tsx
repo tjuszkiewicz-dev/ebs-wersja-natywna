@@ -278,9 +278,12 @@ export const DashboardEmployee: React.FC<Props> = ({
     );
     if (!STORE_IS_HOME) return store;
     // Sklep jako ekran startowy: strona w ramce portalu (poza siatką banerów — kolumny po 240 px
-    // ścisnęłyby siatkę kafelków na laptopach 1440 px). Dolny pasek zostaje, bo nic go nie zasłania.
+    // ścisnęłyby siatkę kafelków na laptopach 1440 px). Ujemne marginesy kasują padding <main>
+    // (p-4 / md:p-6), min-h liczone od <main> (rodzic o określonej wysokości — flex item) plus
+    // te marginesy; kolumna flex rozciąga sekcję sklepu (`flex-1`) na całą wysokość, żeby przy
+    // krótkiej liście nie prześwitywała aurora. Dolny pasek zostaje, bo nic go nie zasłania.
     return (
-      <div className="min-h-full">
+      <div className="-m-4 md:-m-6 min-h-[calc(100%+2rem)] md:min-h-[calc(100%+3rem)] flex flex-col">
         {store}
         <FloatingTabBar tabs={TABS} activeTab={activeTab as string} onSelect={selectTab} />
       </div>

@@ -18,6 +18,9 @@ import { Search, Settings, Wallet, Clock, X, Menu } from 'lucide-react';
 import { EmployeeSettingsModal } from '@/components/employee/EmployeeSettingsModal';
 import { Role } from '@/types/enums';
 import { STORE_IS_HOME } from '@/lib/benefits/storeLayout';
+import { EmployeeNav } from '@/components/employee/EmployeeNav';
+import { StoreNavContext } from '@/components/employee/store/StoreNavContext';
+import type { CategoryFilter } from '@/lib/benefits/catalog';
 
 function EmployeeLayout() {
   const { state, actions } = useStrattonSystem();
@@ -34,6 +37,12 @@ function EmployeeLayout() {
   const [isHistoryModalOpen,   setHistoryModalOpen]   = useState(false);
   const [showOrangePopup,      setShowOrangePopup]    = useState(true);
   const [isSettingsOpen,       setSettingsOpen]       = useState(false);
+  // Sklep jako ekran startowy: kategoria i szukajka żyją w powłoce, bo lewa kolumna (EmployeeNav)
+  // i siatka sklepu (DashboardEmployee → BenefitStore) muszą je współdzielić.
+  const [storeCategory,        setStoreCategory]      = useState<CategoryFilter>('ALL');
+  const [storeQuery,           setStoreQuery]         = useState('');
+  const storeNav = STORE_IS_HOME ? { category: storeCategory, setCategory: setStoreCategory, query: storeQuery, setQuery: setStoreQuery } : null;
+  const goHome = () => setCurrentView('emp-catalog');
 
   const closeOrangePopup = () => {
     setShowOrangePopup(false);
@@ -108,19 +117,37 @@ function EmployeeLayout() {
         onLogout={handleLogout}
       />
 
-      {/* SIDEBAR — superadmin/owner ogląda portal w trybie podglądu: menu pracownika,
-          nie administratora (pozycje admina nie działają w tym layoucie). */}
-      <Sidebar
-        currentUser={currentUser.role === Role.EMPLOYEE ? currentUser : { ...currentUser, role: Role.EMPLOYEE }}
-        currentView={currentView}
-        onChangeView={setCurrentView}
-        isOpen={isMobileSidebarOpen}
-        onClose={() => setMobileSidebarOpen(false)}
-        onToggleDesktop={() => setDesktopSidebarOpen(prev => !prev)}
-        isDesktopOpen={isDesktopSidebarOpen}
-        onSwitchUser={handleLogout}
-        isLogout={true}
-      />
+      {/* LEWA KOLUMNA. Sklep jako ekran startowy (STORE_IS_HOME): kolumna kategorii + saldo sklepu
+          zastępuje ciemne zwijane menu (decyzja właściciela 17.09.2026, spec §12) — kategorie
+          przełączają siatkę i wracają do sklepu z innych ekranów. W trybie 'wallet': dawny Sidebar;
+          superadmin/owner ogląda portal w trybie podglądu (menu pracownika, nie administratora). */}
+      {STORE_IS_HOME ? (
+        <EmployeeNav
+          services={services}
+          balance={currentUser.voucherBalance ?? 0}
+          category={storeCategory}
+          query={storeQuery}
+          onCategory={(c) => {
+            setStoreCategory(c);
+            setCurrentView('emp-catalog');
+            document.getElementById('main-scroll-container')?.scrollTo({ top: 0 });
+          }}
+          currentView={currentView}
+          onChangeView={setCurrentView}
+        />
+      ) : (
+        <Sidebar
+          currentUser={currentUser.role === Role.EMPLOYEE ? currentUser : { ...currentUser, role: Role.EMPLOYEE }}
+          currentView={currentView}
+          onChangeView={setCurrentView}
+          isOpen={isMobileSidebarOpen}
+          onClose={() => setMobileSidebarOpen(false)}
+          onToggleDesktop={() => setDesktopSidebarOpen(prev => !prev)}
+          isDesktopOpen={isDesktopSidebarOpen}
+          onSwitchUser={handleLogout}
+          isLogout={true}
+        />
+      )}
 
       {/* PRAWA KOLUMNA */}
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative z-10 transition-all duration-300">
@@ -130,20 +157,25 @@ function EmployeeLayout() {
 
           {/* LEFT */}
           <div className="flex-1 flex items-center gap-4">
-            {/* Hamburger — mobile only */}
+            {/* Hamburger — mobile, tylko z dawnym menu bocznym; przy sklepie jako starcie kategorie są
+                chipsami, a resztę obsługuje dolny pasek, więc szuflady nie ma. */}
+            {!STORE_IS_HOME && (
+              <button
+                onClick={() => setMobileSidebarOpen(true)}
+                className="md:hidden p-2 rounded-lg transition flex items-center justify-center hover:bg-white/10 text-white"
+                aria-label="Menu"
+              >
+                <Menu size={24} />
+              </button>
+            )}
+            {/* EBS logo — desktop (przy sklepie jako starcie także mobile, w miejscu hamburgera):
+                z dawnym menu zwija pasek, ze sklepem wraca na ekran startowy. */}
             <button
-              onClick={() => setMobileSidebarOpen(true)}
-              className="md:hidden p-2 rounded-lg transition flex items-center justify-center hover:bg-white/10 text-white"
-              aria-label="Menu"
+              onClick={() => (STORE_IS_HOME ? goHome() : setDesktopSidebarOpen(prev => !prev))}
+              aria-label={STORE_IS_HOME ? 'Sklep benefitów' : 'Zwiń lub rozwiń menu boczne'}
+              className={`${STORE_IS_HOME ? 'flex' : 'hidden md:flex'} self-stretch -ml-1 px-2 rounded-lg transition items-center justify-center overflow-visible hover:bg-white/10`}
             >
-              <Menu size={24} />
-            </button>
-            {/* EBS logo — desktop only */}
-            <button
-              onClick={() => setDesktopSidebarOpen(prev => !prev)}
-              className="hidden md:flex self-stretch -ml-1 px-2 rounded-lg transition items-center justify-center overflow-visible hover:bg-white/10"
-            >
-              <img src="/ebs-black.svg" alt="EBS" style={{ height: 62, width: 'auto', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }}
+              <img src="/ebs-black.svg" alt="EBS" className="h-9 md:h-[62px]" style={{ width: 'auto', objectFit: 'contain', display: 'block', filter: 'brightness(0) invert(1)' }}
               />
             </button>
             <div className="hidden sm:block">
@@ -204,10 +236,13 @@ function EmployeeLayout() {
               <Settings size={20} />
             </button>
 
+            {/* Wylogowanie: przy sklepie jako starcie widoczne też na mobile (bez szuflady menu nie
+                byłoby go nigdzie — w dawnym menu zresztą też go nie było). */}
             <button
               onClick={handleLogout}
-              className="hidden md:flex items-center gap-3 pl-3 pr-2 py-1.5 rounded-full border transition group border-white/10 bg-white/5 hover:border-red-500/40 hover:bg-red-500/10"
+              className={`${STORE_IS_HOME ? 'flex' : 'hidden md:flex'} items-center gap-3 pl-3 pr-2 py-1.5 rounded-full border transition group border-white/10 bg-white/5 hover:border-red-500/40 hover:bg-red-500/10`}
               title="Wyloguj się"
+              aria-label="Wyloguj się"
             >
               <div className="text-right hidden lg:block">
                 <p className="text-xs font-bold text-white/70 group-hover:text-red-400">{currentUser.name}</p>
@@ -223,17 +258,19 @@ function EmployeeLayout() {
 
         {/* MAIN */}
         <main id="main-scroll-container" className="flex-1 overflow-y-auto relative scroll-smooth p-4 md:p-6 main-zoom">
-          <DashboardEmployee
-            currentView={currentView}
-            user={currentUser}
-            vouchers={myVouchers}
-            buybacks={myBuybacks}
-            services={services}
-            transactions={myTransactions}
-            onViewChange={setCurrentView}
-            onPurchaseService={actions.handleServicePurchase}
-            onViewAgreement={() => {}}
-          />
+          <StoreNavContext.Provider value={storeNav}>
+            <DashboardEmployee
+              currentView={currentView}
+              user={currentUser}
+              vouchers={myVouchers}
+              buybacks={myBuybacks}
+              services={services}
+              transactions={myTransactions}
+              onViewChange={setCurrentView}
+              onPurchaseService={actions.handleServicePurchase}
+              onViewAgreement={() => {}}
+            />
+          </StoreNavContext.Provider>
         </main>
       </div>
 

@@ -634,8 +634,15 @@ produkcji. Przełącznik `EMPLOYEE_HOME: 'store' | 'wallet'` w `lib/benefits/sto
 `BenefitStore variant="page"` renderuje się w miejscu treści Pulpitu **wewnątrz ramki portalu**
 (nagłówek + menu boczne zostają; nakładka `variant="overlay"` tylko w trybie `'wallet'`); panel
 szczegółów i modal zakupu **zawsze przez portal do body** (kolumna `EmployeeDashboardClient` ma
-`relative z-10` i pasek boczny `z-50` zasłaniałby tło). Menu boczne bez „Twoje Aplikacje", dolny
-pasek mobile bez „Pulpit"; wyjścia z aplikacji pełnoekranowych wracają do sklepu (`goHome`).
+`relative z-10` i pasek boczny `z-50` zasłaniałby tło). Dolny pasek mobile bez „Pulpit"; wyjścia
+z aplikacji pełnoekranowych wracają do sklepu (`goHome`).
+**Lewa kolumna (spec §12.1, decyzja właściciela 17.09 po południu): ciemne zwijane `Sidebar` NIE jest
+renderowane w tym trybie** — zastępuje je `components/employee/EmployeeNav.tsx` (biała kolumna w stylu
+sklepu: kategorie z licznikami, karta salda, Aktywne usługi / Historia / Centrum Pomocy). Kategoria
+i szukajka żyją w `StoreNavContext` (provider w `EmployeeDashboardClient`), `BenefitStore variant="page"`
+czyta je z kontekstu i nie ma własnej kolumny. Nagłówek: bez hamburgera, logo wraca do sklepu,
+wylogowanie widoczne też na mobile. `Sidebar` (z pozycją „Twoje Aplikacje" wyciętą przy `STORE_IS_HOME`)
+zostaje dla trybu `'wallet'`.
 
 **Kolejka zgłoszeń BOK (17.09.2026, spec §11):** Sidebar ── Benefity ── „Zgłoszenia BOK" →
 `admin-zgloszenia` → `components/adminNew/AdminZgloszenia.tsx`. Dwa rodzaje: **zamówienia**

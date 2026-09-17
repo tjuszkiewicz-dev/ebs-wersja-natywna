@@ -46,6 +46,7 @@ import { StoreHeader } from './StoreHeader';
 import { StoreCategories } from './StoreCategories';
 import { StoreGrid } from './StoreGrid';
 import { StoreDetail } from './StoreDetail';
+import { useStoreNav } from './StoreNavContext';
 
 export interface BenefitStoreProps {
   services: ServiceItem[];
@@ -59,16 +60,25 @@ export interface BenefitStoreProps {
   /**
    * 'overlay' (domyślnie) — pełnoekranowa nakładka przez portal (tryb z dawnym Pulpitem, `onExit` = X).
    * 'page' — sklep jako ekran startowy pracownika (STORE_IS_HOME): renderowany w miejscu treści
-   * Pulpitu, wewnątrz ramki portalu (nagłówek + menu boczne zostają), bez logo i X. Panel
-   * szczegółów nadal idzie przez portal — patrz komentarz przy `detail` niżej.
+   * Pulpitu, wewnątrz ramki portalu (czarny nagłówek + lewa kolumna EmployeeNav z kategoriami
+   * i saldem), bez logo, X i własnej kolumny kategorii. Panel szczegółów nadal idzie przez
+   * portal — patrz komentarz przy `detail` niżej.
    */
   variant?: 'overlay' | 'page';
   onExit?: () => void;
 }
 
 export function BenefitStore({ services, transactions, balance, userEmail, canTransact, initialCategory, onPurchase, onOpenApp, variant = 'overlay', onExit }: BenefitStoreProps) {
-  const [category, setCategory] = useState<CategoryFilter>(initialCategory ?? 'ALL');
-  const [query, setQuery] = useState('');
+  // Kategoria i szukajka: w trybie ekranu startowego trzyma je powłoka portalu (StoreNavContext —
+  // lewa kolumna EmployeeNav pokazuje kategorie z licznikami i musi je współdzielić z siatką);
+  // w nakładce, gdzie kolumna kategorii jest częścią sklepu, stan jest lokalny.
+  const nav = useStoreNav();
+  const [localCategory, setLocalCategory] = useState<CategoryFilter>(initialCategory ?? 'ALL');
+  const [localQuery, setLocalQuery] = useState('');
+  const category = nav ? nav.category : localCategory;
+  const setCategory = nav ? nav.setCategory : setLocalCategory;
+  const query = nav ? nav.query : localQuery;
+  const setQuery = nav ? nav.setQuery : setLocalQuery;
   const [selected, setSelected] = useState<ServiceItem | null>(null);
   const reduceMotion = useReducedMotion();
 
@@ -105,7 +115,11 @@ export function BenefitStore({ services, transactions, balance, userEmail, canTr
         <StoreCategories variant="chips" value={category} counts={counts} onChange={setCategory} balance={balance} />
       </div>
       <div className={`mx-auto max-w-7xl px-4 md:px-6 py-6 flex gap-8 ${variant === 'page' ? 'pb-28 md:pb-6' : ''}`}>
-        <StoreCategories variant="sidebar" value={category} counts={counts} onChange={setCategory} balance={balance} />
+        {/* Na ekranie startowym kolumna kategorii + saldo jest lewą kolumną całego portalu (EmployeeNav),
+            więc sklep jej nie dubluje; w nakładce jest częścią sklepu. Chipsy (mobile) zostają w obu. */}
+        {variant !== 'page' && (
+          <StoreCategories variant="sidebar" value={category} counts={counts} onChange={setCategory} balance={balance} />
+        )}
         <Content className="flex-1 min-w-0">
           <StoreGrid groups={groups} ownedIds={ownedIds} balance={balance} onSelect={setSelected} query={query} onClearQuery={() => setQuery('')} />
         </Content>
@@ -124,17 +138,18 @@ export function BenefitStore({ services, transactions, balance, userEmail, canTr
   );
 
   if (variant === 'page') {
-    // Ekran startowy: sekcja w miejscu treści Pulpitu. Ujemne marginesy kasują padding <main>
-    // (p-4 / md:p-6), żeby jasne tło sklepu dochodziło do nagłówka i menu bocznego — klasyczna
-    // ramka „ciemny chrome, jasna treść"; min-h dopełnia wysokość <main>, gdy kategoria ma
-    // kilka pozycji. Panel szczegółów (fixed, z-110/120) MUSI iść przez portal do body: prawa
-    // kolumna EmployeeDashboardClient ma własny kontekst warstwowania (relative z-10), w którym
-    // pasek boczny (z-50) przykrywałby tło panelu i modal zakupu — ta sama pułapka, którą
-    // 16.09 naprawiono portalem dla całej nakładki.
+    // Ekran startowy: sekcja w miejscu treści Pulpitu. Wysokość (dopełnienie <main>, gdy kategoria
+    // ma kilka pozycji albo szukajka nic nie znajdzie) daje rodzic w DashboardEmployee: kolumna
+    // flex z ujemnymi marginesami kasującymi padding <main> i `min-h` liczonym od <main>; tu tylko
+    // `flex-1`. Procentowe `min-h` NA TEJ sekcji nie działało — jej rodzic ma wysokość auto, więc
+    // procent rozwiązywał się do zera (zauważone 17.09 na pustym wyniku szukania na mobile).
+    // Panel szczegółów (fixed, z-110/120) MUSI iść przez portal do body: prawa kolumna
+    // EmployeeDashboardClient ma własny kontekst warstwowania (relative z-10), w którym pasek
+    // boczny (z-50) przykrywałby tło panelu i modal zakupu — ta sama pułapka, którą 16.09
+    // naprawiono portalem dla całej nakładki.
     return (
       <>
-        <motion.section {...fade} aria-label="Sklep benefitów"
-          className="-m-4 md:-m-6 min-h-[calc(100%+2rem)] md:min-h-[calc(100%+3rem)] bg-slate-50 text-slate-900">
+        <motion.section {...fade} aria-label="Sklep benefitów" className="flex-1 bg-slate-50 text-slate-900">
           {body}
         </motion.section>
         {createPortal(detail, document.body)}

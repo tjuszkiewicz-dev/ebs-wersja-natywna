@@ -487,3 +487,33 @@ w parze z `'v1'` (sklep nie istnieje w v1). Kod Pulpitu v2 (`renderWallet`) i v1
 **Świadomie odłożone:** filtr „Aplikacje Eliton" w kolumnie kategorii (namiastka dawnej sekcji „Twoje
 Aplikacje"); karta salda/statystyki jako element sklepu (dziś saldo jest w nagłówku, kolumnie kategorii
 i pasku mobile); brak salda na mobile w wariancie `overlay` (stan sprzed tej zmiany).
+
+### 12.1 Lewa kolumna sklepu zamiast zwijanego menu (17.09.2026, po południu)
+
+**Decyzja właściciela** (szkic na screenshocie produkcji: przekreślone ciemne menu, strzałka od kolumny
+kategorii sklepu w jego miejsce): *„zastąp zwijane menu nowym layoutem"*.
+
+- `components/employee/EmployeeNav.tsx` — nowa lewa kolumna portalu (tylko `md+`, `w-72`, biała,
+  tokeny 1:1 ze sklepu): nagłówek „Sklep benefitów / Eliton Benefits" (wysokość = czarny nagłówek),
+  **Kategorie** z licznikami (`CategoryList` — ten sam komponent co w nakładce), **karta „Twoje saldo"**
+  (`BalanceCard`), **Twoje konto**: Aktywne usługi · Historia · Centrum Pomocy, stopka z wersją.
+  Renderowana przez `EmployeeDashboardClient` w miejscu `<Sidebar>` gdy `STORE_IS_HOME`; `Sidebar`
+  zostaje dla trybu `'wallet'`. Kliknięcie kategorii z innego ekranu (np. Historii) wraca do sklepu
+  z tą kategorią i przewija `<main>` na górę; kategoria nie świeci, gdy siatki nie ma na ekranie.
+- **Stan kategorii i szukajki wyniesiony do powłoki** (`StoreNavContext`, provider w
+  `EmployeeDashboardClient`): kolumna i siatka muszą go współdzielić. `BenefitStore` w wariancie
+  `page` czyta kontekst i **nie renderuje własnej kolumny kategorii**; w nakładce (`overlay`) stan
+  jest lokalny, kolumna jak dotąd. Pasek narzędzi sklepu w wariancie `page` = sama szukajka
+  (+ saldo poniżej `md`); tytuł jest w kolumnie.
+- **Nagłówek portalu:** hamburger zniknął (na mobile kategorie są chipsami, resztę daje dolny pasek);
+  logo EBS widoczne na każdej szerokości i wraca do sklepu; **wylogowanie widoczne także na mobile**
+  (w dawnym menu nie było go wcale — pracownik na telefonie nie miał jak się wylogować; luka
+  sprzed sklepu). Zwijanie paska (`isDesktopSidebarOpen`) dotyczy tylko trybu `'wallet'`.
+- **Wysokość strony sklepu:** procentowe `min-h` na sekcji sklepu nie działało (rodzic o wysokości
+  auto → 0) — przy pustym wyniku szukania prześwitywała aurora. Rodzic w `DashboardEmployee`
+  (bezpośrednie dziecko `<main>`) ma teraz `min-h-[calc(100%+…)]` + `flex flex-col`, a sekcja
+  `flex-1`.
+
+**Świadomie odłożone:** ekrany Historia / Centrum Pomocy / Aktywne usługi nadal są ciemne (aurora +
+sloty banerów) obok jasnej kolumny — ujednolicenie do stylu sklepu to osobne zadanie (backlog w vaulcie,
+`EBS-Backlog`); „Wyloguj" i „Ustawienia" w kolumnie (dziś tylko w nagłówku).
