@@ -657,7 +657,10 @@ renderowane w tym trybie** — zastępuje je `components/employee/EmployeeNav.ts
 sklepu: kategorie z licznikami, karta salda, Aktywne usługi / Historia / Centrum Pomocy). Kategoria
 i szukajka żyją w `StoreNavContext` (provider w `EmployeeDashboardClient`), `BenefitStore variant="page"`
 czyta je z kontekstu i nie ma własnej kolumny. Nagłówek: bez hamburgera, logo wraca do sklepu,
-wylogowanie widoczne też na mobile. `Sidebar` (z pozycją „Twoje Aplikacje" wyciętą przy `STORE_IS_HOME`)
+wylogowanie widoczne też na mobile. **Jedna szukajka (18.09.2026, „były dwa pola"):** od `md` w górę pole
+w nagłówku portalu jest zwykłym `<input>` spiętym ze `storeQuery` (filtruje katalog na żywo i przełącza na
+`emp-catalog`), a `StoreHeader` w wariancie `page` ma `md:hidden` — na mobile zostaje tylko pasek sklepu
+(pole + saldo). Paleta `GlobalSearch` dalej otwiera się skrótem Ctrl+K, bez widocznego przycisku. `Sidebar` (z pozycją „Twoje Aplikacje" wyciętą przy `STORE_IS_HOME`)
 zostaje dla trybu `'wallet'`.
 
 **Kolejka zgłoszeń BOK (17.09.2026, spec §11):** Sidebar ── Benefity ── „Zgłoszenia BOK" →

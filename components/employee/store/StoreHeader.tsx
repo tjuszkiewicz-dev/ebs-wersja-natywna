@@ -17,7 +17,9 @@ interface Props {
 export function StoreHeader({ query, onQuery, balance, variant = 'overlay', onExit }: Props) {
   const page = variant === 'page';
   return (
-    <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200">
+    // Wariant 'page': od md w górę szukajkę ma nagłówek portalu (jedno pole), więc pasek sklepu
+    // zostaje tylko na mobile (pole + saldo).
+    <header className={`sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200 ${page ? 'md:hidden' : ''}`}>
       <div className="mx-auto max-w-7xl px-4 md:px-6 h-16 flex items-center gap-3 md:gap-6">
         {!page && (
           <div className="flex items-center gap-2 shrink-0">

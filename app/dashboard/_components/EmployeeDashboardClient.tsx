@@ -186,16 +186,36 @@ function EmployeeLayout() {
             </div>
           </div>
 
-          {/* CENTER: wyszukiwarka */}
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-xs cursor-pointer transition w-96 bg-white/20 border border-white/30 text-white/70 hover:bg-white/25"
-            title="Szukaj (Ctrl+K)"
-          >
-            <Search size={14} />
-            <span className="flex-1 text-left">Szukaj...</span>
-            <span className="px-1.5 rounded text-[10px] border bg-white/15 border-white/30 text-white/60">Ctrl+K</span>
-          </button>
+          {/* CENTER: wyszukiwarka. Sklep jako ekran startowy: JEDNO pole — szukajka nagłówka filtruje
+              katalog na żywo (to samo `storeQuery`, które czyta BenefitStore przez StoreNavContext), a pasek
+              sklepu na desktopie nie ma już własnego pola (decyzja właściciela 18.09.2026: „były dwa").
+              Paleta Ctrl+K zostaje pod skrótem, bez widocznej drugiej szukajki. */}
+          {STORE_IS_HOME ? (
+            <label className="hidden md:flex items-center gap-2 px-4 h-10 rounded-xl text-sm w-96 bg-white/20 border border-white/30 text-white transition focus-within:bg-white/25 focus-within:border-white/50">
+              <Search size={14} className="shrink-0 text-white/70" aria-hidden />
+              <input
+                type="search"
+                value={storeQuery}
+                onChange={(e) => {
+                  setStoreQuery(e.target.value);
+                  if (currentView !== 'emp-catalog') setCurrentView('emp-catalog');
+                }}
+                placeholder="Szukaj benefitu…"
+                aria-label="Szukaj benefitu"
+                className="flex-1 min-w-0 bg-transparent text-sm text-white placeholder:text-white/60 focus:outline-none"
+              />
+            </label>
+          ) : (
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl text-xs cursor-pointer transition w-96 bg-white/20 border border-white/30 text-white/70 hover:bg-white/25"
+              title="Szukaj (Ctrl+K)"
+            >
+              <Search size={14} />
+              <span className="flex-1 text-left">Szukaj...</span>
+              <span className="px-1.5 rounded text-[10px] border bg-white/15 border-white/30 text-white/60">Ctrl+K</span>
+            </button>
+          )}
 
           {/* RIGHT */}
           <div className="flex-1 flex items-center gap-3 justify-end">
