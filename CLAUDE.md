@@ -54,7 +54,10 @@ Supabase SSR (`@supabase/ssr`) + cookie-based sessions.
   `bg-white/[0.03] border-white/[0.08]`, nagłówki `tracking-[-0.04em]`, eyebrow `#4ade80 tracking-[0.2em]`, gradient
   ostatniej linii H1 `from-green-400 via-emerald-300 to-teal-300` (świadomy wyjątek `gradient-text` w
   `.impeccable/config.json`), easing `ease-ebs` (`tailwind.config.js`). Login: kolumna brandowa (H1 = claim ze strony,
-  liczby `5 000+/15+/100%` z hero strony — **nie wymyślać własnych**) + karta z formularzem; „Nie pamiętam hasła"
+  liczby `5 000+/15+/100%` z hero strony — **nie wymyślać własnych**; **od 18.09.2026 ZAKAZ zdania o „+4% ekstra
+  co roku"** — właściciel: nie ma żadnego dodatkowego wynagrodzenia, EBS to benefity wybierane przez firmę dla
+  pracowników; strona marketingowa ma to dopiero usunąć — osobny projekt, patrz pamięć
+  `strona-marketingowa-elitonbenefits`) + karta z formularzem; „Nie pamiętam hasła"
   przełącza tę samą kartę w tryb odzyskiwania. Panel „LOG DIAGNOSTYCZNY" z ekranu **usunięty** — kroki logowania
   nadal lecą do konsoli jako `[EBS-LOGIN]`. `reset-password` używa tej samej powłoki (wcześniej wołał nieistniejącą
   klasę `ebs-btn` i przycisk był bez tła). `components/ui/MagicRings.*` (stare neonowe półokręgi) **usunięte**.

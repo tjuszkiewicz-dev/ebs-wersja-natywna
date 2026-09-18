@@ -181,8 +181,8 @@ export default function LoginPage() {
         className="mt-5 hidden max-w-[460px] text-[15px] leading-relaxed text-white/60 animate-rise motion-reduce:animate-none sm:block sm:text-[17px]"
         style={{ animationDelay: '120ms' }}
       >
-        Każdy voucher to 1 zł + 4% ekstra co roku. Zaloguj się, żeby zarządzać
-        voucherami i korzystać z usług partnerów.
+        Benefity, które Twoja firma wybrała dla Ciebie — w jednym miejscu.
+        Zaloguj się, żeby zarządzać voucherami i korzystać z usług partnerów.
       </p>
       <dl
         className="mt-10 hidden max-w-[520px] grid-cols-3 gap-6 sm:grid animate-rise motion-reduce:animate-none"
