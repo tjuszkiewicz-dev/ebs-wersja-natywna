@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getAuthUser } from '@/lib/apiAuth';
+import { meldujZuzycie } from '@/lib/anthropic';
+
+/** Meldunek Gemini do tablicy zużycia Huba (tokeny z usageMetadata). */
+const zmelduj = (funkcja: string, u?: { promptTokenCount?: number; candidatesTokenCount?: number }) =>
+    meldujZuzycie({ dostawca: 'gemini', funkcja, model: 'gemini-1.5-flash', we: u?.promptTokenCount ?? 0, wy: u?.candidatesTokenCount ?? 0 });
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -37,6 +42,7 @@ export async function POST(req: NextRequest) {
             prompt,
             { inlineData: { data: fileData.base64, mimeType: fileData.mimeType } },
         ]);
+        zmelduj('analiza-pliku', result.response.usageMetadata);
         return NextResponse.json({ text: result.response.text() });
     }
 
@@ -49,5 +55,6 @@ export async function POST(req: NextRequest) {
 
     const chat = model.startChat({ history });
     const result = await chat.sendMessage(lastMessage);
+    zmelduj('czat-gemini', result.response.usageMetadata);
     return NextResponse.json({ text: result.response.text() });
 }

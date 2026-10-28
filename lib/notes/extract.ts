@@ -78,7 +78,7 @@ ZAPIS:
 ${text.slice(0, 40000)}
 """`;
 
-  const resp = await getAnthropic().messages.create({
+  const resp = await getAnthropic('notatki').messages.create({
     model: AI_MODEL,
     max_tokens: 3000,
     messages: [{ role: 'user', content: prompt }],
